@@ -5,6 +5,7 @@
 // (2) the stock APROM->LDROM request on handshake page 0x3F800 for bootloader_jump().
 // Every ISP command is checked against those two targets; LDROM/CONFIG update enables (LDUEN/CFGUEN) are never set.
 #include "quantum.h"
+#include "hardware_id.h"
 #include "wear_leveling.h"
 #include "wear_leveling_internal.h"
 
@@ -81,9 +82,36 @@ void bootloader_jump(void) {
     NVIC_SystemReset();
 }
 
+// UID is only readable via ISP; cached before USB starts, as the serial descriptor is built in the USB IRQ.
+#define ISP_READ_UID 0x04u
+static hardware_id_t uid;
+
+static void read_uid(void) {
+    UNLOCKREG();
+    uint32_t ctl = FMC->ISPCTL;
+    FMC->ISPCTL  = ctl | FMC_ISPCTL_ISPEN_Msk;
+    for (uint32_t i = 0; i < 3; i++) {
+        FMC->ISPCMD  = ISP_READ_UID;
+        FMC->ISPADDR = i * 4;
+        FMC->ISPDAT  = 0;
+        FMC->ISPTRG  = FMC_ISPTRG_ISPGO_Msk;
+        __ISB();
+        while (FMC->ISPTRG & FMC_ISPTRG_ISPGO_Msk) {
+        }
+        uid.data[i] = FMC->ISPDAT;
+    }
+    FMC->ISPCTL = ctl;
+    LOCKREG();
+}
+
+hardware_id_t get_hardware_id(void) {
+    return uid;
+}
+
 // Back in APROM with our request still on the page (LDROM didn't consume it): clear it, so a later power-up
 // can't land in ISP mode with no flasher running.
 void keyboard_pre_init_kb(void) {
+    read_uid();
     if (*(volatile uint32_t *)LDROM_REQ_ADDR == LDROM_REQ_MAGIC) {
         UNLOCKREG();
         FMC->ISPCTL |= FMC_ISPCTL_ISPEN_Msk;
