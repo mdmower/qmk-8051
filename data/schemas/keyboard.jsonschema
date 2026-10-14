@@ -251,6 +251,7 @@
                 "atmel-dfu",
                 "bootloadhid",
                 "caterina",
+                "ch55xbl",
                 "custom",
                 "gd32v-dfu",
                 "halfkay",
