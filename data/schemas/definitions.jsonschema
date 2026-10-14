@@ -151,6 +151,10 @@
                 "type": "string",
                 "pattern": "^GP\\d{1,2}$"
             },
+            {
+                "type": "string",
+                "pattern": "^PORT\\d_\\d$"
+            },
             {"type": "integer"},
             {"type": "null"}
         ]

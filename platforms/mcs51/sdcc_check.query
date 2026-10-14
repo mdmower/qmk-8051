@@ -1,0 +1,20 @@
+# clang-query matchers for constructs that SDCC 4.6.0 compiles to wrong code without a diagnostic (sdcc_cc.py runs
+# them on every file; a match stops the build). Each one was confirmed by running SDCC's code in s51.
+set output diag
+set bind-root false
+set traversal AsIs
+# A struct or union return of anything but a variable: the callee returns the address of a value of its own and
+# never writes the caller's result buffer (`return f();`, `return *p;`, `return a[i];`, `return (T){1, 2};`).
+match returnStmt(hasReturnValue(expr(hasType(hasUnqualifiedDesugaredType(recordType())), unless(ignoringParenImpCasts(declRefExpr(to(varDecl()))))).bind("sdcc-struct-return")))
+# One struct or union variable returned by two return statements of a function: the second return copies the
+# value from one byte before the variable.
+match functionDecl(returns(hasUnqualifiedDesugaredType(recordType())), hasDescendant(returnStmt(hasReturnValue(ignoringParenImpCasts(declRefExpr(to(varDecl().bind("v")))))).bind("first")), hasDescendant(returnStmt(unless(equalsBoundNode("first")), hasReturnValue(ignoringParenImpCasts(declRefExpr(to(varDecl(equalsBoundNode("v"))))))).bind("sdcc-struct-return-twice")))
+# A struct-valued ?: with a call operand: the selected result is copied through a code-space pointer.
+match conditionalOperator(hasType(hasUnqualifiedDesugaredType(recordType())), anyOf(hasTrueExpression(ignoringParenImpCasts(callExpr())), hasFalseExpression(ignoringParenImpCasts(callExpr())))).bind("sdcc-struct-conditional")
+# The address of a compound literal at file scope: the literal is placed in code memory, a write through the
+# pointer never returns (__gptrput).
+match unaryOperator(hasOperatorName("&"), hasUnaryOperand(ignoringParens(compoundLiteralExpr())), hasAncestor(varDecl(hasGlobalStorage())), unless(hasAncestor(unaryExprOrTypeTraitExpr()))).bind("sdcc-static-compound-literal")
+match implicitCastExpr(hasCastKind("CK_ArrayToPointerDecay"), hasSourceExpression(ignoringParens(compoundLiteralExpr())), hasAncestor(varDecl(hasGlobalStorage())), unless(hasAncestor(unaryExprOrTypeTraitExpr()))).bind("sdcc-static-compound-literal")
+# A designated initializer that reaches a member of an anonymous struct or union (clang's implicit field): SDCC
+# stores wrong values (QMK's keymap_config_t initializer left NKRO off). A positional `{0}` is not affected.
+match initListExpr(hasType(hasUnqualifiedDesugaredType(recordType(hasDeclaration(recordDecl(hasParent(recordDecl(has(fieldDecl(isImplicit()))))))))), hasParent(initListExpr(hasSyntacticForm(initListExpr(has(designatedInitExpr())))))).bind("sdcc-anonymous-member-init")
