@@ -97,7 +97,7 @@
 
 extern volatile UINT8  D0SetupReqCode;											/* USB Setup package request code */
 extern volatile UINT16 D0SetupLen;												/* USB Setup packet length */
-extern volatile PUINT8C pD0Descr;  /* points into __code Flash */
+extern const UINT8 * volatile pD0Descr;
 extern volatile UINT8  D0UsbConfig;												/* USB configuration flags */
 
 extern volatile UINT8  USB_EnumStatus;											/* USB enumeration status */	

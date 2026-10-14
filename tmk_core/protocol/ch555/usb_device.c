@@ -16,29 +16,11 @@
 #include "report.h"
 #include "mcs51_isr.h"
 
-/* Descriptors (tmk_core/protocol/usb_descriptor.c); the length of a report descriptor is in its interface's HID
- * descriptor. */
-extern const USB_Descriptor_Device_t PROGMEM        DeviceDescriptor;
-extern const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor;
-extern const USB_Descriptor_String_t PROGMEM        LanguageString;
-extern const USB_Descriptor_String_t PROGMEM        ManufacturerString;
-extern const USB_Descriptor_String_t PROGMEM        ProductString;
-#ifdef SERIAL_NUMBER
-extern const USB_Descriptor_String_t PROGMEM SerialNumberString;
-#endif
-extern const USB_Descriptor_HIDReport_Datatype_t PROGMEM KeyboardReport[];
-#ifdef SHARED_EP_ENABLE
-extern const USB_Descriptor_HIDReport_Datatype_t PROGMEM SharedReport[];
-#endif
-#ifdef RAW_ENABLE
-extern const USB_Descriptor_HIDReport_Datatype_t PROGMEM RawReport[];
-#endif
-
 /******************************************************************************/
 /* constant variable definition */
 volatile UINT8	D0SetupReqCode = 0xFF;											/* USB Setup package request code */
 volatile UINT16	D0SetupLen = 0x00;												/* USB Setup packet length */
-volatile PUINT8C	pD0Descr;   /* points into __code Flash — MUST be PUINT8C on SDCC/8051 */
+const UINT8 * volatile pD0Descr;   /* rest of the descriptor being sent: code memory, or xdata for the chip-ID serial number */
 
 volatile UINT8  D0UsbConfig = 0x00;												/* USB configuration flags - the Configuation Id selected */
 volatile UINT8  Report_Value = 0x01;                                            /* HID protocol of interface 0 (SET_PROTOCOL): 0 boot, 1 report (the default, HID 1.11 7.2.6) */
@@ -68,8 +50,7 @@ volatile UINT8  ep4_data_wait   = 0x00;											/* endpoint 4 data waiting fla
 /* String descriptor 3 (serial number), in xdata: the chip ID as SERIAL_NUMBER_LENGTH hex digits
  * (tmk_core/protocol/usb_descriptor.c, ch555.mk). Built in USB_Device_Init(), not in the USB interrupt: reading
  * the chip ID writes the flash-ROM address registers, which a data flash write in the main loop also uses. */
-extern uint8_t SerialNumberString[];
-void           set_serial_number_descriptor(void);
+void set_serial_number_descriptor(void);
 #endif
 
 void USB_EP_init( void )  
@@ -265,7 +246,7 @@ USB_DevIntNext:
 			{
 				case USB_GET_DESCRIPTOR:
 				{
-					/* next chunk of the descriptor; pD0Descr points into code memory */
+					/* next chunk of the descriptor */
 					UINT8 i;
 					len = D0SetupLen >= DEF_ENDP0_SIZE ? DEF_ENDP0_SIZE : D0SetupLen;
 					for( i = 0; i < len; i++ ) {
@@ -434,129 +415,15 @@ USB_DevIntNext:
 						switch( D0SetupReqCode ) 
 						{  
 							case USB_GET_DESCRIPTOR:            
-								// Get usb descriptor 
-								
-								switch( pD0_SETUP_REQ->wValueH )
+								// Get usb descriptor (tmk_core/protocol/usb_descriptor.c); none: STALL
 								{
-									case USB_DESCR_TYP_DEVICE:  
-										// USB device descriptor 
-										pD0Descr = (PUINT8C)( &DeviceDescriptor );
-										len = sizeof( USB_Descriptor_Device_t );
-										break;
-										
-									case USB_DESCR_TYP_CONFIG:  
-										// USB configuration descriptor 
-										pD0Descr = (PUINT8C)( &ConfigurationDescriptor );
-										len = sizeof( USB_Descriptor_Configuration_t );
-										break;
-										
-									case USB_DESCR_TYP_STRING:  
-										// USB string descriptor 
-										switch( pD0_SETUP_REQ->wValueL ) 
-										{
-											case 1:
-												pD0Descr = (PUINT8C)( &ManufacturerString );
-												len = ManufacturerString.Header.Size;
-												break;
-																			
-											case 2:
-												pD0Descr = (PUINT8C)( &ProductString );
-												len = ProductString.Header.Size;
-												break;
-												
-											case 0:
-												pD0Descr = (PUINT8C)( &LanguageString );
-												len = LanguageString.Header.Size;
-												break;
-											#if defined(SERIAL_NUMBER)
-											case 3:
-												pD0Descr = (PUINT8C)( &SerialNumberString );
-												len = SerialNumberString.Header.Size;
-												break;
-											#elif defined(SERIAL_NUMBER_USE_HARDWARE_ID)
-											case 3:
-												pD0Descr = (PUINT8C)0;	/* SerialNumberString (xdata), copied below */
-												len = ((USB_Descriptor_Header_t *)SerialNumberString)->Size;
-												break;
-											#endif
-												
-											default:
-												// Unsupported string descriptor 
-												len = 0xFFFF;  
-											break;
-										}
-										break;
-
-									case USB_DESCR_TYP_HID:
-										switch( pD0_SETUP_REQ->wIndexL )
-										{       
-											// Select interface 
-#ifndef KEYBOARD_SHARED_EP
-											case KEYBOARD_INTERFACE:
-												pD0Descr = (PUINT8C)( &ConfigurationDescriptor.Keyboard_HID );        
-												len = 9;
-												break;										
-#endif
-											
-#ifdef SHARED_EP_ENABLE
-											case SHARED_INTERFACE:
-												pD0Descr = (PUINT8C)( &ConfigurationDescriptor.Shared_HID );
-												len = 9;
-												break;
-#endif
-
-#ifdef RAW_ENABLE
-											case RAW_INTERFACE:
-												pD0Descr = (PUINT8C)( &ConfigurationDescriptor.Raw_HID );
-												len = sizeof(USB_HID_Descriptor_HID_t);
-												break;
-#endif
-
-											default:
-												// no HID descriptor for this interface
-												len = 0xFFFF;  
-												break;
-										}
-										break;
-
-									case USB_DESCR_TYP_REPORT:  
-										// Hid report descriptor 
-										switch( pD0_SETUP_REQ->wIndexL )
-										{       
-											// Select interface 
-#ifndef KEYBOARD_SHARED_EP
-											case KEYBOARD_INTERFACE:
-												pD0Descr = (PUINT8C)( KeyboardReport );        
-												len = ConfigurationDescriptor.Keyboard_HID.HIDReportLength;
-												break;										
-#endif
-											
-#ifdef SHARED_EP_ENABLE
-											case SHARED_INTERFACE:
-												pD0Descr = (PUINT8C)( SharedReport );
-												len = ConfigurationDescriptor.Shared_HID.HIDReportLength;
-												break;
-#endif
-
-#ifdef RAW_ENABLE
-											case RAW_INTERFACE:
-												pD0Descr = (PUINT8C)( RawReport );
-												len = ConfigurationDescriptor.Raw_HID.HIDReportLength;
-												break;
-#endif
-
-											default:
-												// no report descriptor for this interface
-												len = 0xFFFF;  
-												break;
-										}
-										break;
-										
-									default:
-										// unsupported descriptor type
-										len = 0xFFFF; 
-										break;
-								} 
+									const void *addr;
+									len = get_usb_descriptor( ( (UINT16)pD0_SETUP_REQ->wValueH << 8 ) | pD0_SETUP_REQ->wValueL,
+									                          ( (UINT16)pD0_SETUP_REQ->wIndexH << 8 ) | pD0_SETUP_REQ->wIndexL,
+									                          D0SetupLen, &addr );
+									if( len == NO_DESCRIPTOR ) len = 0xFFFF;
+									pD0Descr = addr;
+								}
 								// Determine whether it can be processed normally						
 								if( len != 0xFFFF )
 								{
@@ -567,21 +434,10 @@ USB_DevIntNext:
 									}
 									len = D0SetupLen >= DEF_ENDP0_SIZE ? DEF_ENDP0_SIZE : D0SetupLen;  /* The length of this transmission */
 									D0SetupLen -= len;
-#if !defined(SERIAL_NUMBER) && defined(SERIAL_NUMBER_USE_HARDWARE_ID)
-									if( !pD0Descr )
-									{
-										for( i = 0; i < len; i++ ) {
-											pD0_EP0_BUF[i] = SerialNumberString[i];
-										}
+									for( i = 0; i < len; i++ ) {
+										pD0_EP0_BUF[i] = pD0Descr[i];
 									}
-									else
-#endif
-									{
-										for( i = 0; i < len; i++ ) {
-											pD0_EP0_BUF[i] = pD0Descr[i];
-										}
-										pD0Descr += len;
-									}
+									pD0Descr += len;
 								}
 								break;
 								
