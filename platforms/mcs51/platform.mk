@@ -43,6 +43,14 @@ $(INTERMEDIATE_OUTPUT)/quantum/main.o: FILE_SPECIFIC_CFLAGS += $(foreach h,$(MCS
 
 bin: $(BUILD_DIR)/$(TARGET).bin
 
+# Evision OEM bootloader: the flash image based at 0x2800 (bootloader.mk)
+ifeq ($(strip $(BOOTLOADER)), evision-oem)
+$(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
+	@$(SILENT) || printf "$(MSG_BIN) $@" | $(AWK_CMD)
+	$(eval CMD=python3 $(TOP_DIR)/util/evision_oem_image.py sdcc $(BUILD_DIR)/$(TARGET).ihx $(INTERMEDIATE_OUTPUT)/quantum/main.asm $@ --code-loc $(MCS51_CODE_LOC))
+	@$(BUILD_CMD)
+endif
+
 # Code end and internal RAM, from the linker's memory map
 check-size: build
 	@$(SILENT) || grep -E "ROM/EPROM/FLASH|EXTERNAL RAM|Stack starts" $(BUILD_DIR)/$(TARGET).mem
