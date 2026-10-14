@@ -50,6 +50,12 @@ extern report_nkro_t *nkro_report;
 void send_keyboard_report(void);
 
 /* key */
+#ifdef __SDCC
+// SDCC does not emit the external definitions that `extern inline` asks for (action_util.c)
+#    define add_key(key) add_key_to_report(key)
+#    define del_key(key) del_key_from_report(key)
+#    define clear_keys() clear_keys_from_report()
+#else
 inline void add_key(uint8_t key) {
     add_key_to_report(key);
 }
@@ -61,6 +67,7 @@ inline void del_key(uint8_t key) {
 inline void clear_keys(void) {
     clear_keys_from_report();
 }
+#endif
 
 /* modifier */
 uint8_t get_mods(void);

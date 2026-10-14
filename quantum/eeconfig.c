@@ -82,21 +82,12 @@ void eeconfig_init_quantum(void) {
     default_layer_state = (layer_state_t)1 << 0;
     eeconfig_update_default_layer(default_layer_state);
 
-    keymap_config_t keymap_config = {
-        .swap_control_capslock    = false,
-        .capslock_to_control      = false,
-        .swap_lalt_lgui           = false,
-        .swap_ralt_rgui           = false,
-        .no_gui                   = false,
-        .swap_grave_esc           = false,
-        .swap_backslash_backspace = false,
-        .nkro                     = NKRO_DEFAULT_ON,
-        .swap_lctl_lgui           = false,
-        .swap_rctl_rgui           = false,
-        .oneshot_enable           = true, // Enable oneshot by default
-        .swap_escape_capslock     = false,
-        .autocorrect_enable       = true, // Enable autocorrect by default
-    };
+    // Every option off, then the defaults that are on. Assignments: SDCC stores wrong values for designated
+    // initializers of the members of an anonymous struct.
+    keymap_config_t keymap_config    = {0};
+    keymap_config.nkro               = NKRO_DEFAULT_ON;
+    keymap_config.oneshot_enable     = true; // Enable oneshot by default
+    keymap_config.autocorrect_enable = true; // Enable autocorrect by default
     eeconfig_update_keymap(&keymap_config);
 
 #ifdef BACKLIGHT_ENABLE

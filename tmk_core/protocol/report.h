@@ -280,8 +280,16 @@ typedef struct {
 typedef struct report_joystick_t report_joystick_t;
 #endif
 
+/* SDCC emits every static inline function in each file that includes the header, used or not: under SDCC
+ * these two are defined once, in report.c (REPORT_C). */
+#if !defined(__SDCC)
+#    define REPORT_INLINE static inline
+#elif defined(REPORT_C)
+#    define REPORT_INLINE
+#endif
+#ifdef REPORT_INLINE
 /* keycode to system usage */
-static inline uint16_t KEYCODE2SYSTEM(uint8_t key) {
+REPORT_INLINE uint16_t KEYCODE2SYSTEM(uint8_t key) {
     switch (key) {
         case KC_SYSTEM_POWER:
             return SYSTEM_POWER_DOWN;
@@ -295,7 +303,7 @@ static inline uint16_t KEYCODE2SYSTEM(uint8_t key) {
 }
 
 /* keycode to consumer usage */
-static inline uint16_t KEYCODE2CONSUMER(uint8_t key) {
+REPORT_INLINE uint16_t KEYCODE2CONSUMER(uint8_t key) {
     switch (key) {
         case KC_AUDIO_MUTE:
             return AUDIO_MUTE;
@@ -355,6 +363,10 @@ static inline uint16_t KEYCODE2CONSUMER(uint8_t key) {
             return 0;
     }
 }
+#else
+uint16_t KEYCODE2SYSTEM(uint8_t key);
+uint16_t KEYCODE2CONSUMER(uint8_t key);
+#endif
 
 uint8_t has_anykey(void);
 uint8_t get_first_key(void);

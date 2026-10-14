@@ -35,14 +35,19 @@ static uint8_t suppressed_mods    = 0;
 
 // TODO: pointer variable is not needed
 // report_keyboard_t keyboard_report = {};
-report_keyboard_t *keyboard_report = &(report_keyboard_t){0};
+// Named objects: SDCC places a compound literal at file scope in code memory
+static report_keyboard_t keyboard_report_object;
+report_keyboard_t       *keyboard_report = &keyboard_report_object;
 #ifdef NKRO_ENABLE
-report_nkro_t *nkro_report = &(report_nkro_t){0};
+static report_nkro_t nkro_report_object;
+report_nkro_t       *nkro_report = &nkro_report_object;
 #endif
 
+#ifndef __SDCC
 extern inline void add_key(uint8_t key);
 extern inline void del_key(uint8_t key);
 extern inline void clear_keys(void);
+#endif
 
 #ifndef NO_ACTION_ONESHOT
 static uint8_t oneshot_mods        = 0;
@@ -354,7 +359,8 @@ uint8_t get_mods(void) {
  * Same as \ref get_mods but returns \ref mod_t for convenience.
  */
 mod_t get_mod_state(void) {
-    return (mod_t){.raw = get_mods()};
+    mod_t mods = {.raw = get_mods()}; // SDCC returns a struct correctly only from a variable
+    return mods;
 }
 /** \brief add mods
  *
@@ -397,7 +403,8 @@ uint8_t get_weak_mods(void) {
  * Same as \ref get_weak_mods but returns \ref mod_t for convenience.
  */
 mod_t get_weak_mod_state(void) {
-    return (mod_t){.raw = get_weak_mods()};
+    mod_t mods = {.raw = get_weak_mods()}; // SDCC returns a struct correctly only from a variable
+    return mods;
 }
 /** \brief add weak mods
  *

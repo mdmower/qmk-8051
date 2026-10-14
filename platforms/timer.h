@@ -53,12 +53,18 @@ uint32_t timer_elapsed32(uint32_t last);
 #    define TIMER_DIFF_FAST(a, b) TIMER_DIFF_16(a, b)
 #    define timer_expired_fast(current, future) timer_expired(current, future)
 typedef uint16_t fast_timer_t;
+#    ifdef __SDCC
+// SDCC does not emit the external definitions that `extern inline` asks for (timer.c)
+#        define timer_read_fast() timer_read()
+#        define timer_elapsed_fast(last) timer_elapsed(last)
+#    else
 fast_timer_t inline timer_read_fast(void) {
     return timer_read();
 }
 fast_timer_t inline timer_elapsed_fast(fast_timer_t last) {
     return timer_elapsed(last);
 }
+#    endif
 #else
 #    define TIMER_DIFF_FAST(a, b) TIMER_DIFF_32(a, b)
 #    define timer_expired_fast(current, future) timer_expired32(current, future)

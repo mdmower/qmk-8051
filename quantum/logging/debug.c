@@ -16,10 +16,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "debug.h"
 
-debug_config_t debug_config = {
-    .enable   = false, //
-    .matrix   = false, //
-    .keyboard = false, //
-    .mouse    = false, //
-    .reserved = 0      //
-};
+// All off. Not with designators: SDCC stores wrong values for designated initializers of the members of an
+// anonymous struct.
+debug_config_t debug_config = {0};

@@ -386,9 +386,11 @@ static uint16_t read_keycode_cache(keypos_t key) {
  * event as they may get stuck otherwise.
  */
 action_t store_or_get_action(bool pressed, keypos_t key) {
+    // SDCC returns a struct correctly only from a variable, and a variable from one return statement
 #if !defined(NO_ACTION_LAYER) && !defined(STRICT_LAYER_RELEASE)
     if (disable_action_cache) {
-        return layer_switch_get_action(key);
+        action_t uncached = layer_switch_get_action(key);
+        return uncached;
     }
 
     uint8_t layer;
@@ -414,18 +416,20 @@ action_t store_or_get_action(bool pressed, keypos_t key) {
         cache_used = (keycode != KC_NO);
 #    endif
     }
+    action_t action;
 #    ifndef KEYCODE_CACHE_ENABLE
-    return action_for_key(layer, key);
+    action = action_for_key(layer, key);
 #    else
     if (cache_used) {
-        return action_for_keycode(keycode);
+        action = action_for_keycode(keycode);
     } else {
-        return action_for_key(layer, key);
+        action = action_for_key(layer, key);
     }
 #    endif
 #else
-    return layer_switch_get_action(key);
+    action_t action = layer_switch_get_action(key);
 #endif
+    return action;
 }
 
 /** \brief Layer switch get layer
@@ -459,7 +463,8 @@ uint8_t layer_switch_get_layer(keypos_t key) {
  * Gets action code based on key position
  */
 action_t layer_switch_get_action(keypos_t key) {
-    return action_for_key(layer_switch_get_layer(key), key);
+    action_t action = action_for_key(layer_switch_get_layer(key), key); // SDCC: returned from a variable
+    return action;
 }
 
 #ifndef NO_ACTION_LAYER

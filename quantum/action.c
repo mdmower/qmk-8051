@@ -1175,37 +1175,24 @@ bool is_tap_action(action_t action) {
         case ACT_RMODS_TAP:
         case ACT_LAYER_TAP:
         case ACT_LAYER_TAP_EXT:
-            switch (action.layer_tap.code) {
-                case KC_NO ... KC_RIGHT_GUI:
-                case OP_TAP_TOGGLE:
-                case OP_ONESHOT:
-                    return true;
-            }
-            return false;
+            return action.layer_tap.code <= KC_RIGHT_GUI || action.layer_tap.code == OP_TAP_TOGGLE || action.layer_tap.code == OP_ONESHOT;
         case ACT_SWAP_HANDS:
-            switch (action.swap.code) {
-                case KC_NO ... KC_RIGHT_GUI:
-                case OP_SH_TAP_TOGGLE:
-                    return true;
-            }
-            return false;
+            return action.swap.code <= KC_RIGHT_GUI || action.swap.code == OP_SH_TAP_TOGGLE;
     }
     return false;
 }
 
 uint16_t get_tap_keycode(uint16_t keycode) {
-    switch (keycode) {
-        case QK_MOD_TAP ... QK_MOD_TAP_MAX:
-            return QK_MOD_TAP_GET_TAP_KEYCODE(keycode);
-        case QK_LAYER_TAP ... QK_LAYER_TAP_MAX:
-            return QK_LAYER_TAP_GET_TAP_KEYCODE(keycode);
-        case QK_SWAP_HANDS ... QK_SWAP_HANDS_MAX:
-            // IS_SWAP_HANDS_KEYCODE() tests for the special action keycodes
-            // like SH_TOGG, SH_TT, ..., which overlap the SH_T(kc) range.
-            if (!IS_SWAP_HANDS_KEYCODE(keycode)) {
-                return QK_SWAP_HANDS_GET_TAP_KEYCODE(keycode);
-            }
-            break;
+    if (IS_QK_MOD_TAP(keycode)) {
+        return QK_MOD_TAP_GET_TAP_KEYCODE(keycode);
+    } else if (IS_QK_LAYER_TAP(keycode)) {
+        return QK_LAYER_TAP_GET_TAP_KEYCODE(keycode);
+    } else if (IS_QK_SWAP_HANDS(keycode)) {
+        // IS_SWAP_HANDS_KEYCODE() tests for the special action keycodes
+        // like SH_TOGG, SH_TT, ..., which overlap the SH_T(kc) range.
+        if (!IS_SWAP_HANDS_KEYCODE(keycode)) {
+            return QK_SWAP_HANDS_GET_TAP_KEYCODE(keycode);
+        }
     }
     return keycode;
 }

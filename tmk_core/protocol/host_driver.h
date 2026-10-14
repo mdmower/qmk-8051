@@ -30,7 +30,13 @@ typedef struct {
     void (*send_mouse)(report_mouse_t *);
     void (*send_extra)(report_extra_t *);
 #ifdef RAW_ENABLE
+#    ifdef __SDCC
+    // SDCC (MCS-51) passes the second and later arguments in memory of the called function, which a call
+    // through a pointer cannot know; a reentrant function takes them on the stack
+    void (*send_raw_hid)(uint8_t *, uint8_t) __reentrant;
+#    else
     void (*send_raw_hid)(uint8_t *, uint8_t);
+#    endif
 #endif
 } host_driver_t;
 

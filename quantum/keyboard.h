@@ -51,6 +51,15 @@ typedef struct {
 #define KEYLOC_DIP_SWITCH_ON 251
 #define KEYLOC_DIP_SWITCH_OFF 250
 
+#ifdef __SDCC
+// SDCC emits every static inline function in each file that includes the header, used or not: macros
+#    define IS_NOEVENT(event) ((event).type == TICK_EVENT)
+#    define IS_EVENT(event) ((event).type != TICK_EVENT)
+#    define IS_KEYEVENT(event) ((event).type == KEY_EVENT)
+#    define IS_COMBOEVENT(event) ((event).type == COMBO_EVENT)
+#    define IS_ENCODEREVENT(event) ((event).type == ENCODER_CW_EVENT || (event).type == ENCODER_CCW_EVENT)
+#    define IS_DIPSWITCHEVENT(event) ((event).type == DIP_SWITCH_ON_EVENT || (event).type == DIP_SWITCH_OFF_EVENT)
+#else
 static inline bool IS_NOEVENT(const keyevent_t event) {
     return event.type == TICK_EVENT;
 }
@@ -69,12 +78,13 @@ static inline bool IS_ENCODEREVENT(const keyevent_t event) {
 static inline bool IS_DIPSWITCHEVENT(const keyevent_t event) {
     return event.type == DIP_SWITCH_ON_EVENT || event.type == DIP_SWITCH_OFF_EVENT;
 }
+#endif
 
 /* Common keypos_t object factory */
 #define MAKE_KEYPOS(row_num, col_num) ((keypos_t){.row = (row_num), .col = (col_num)})
 
 /* Common keyevent_t object factory */
-#define MAKE_EVENT(row_num, col_num, press, event_type) ((keyevent_t){.key = MAKE_KEYPOS((row_num), (col_num)), .pressed = (press), .time = timer_read(), .type = (event_type)})
+#define MAKE_EVENT(row_num, col_num, press, event_type) ((keyevent_t){.key = {.row = (row_num), .col = (col_num)}, .pressed = (press), .time = timer_read(), .type = (event_type)})
 
 /**
  * @brief Constructs a key event for a pressed or released key.

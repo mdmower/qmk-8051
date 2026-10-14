@@ -214,6 +214,20 @@ enum usb_interfaces {
 /*
  * Endpoint numbers
  */
+#ifdef PROTOCOL_CH555
+/*
+ * CH555: endpoints 1-3 are each either IN or OUT; endpoint 4 is OUT only and uses the upper half of endpoint 0's
+ * buffer, which a 64-byte control endpoint needs; endpoints 5 and 6 are IN only and use the upper halves of the
+ * buffers of endpoints 1 and 2.
+ */
+#    define KEYBOARD_IN_EPNUM 1
+#    define SHARED_IN_EPNUM 2
+#    define RAW_OUT_EPNUM 3
+#    define RAW_IN_EPNUM 5
+#    define MOUSE_IN_EPNUM SHARED_IN_EPNUM
+#    define JOYSTICK_IN_EPNUM SHARED_IN_EPNUM
+#    define DIGITIZER_IN_EPNUM SHARED_IN_EPNUM
+#else
 enum usb_endpoints {
     __unused_epnum__ = NEXT_EPNUM, // Endpoint numbering starts at 1
 
@@ -297,6 +311,7 @@ enum usb_endpoints {
 #if (NEXT_EPNUM - 1) > MAX_ENDPOINTS
 #    error There are not enough available endpoints to support all functions. Please disable one or more of the following: Mouse Keys, Extra Keys, Console, NKRO, MIDI, Serial, Steno
 #endif
+#endif // PROTOCOL_CH555
 
 #define KEYBOARD_EPSIZE 8
 #define SHARED_EPSIZE 32
