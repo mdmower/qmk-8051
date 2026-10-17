@@ -54,6 +54,7 @@ CHECKS = {
     "sdcc-static-compound-literal": "address of a compound literal at file scope (use a named object)",
     "sdcc-anonymous-member-init": "initializer that names a member of an anonymous struct or union (assign the "
                                   "members)",
+    "sdcc-void-pointer-arithmetic": "arithmetic on a void pointer (use a uint8_t pointer)",
 }
 
 # SDCC options that take a separate value

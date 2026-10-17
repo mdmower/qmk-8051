@@ -18,3 +18,7 @@ match implicitCastExpr(hasCastKind("CK_ArrayToPointerDecay"), hasSourceExpressio
 # A designated initializer that reaches a member of an anonymous struct or union (clang's implicit field): SDCC
 # stores wrong values (QMK's keymap_config_t initializer left NKRO off). A positional `{0}` is not affected.
 match initListExpr(hasType(hasUnqualifiedDesugaredType(recordType(hasDeclaration(recordDecl(hasParent(recordDecl(has(fieldDecl(isImplicit()))))))))), hasParent(initListExpr(hasSyntacticForm(initListExpr(has(designatedInitExpr())))))).bind("sdcc-anonymous-member-init")
+# Arithmetic on a void pointer (GNU C: element size 1): SDCC takes the size as 0, so `p + n`, `p++` and `p += n`
+# leave the pointer where it was (warning 178 at some ++ only). The difference of two void pointers is right.
+match unaryOperator(hasAnyOperatorName("++", "--"), hasUnaryOperand(hasType(pointerType(pointee(hasUnqualifiedDesugaredType(voidType())))))).bind("sdcc-void-pointer-arithmetic")
+match binaryOperator(hasAnyOperatorName("+", "-", "+=", "-="), hasEitherOperand(hasType(pointerType(pointee(hasUnqualifiedDesugaredType(voidType()))))), hasEitherOperand(hasType(isInteger()))).bind("sdcc-void-pointer-arithmetic")
