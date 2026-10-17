@@ -28,6 +28,9 @@
 
 #include "report.h"
 #include "host.h"
+#ifdef CH555_EEPROM_CODE_FLASH
+#    include "eeprom_code_flash.h"
+#endif
 #include "host_driver.h"
 #include "keyboard.h"
 #include "action.h"
@@ -477,5 +480,9 @@ void protocol_post_task(void) {
 
 #ifdef USE_D0_EP2_IN
     send_pending_shared_report();
+#endif
+
+#ifdef CH555_EEPROM_CODE_FLASH
+    eeprom_code_flash_task();
 #endif
 }

@@ -70,7 +70,7 @@ bin: $(BUILD_DIR)/$(TARGET).bin
 ifeq ($(strip $(BOOTLOADER)), evision-oem)
 $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
 	@$(SILENT) || printf "$(MSG_BIN) $@" | $(AWK_CMD)
-	$(eval CMD=python3 $(TOP_DIR)/util/evision_oem_image.py sdcc $(BUILD_DIR)/$(TARGET).ihx $(INTERMEDIATE_OUTPUT)/quantum/main.asm $@ --code-loc $(MCS51_CODE_LOC))
+	$(eval CMD=python3 $(TOP_DIR)/util/evision_oem_image.py sdcc $(BUILD_DIR)/$(TARGET).ihx $(INTERMEDIATE_OUTPUT)/quantum/main.asm $@ --code-loc $(MCS51_CODE_LOC) --code-end $(CODE_SIZE))
 	@$(BUILD_CMD)
 endif
 

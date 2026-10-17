@@ -20,8 +20,9 @@ The check runs before any app code, so it also works when the app fails at start
 operation is the erase of page 0x27C0.
 
 Usage:
-  python3 util/evision_oem_image.py sdcc APP.ihx MAIN.asm OUT.bin [--code-loc 0x3027]
-      For an SDCC build linked with --code-loc CODE_LOC (>= 0x3027). Writes the LJMP at 0x2800, the Esc
+  python3 util/evision_oem_image.py sdcc APP.ihx MAIN.asm OUT.bin [--code-loc 0x3027] [--code-end 0xEFC0]
+      For an SDCC build linked with --code-loc CODE_LOC (>= 0x3027) whose code ends below CODE_END
+      (<= 0xEFC0; lower when the app keeps data at the top of its region). Writes the LJMP at 0x2800, the Esc
       check, and the 13-entry interrupt table at 0x3000. Each table entry jumps to SDCC's vector slot
       (CODE_LOC+3+8n), or to a RETI for a vector SDCC did not emit. MAIN.asm is the SDCC module that holds
       __interrupt_vect (quantum/main.asm in a QMK build).
@@ -178,8 +179,11 @@ def do_sdcc(a):
     lo, hi = min(mem), max(mem)
     if lo != code_loc:
         raise SystemExit("ihx starts at 0x%04x, expected code-loc 0x%04x (link with --code-loc)" % (lo, code_loc))
-    if hi >= ERASE_END:
-        raise SystemExit("ihx ends at 0x%04x, past 0x%04x" % (hi, ERASE_END - 1))
+    code_end = int(a.code_end, 0)
+    if code_end > ERASE_END:
+        raise SystemExit("code-end must be <= 0x%04x" % ERASE_END)
+    if hi >= code_end:
+        raise SystemExit("ihx ends at 0x%04x, past 0x%04x" % (hi, code_end - 1))
     slots = parse_vectors(a.main_asm)
     # cross-check SDCC's vector table in the binary
     if mem.get(code_loc) != 0x02:
@@ -213,7 +217,8 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("stock"); p.add_argument("app"); p.add_argument("out"); p.set_defaults(fn=do_stock)
     p = sub.add_parser("sdcc"); p.add_argument("ihx"); p.add_argument("main_asm"); p.add_argument("out")
-    p.add_argument("--code-loc", default="0x3027"); p.set_defaults(fn=do_sdcc)
+    p.add_argument("--code-loc", default="0x3027")
+    p.add_argument("--code-end", default="0x%04x" % ERASE_END); p.set_defaults(fn=do_sdcc)
     a = ap.parse_args()
     a.fn(a)
 
