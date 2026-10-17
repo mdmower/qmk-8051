@@ -4,6 +4,9 @@ QMK for the Redragon K580 RGB with an Evision VS11K33A MCU (an 8051 in the WCH C
 flashed through the keyboard's own Evision bootloader, which stays in place, so the stock firmware can be
 restored from a backup.
 
+Two keymaps: `default` (recommended) and `via`, which can be changed in VIA and keeps QMK's EEPROM in code flash,
+at your own risk ([VIA keymap](#via-keymap-at-your-own-risk)).
+
 Tested on one keyboard (stock firmware 1.04). The firmware is built with SDCC
 ([platforms/mcs51](../../../platforms/mcs51)).
 
@@ -19,7 +22,8 @@ Other K580 revisions may use a different MCU. This firmware does not apply to th
 ## Requirements
 
 - Linux, Python 3 (standard library only), Docker (for the build).
-- Access to the keyboard's hidraw nodes: install the udev rule and be a member of the `plugdev` group.
+- Access to the keyboard's hidraw nodes: install the udev rule and be a member of the `plugdev` group. The rule
+  also grants the raw HID interface of QMK, which VIA uses.
   ```
   sudo cp util/udev/70-redragon-k580.rules /etc/udev/rules.d/
   sudo udevadm control --reload && sudo udevadm trigger
@@ -35,7 +39,7 @@ would do.
 |---|---|
 | 0x0000–0x27FF | Evision OEM bootloader (USB `0c45:7687`). The tools here never write it. |
 | 0x27C0 | Boot marker `AA 55 33 CC`. The bootloader starts the application only while it is present. |
-| 0x2800–0xEFBF | Application: stock firmware or QMK. The bootloader erases and programs this range. |
+| 0x2800–0xEFBF | Application: stock firmware or QMK. The bootloader erases and programs this range. The `via` build keeps QMK's EEPROM at 0xE740–0xEFBF. |
 | 0xF000–0xF3FF | Data flash. The keyboard saves its lighting settings and roller mode here. Flashing does not erase it, and the stock firmware 1.04 does not use it. |
 | 0xF400– | WCH factory ISP bootloader (`4348:55e0`). Not used: flashing through it overwrites the OEM bootloader. |
 
@@ -64,10 +68,12 @@ application region, the image that restores the stock firmware. Keep both.
 
 ```
 util/k580_build.sh            # keymap "default", in Docker (SDCC, clang and the QMK CLI)
+util/k580_build.sh via        # keymap "via"
 ```
 
 or, with SDCC 4.6.0 (4.4.0 also works; 4.5.0 does not), clang (with clang-query and llvm-nm) and binutils
-installed, `qmk compile -kb redragon/k580 -km default`. The output is `redragon_k580_default.bin`, the application image based at 0x2800. It contains a
+installed, `qmk compile -kb redragon/k580 -km default`. The output is `redragon_k580_default.bin` (or
+`redragon_k580_via.bin`), the application image based at 0x2800. It contains a
 check for Esc at plug-in at 0x2803 and the interrupt table that the bootloader jumps to at 0x3000 (made by
 `util/evision_oem_image.py`).
 
@@ -135,16 +141,49 @@ On the tested keyboard, a restore of firmware 1.04 gave a full 64 KB read-back i
   (the reversed modes run the other way). G1–G5, Rec and the media keys have one colour each and light at the
   zone's brightness whatever the hue. Defaults: wave on the keys, rainbow on the side lights.
 
+## VIA keymap (at your own risk)
+
+The `via` keymap is the default keymap with [VIA](https://usevia.app): keys, the roller and macros can be changed
+from a browser while the keyboard runs, and the changes are kept at power-off.
+
+**Risk.** QMK's EEPROM (its settings, the keymap and the macros) is stored in code flash at 0xE740–0xEFBF, written
+by the firmware while the keyboard runs. The CH555 enables writes to all of code flash at once, including the
+Evision bootloader at 0x0000–0x27FF. The store code ([lib/ch555/eeprom_code_flash.c](../../../lib/ch555/eeprom_code_flash.c))
+writes only its own pages and checks the address before and after it enables writes, and the build keeps code
+below the store. A fault in this code, or in the firmware around it, could still erase or damage the bootloader.
+No tested way exists to restore the bootloader: the keyboard could then no longer be flashed or used.
+
+Build and flash `redragon_k580_via.bin` as above. Then:
+
+1. Open [usevia.app](https://usevia.app) in Chrome or Chromium (WebHID). In Settings, turn on "Show Design tab".
+2. In the Design tab, load the VIA definition [keymaps/via/redragon_k580_via.json](keymaps/via/redragon_k580_via.json).
+3. In the Configure tab, authorize the keyboard (`3938:1195`).
+
+How the store works:
+- The EEPROM is 1 KB: QMK's settings, 3 layers, the roller on each layer and about 215 bytes of macros. Layer 0
+  and 1 start as the default keymap, layer 2 as transparent keys.
+- A change is saved 2 s after the last one. The store has two copies; a save writes the older copy and marks it
+  valid last, so a power loss during a save keeps the previous state.
+- Every flash erases the store: after a flash the keymap is the default again. Save the layout first in VIA
+  (Save + Load) and load it again after the flash. The lighting settings and the roller mode are in the data
+  flash and are kept.
+- The custom keys of the default keymap (Win Lock, roller mode, lighting settings) have names in VIA. VIA's
+  roller panel shows them as `CUSTOM(n)`.
+- Tap keys (`LT`, `MT`, …) and one-shot keys do nothing ([config.h](config.h)). Macros are untested.
+
+To go back, flash the `default` build. It writes no code flash except the boot marker page.
+
 ## Limits
 
-- QMK's settings (eeconfig) are kept in RAM only (transient EEPROM driver): after power-up they are QMK's
-  defaults. The keyboard's own settings (lighting, roller mode) use the data flash instead.
-- To save flash, the K580 build turns off tap and one-shot keys ([config.h](config.h)), `send_string`, Grave
-  Escape, Magic keycodes and Space Cadet ([rules.mk](rules.mk)).
+- In the `default` keymap, QMK's settings (eeconfig) are kept in RAM only (transient EEPROM driver): after
+  power-up they are QMK's defaults. The keyboard's own settings (lighting, roller mode) use the data flash
+  instead. The `via` keymap keeps QMK's settings in code flash.
+- To save flash, the K580 build turns off tap and one-shot keys ([config.h](config.h)), `send_string` (on in
+  the `via` keymap, for macros), Grave Escape, Magic keycodes and Space Cadet ([rules.mk](rules.mk)).
 - QMK enumerates as one USB device (`3938:1195`) with three HID interfaces: boot keyboard, raw HID, and NKRO
   keyboard with system and media keys.
 - The backup and flash tools (`util/k580_dump.py`, `util/evision_flash.py`) run on Linux only.
-- Vial is not supported: it needs the vial-qmk fork, and persistent storage for the dynamic keymap.
+- Vial is not supported: it needs the vial-qmk fork. The `via` keymap supports VIA.
 
 ## Hardware
 
