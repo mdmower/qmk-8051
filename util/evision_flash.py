@@ -32,12 +32,12 @@ SAFETY BY CONSTRUCTION:
   * DRY-RUN by default. Nothing is sent without --send.
 
 Usage:
-  python3 -I util/evision_flash.py extract FULL64K.bin OUT.bin   # cut the app region out of a full dump
-  python3 -I util/evision_flash.py check IMAGE.bin               # validate an app image (no device access)
-  python3 -I util/evision_flash.py status                        # which mode is the board in?
-  python3 -I util/evision_flash.py enter [--send]                # app -> bootloader (commits to a reflash)
-  python3 -I util/evision_flash.py flash IMAGE.bin [--send]      # bootloader: erase, write, verify, reset
-  python3 -I util/evision_flash.py verify DUMP.bin IMAGE.bin     # compare a read-back dump to an image
+  python3 -I util/evision_flash.py extract FULL64K.bin OUT.bin        # cut the app region out of a full dump
+  python3 -I util/evision_flash.py check IMAGE.bin                    # validate an app image (no device access)
+  python3 -I util/evision_flash.py status                             # which mode is the board in?
+  python3 -I util/evision_flash.py enter [--send]                     # app -> bootloader (commits to a reflash)
+  python3 -I util/evision_flash.py flash IMAGE.bin [--poll] [--send]  # bootloader: erase, write, verify, reset
+  python3 -I util/evision_flash.py verify DUMP.bin IMAGE.bin          # compare a read-back dump to an image
 """
 import sys, os, glob, argparse, array, fcntl, hashlib, time
 
@@ -56,6 +56,7 @@ IVT_BASE, IVT_ENTRIES = 0x3000, 13       # bootloader ISRs at 0x03+8k forward to
 STATUS_OK = b"\xfa\xfa\xfa\xfa"
 HELLO_TAIL = b"\x00\x11\x22\x33"         # bootloader fingerprint in every GET_FEATURE reply
 ENTER_REPORT = bytes([0x04, 0xee, 0xee]) + bytes(61)   # app: erase marker page 0x27C0 + reset
+POLL_TIMEOUT = 15                        # flash --poll: seconds to wait for the bootloader
 
 KNOWN = {   # sha256 of the raw (unpadded) app image -> label
     "75eb9250cb7842b82220cb1ffb7374042d49a7461b076ee79e0ea5fdaabdaea4":
@@ -173,15 +174,25 @@ def wait_for(vid, pid, timeout):
         time.sleep(0.25)
     return None
 
-def wait_usb(vid, pid, timeout):
-    """Wait for any USB device vid:pid in sysfs (works for non-Evision firmware too)."""
+def wait_usb(ids, timeout):
+    """Wait for a USB device with one of the (vid, pid) ids in sysfs (works for non-Evision firmware too).
+    Return the id that appeared."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        hits = usb_devices(vid, pid)
-        if hits:
-            return hits[0]
+        for vid, pid in ids:
+            if usb_devices(vid, pid):
+                return vid, pid
         time.sleep(0.25)
     return None
+
+def wait_access(node, timeout):
+    """Wait until udev has set the permissions of a new hidraw node."""
+    deadline = time.monotonic() + timeout
+    while not os.access(node, os.R_OK | os.W_OK):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
+    return True
 
 # --- bootloader transport -------------------------------------------------------------------------------
 def cmd_report(cmd, extra=b""):
@@ -289,6 +300,13 @@ def do_flash(a):
     img, info = load_image(a.image)
     print_image(info)
     node = iface1_node(BOOT_VID, BOOT_PID)
+    if not node and a.poll:
+        print("waiting : up to %d s for the bootloader %04x:%04x; press Fn+Esc (QMK) ..."
+              % (POLL_TIMEOUT, BOOT_VID, BOOT_PID), flush=True)
+        node = wait_for(BOOT_VID, BOOT_PID, POLL_TIMEOUT)
+        if node and not wait_access(node, 5):
+            raise SystemExit("no read/write access to %s; is the udev rule for %04x:%04x installed?"
+                             % (node, BOOT_VID, BOOT_PID))
     print("device  : %s" % ("%04x:%04x  node %s (interface 1)" % (BOOT_VID, BOOT_PID, node) if node
                             else "bootloader NOT present (mode=%s); run 'enter' (stock), or press Fn+Esc or hold "
                                  "Esc at plug-in (QMK) first" % mode()))
@@ -324,11 +342,14 @@ def do_flash(a):
         set_feature(fd, cmd_report(0x05))
     finally:
         os.close(fd)
-    vid, pid = (int(x, 16) for x in a.expect.split(":"))
-    print("reset sent; waiting for %04x:%04x ..." % (vid, pid), flush=True)
-    if not wait_usb(vid, pid, 30):
-        raise SystemExit("%04x:%04x did not appear within 30 s; run 'status'" % (vid, pid))
-    print("%04x:%04x enumerated" % (vid, pid))
+    ids = ([tuple(int(x, 16) for x in a.expect.split(":"))] if a.expect
+           else [(APP_VID, APP_PID), (QMK_VID, QMK_PID)])
+    names = " or ".join("%04x:%04x" % i for i in ids)
+    print("reset sent; waiting for %s ..." % names, flush=True)
+    got = wait_usb(ids, 30)
+    if not got:
+        raise SystemExit("%s did not appear within 30 s; run 'status'" % names)
+    print("%04x:%04x enumerated" % got)
     do_status(a)
 
 def do_verify(a):
@@ -353,9 +374,12 @@ def main():
     p = sub.add_parser("status"); p.set_defaults(fn=do_status)
     p = sub.add_parser("enter"); p.add_argument("--send", action="store_true"); p.set_defaults(fn=do_enter)
     p = sub.add_parser("flash"); p.add_argument("image"); p.add_argument("--send", action="store_true")
+    p.add_argument("--poll", action="store_true",
+                   help="wait up to %d s for the bootloader to appear (start the command, then press Fn+Esc)"
+                        % POLL_TIMEOUT)
     p.add_argument("--gap", type=float, default=0.03, help="seconds between data packets (vendor tool ~0.031)")
-    p.add_argument("--expect", default="%04x:%04x" % (APP_VID, APP_PID),
-                   help="VID:PID the flashed firmware enumerates as (QMK K580: %04x:%04x)" % (QMK_VID, QMK_PID))
+    p.add_argument("--expect", help="VID:PID the flashed firmware enumerates as (default: stock %04x:%04x or "
+                                     "QMK %04x:%04x)" % (APP_VID, APP_PID, QMK_VID, QMK_PID))
     p.add_argument("--no-status", action="store_true",
                    help="don't read GET_FEATURE status (fallback if it fails on this host); success = app reappears")
     p.set_defaults(fn=do_flash)
