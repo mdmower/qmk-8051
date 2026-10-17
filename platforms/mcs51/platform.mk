@@ -41,6 +41,29 @@ CFLAGS += -include $(PLATFORM_COMMON_DIR)/sdcc_compat.h
 MCS51_ISR_HEADERS += $(PLATFORM_COMMON_DIR)/_timer.h
 $(INTERMEDIATE_OUTPUT)/quantum/main.o: FILE_SPECIFIC_CFLAGS += $(foreach h,$(MCS51_ISR_HEADERS),-include $(h))
 
+# NVM_DRIVER = custom (rules.mk): QMK settings from quantum/nvm/eeprom, VIA and dynamic keymap storage from nvm/,
+# all on the EEPROM driver. The upstream VIA and dynamic keymap files of quantum/nvm/eeprom use void-pointer
+# arithmetic, which SDCC compiles wrong (sdcc_check.query); nvm/ keeps their EEPROM layout.
+ifeq ($(strip $(NVM_DRIVER)), custom)
+    VPATH += $(QUANTUM_DIR)/nvm/eeprom
+    ifeq ($(strip $(VIA_ENABLE)), yes)
+        SRC += $(PLATFORM_COMMON_DIR)/nvm/nvm_via.c
+    endif
+    ifeq ($(strip $(DYNAMIC_KEYMAP_ENABLE)), yes)
+        SRC += $(PLATFORM_COMMON_DIR)/nvm/nvm_dynamic_keymap.c
+    endif
+endif
+
+# SDCC keeps values that do not fit in registers in spill locations in direct RAM (0x08-0x7F), which a K580
+# build without VIA fills to one byte. In VIA builds these files are compiled without global CSE, induction,
+# invariant and loop-reversal optimization, which removes most of their spill locations.
+ifeq ($(strip $(VIA_ENABLE)), yes)
+    MCS51_FEWER_SPILLS_SRC += quantum/via.c quantum/dynamic_keymap.c quantum/action_layer.c
+    MCS51_FEWER_SPILLS_SRC += quantum/send_string/send_string.c quantum/keyboard.c quantum/quantum.c
+    MCS51_FEWER_SPILLS_SRC += $(PLATFORM_COMMON_DIR)/nvm/nvm_via.c
+endif
+$(foreach f,$(MCS51_FEWER_SPILLS_SRC),$(eval $(INTERMEDIATE_OUTPUT)/$(f:.c=.o): FILE_SPECIFIC_CFLAGS += --nogcse --noinduction --noinvariant --noloopreverse))
+
 bin: $(BUILD_DIR)/$(TARGET).bin
 
 # Evision OEM bootloader: the flash image based at 0x2800 (bootloader.mk)
