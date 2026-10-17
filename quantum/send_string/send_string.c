@@ -271,13 +271,10 @@ void send_byte(uint8_t number) {
 }
 
 void send_nibble(uint8_t number) {
-    switch (number & 0xF) {
-        case 0 ... 9:
-            send_char(number + '0');
-            break;
-        case 10 ... 15:
-            send_char(number - 10 + 'a');
-            break;
+    if ((number & 0xF) <= 9) {
+        send_char(number + '0');
+    } else {
+        send_char(number - 10 + 'a');
     }
 }
 
@@ -291,25 +288,18 @@ void tap_random_base64(void) {
 #else
     uint8_t key = rand() % 64;
 #endif
-    switch (key) {
-        case 0 ... 25:
-            send_char(key + 'A');
-            break;
-        case 26 ... 51:
-            send_char(key - 26 + 'a');
-            break;
-        case 52:
-            send_char('0');
-            break;
-        case 53 ... 61:
-            send_char(key - 53 + '1');
-            break;
-        case 62:
-            send_char('+');
-            break;
-        case 63:
-            send_char('/');
-            break;
+    if (key <= 25) {
+        send_char(key + 'A');
+    } else if (key <= 51) {
+        send_char(key - 26 + 'a');
+    } else if (key == 52) {
+        send_char('0');
+    } else if (key <= 61) {
+        send_char(key - 53 + '1');
+    } else if (key == 62) {
+        send_char('+');
+    } else {
+        send_char('/');
     }
 }
 
