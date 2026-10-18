@@ -79,6 +79,8 @@ static void led_dma_load(void) __naked {
  * Runs at the start of each inhibition period between COMs (stock 1.04 @0x7edf): selects the
  * next COM, loads its LED data, then reads the key rows on P4 with that COM driven low.
  */
+#pragma save
+#pragma nooverlay
 MCS51_ISR(led_dma_isr, INT_NO_PWM_I2C) {
     __data uint8_t com = led_com;
     __data uint8_t rows;
@@ -166,6 +168,7 @@ MCS51_ISR(led_dma_isr, INT_NO_PWM_I2C) {
     }
     led_com = com + 1;
 }
+#pragma restore
 
 /* Stock 1.04 @0x9ecf */
 void led_dma_init(void) {

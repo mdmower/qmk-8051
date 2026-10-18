@@ -16,11 +16,15 @@
  * same priority is then taken inside the stub and nests on its stack frame (30 bytes per interrupt), and an
  * interrupt at high priority would end, with the stub's RETI, the low-priority interrupt that it preempted.
  * Here SDCC's vector slot jumps to a naked function, which jumps to name_body(): a plain function, which
- * saves nothing and returns to the stub with RET. The stub saves every register that compiled code changes,
- * except SDCC's bit registers (`bits`), which no function in this build uses. SDCC ends some handlers with a
- * jump to sdcc_atomic_maybe_rollback (restartable atomics), which reads the return address on top of the
- * stack; under the stub that is the stub's address, so the check never applied in these builds, and no code
- * here uses SDCC's atomic exchange routines.
+ * saves nothing and returns to the stub with RET. SDCC does not know that name_body() runs in an interrupt: if
+ * it calls no function, SDCC puts its locals and spill locations (also those declared __data) in the overlay
+ * segment OSEG, which the main loop's functions that call no function share. Enclose each handler in
+ * `#pragma save`, `#pragma nooverlay` ... `#pragma restore`; a function it calls needs the same unless it has no
+ * locals in memory. The stub saves every register that compiled code changes, except SDCC's bit registers
+ * (`bits`), which no function in this build uses. SDCC ends some handlers with a jump to
+ * sdcc_atomic_maybe_rollback (restartable atomics), which reads the return address on top of the stack; under
+ * the stub that is the stub's address, so the check never applied in these builds, and no code here uses SDCC's
+ * atomic exchange routines.
  */
 #ifdef BOOTLOADER_EVISION_OEM
 #    define MCS51_ISR(name, num)                                                       \

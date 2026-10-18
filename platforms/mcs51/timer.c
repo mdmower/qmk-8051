@@ -71,7 +71,10 @@ inline uint32_t timer_read32(void) {
 
 // Once per ms. Mode 1 does not reload by itself: the counts from the overflow to this reload are lost (8.6 per tick
 // measured at 24 MHz under the OEM bootloader), so a tick is slightly longer than 1 ms.
+#pragma save
+#pragma nooverlay
 MCS51_ISR(Timer0_ISR, INT_NO_TMR0) {
     setTimer0Mode1Val(F_CPU/12/1000);
     timer_count++;
 }
+#pragma restore
