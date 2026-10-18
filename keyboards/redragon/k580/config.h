@@ -8,7 +8,7 @@
  * release of its keycode (encoder map) */
 #define ENCODER_MAP_KEY_DELAY 10
 
-/* MCU sleep in USB suspend; the keys wake it (led_dma.c) */
+/* MCU sleep in USB suspend; the keys wake it (keyboards/redragon/common/led_dma.c) */
 #define CH555_SUSPEND_SLEEP
 
 /* Win Lock LED (Fn+Win in the default keymap) */
@@ -18,3 +18,6 @@
  * MO() still works. */
 #define NO_ACTION_TAPPING
 #define NO_ACTION_ONESHOT
+
+/* Lighting effects (keyboards/redragon/common/led_fx.h): key LEDs and side lights */
+#define LED_FX_ZONES 2

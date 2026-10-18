@@ -9,15 +9,16 @@
 /*
  * CH555 LED controller (LED-DMA), set up as the stock K580 firmware 1.04 does it.
  *
- * 18 commons (COM), one per key matrix column: P0.0-P0.7, P3.0-P3.7, P7.0, P7.1.
- * 8 PWM groups per COM: red P4.0-P4.7, green P2.0-P2.7, blue P1.0-P1.7. Group n of COM c is
- * the LED of key (n, c) for n = 0-6; group 7 of COMs 0-15 are the side lights.
+ * One common (COM) per key matrix column, in this order: P0.0-P0.7, P3.0-P3.7, then P7.0, P7.1 on a
+ * keyboard with 18 columns (K580); the K552 has 16. 8 PWM groups per COM: red P4.0-P4.7, green
+ * P2.0-P2.7, blue P1.0-P1.7. Group n of COM c is the LED at matrix position (n, c); on the K580,
+ * group 7 of COMs 0-15 are the side lights.
  * Buffer: 4 bytes per LED at (c * 8 + n) * 4: intensity, red, green, blue.
  *
  * P4 is also the key matrix row input, so the LED interrupt reads the key rows of each COM
  * while the controller is inhibited between COMs.
  */
-#define LED_DMA_COMS 18
+#define LED_DMA_COMS MATRIX_COLS
 #define LED_DMA_GROUPS 8
 
 /* At 0x1400, above the USB buffers (0x1000-0x13FF) and outside the linker's xRAM (0x0100-0x0FFF);
@@ -29,7 +30,8 @@ extern __xdata __at(LED_DMA_BUF_ADDR) uint8_t led_dma_buf[LED_DMA_COMS * LED_DMA
 extern volatile __xdata uint8_t led_dma_keys[LED_DMA_COMS];
 /* Set after the last COM of a frame has been read. */
 extern volatile __bit led_dma_frame;
-/* Frame counter, +1 after the last COM of each frame (304128 clocks: 12.7 ms at 24 MHz, 9.5 ms at 32 MHz). */
+/* Frame counter, +1 after the last COM of each frame (16896 clocks per COM: 9.5 ms at 32 MHz with 18 COMs,
+ * 8.4 ms with 16). */
 extern volatile __data uint8_t led_dma_frames;
 
 void led_dma_init(void);

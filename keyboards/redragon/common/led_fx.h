@@ -1,0 +1,36 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/*
+ * Lighting effects for LED_FX_ZONES zones with separate settings (keyboard config.h, default 1): zone 0 = the key
+ * LEDs (with 2 zones: groups 0-6), zone 1 = the side lights (group 7).
+ * Settings of a zone, in this order; an action is zone * LED_FX_SETTINGS + setting.
+ */
+#ifndef LED_FX_ZONES
+#    define LED_FX_ZONES 1
+#endif
+enum { LED_FX_MODE, LED_FX_HUE, LED_FX_SAT, LED_FX_VAL, LED_FX_SPEED, LED_FX_ON, LED_FX_SETTINGS };
+
+/* Saved form of the settings: LED_FX_SAVE_SIZE bytes, zone 0 first, each in the order above. */
+#define LED_FX_SAVE_SIZE (LED_FX_ZONES * LED_FX_SETTINGS)
+/* Sets the settings from their saved form (in code space); a value out of range keeps its default. */
+void led_fx_load(__code const uint8_t *p);
+/* Writes the saved form of the settings to dst. */
+void led_fx_save(__xdata uint8_t *dst);
+/* Next step of a setting (previous step with reverse); LED_FX_ON toggles. */
+void led_fx_adjust(uint8_t action, bool reverse);
+/* Call from the main loop: renders the effects into the LED buffer, one COM per call. */
+void led_fx_task(void);
+
+/*
+ * The keyboard's led_fx_pos.h defines led_pos[LED_DMA_COMS * LED_DMA_GROUPS]: the position of each LED along
+ * its zone, 0-191, by buffer slot (COM * 8 + group); LED_FX_MONO for a single-colour LED on the red line;
+ * LED_FX_SKIP (with LED_FX_SKIP_ENABLE in config.h) for an LED that the keyboard drives itself, such as a lock
+ * indicator: the effects do not write it.
+ */
+#define LED_FX_MONO 0xFF
+#define LED_FX_SKIP 0xFE

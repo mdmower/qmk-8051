@@ -21,52 +21,23 @@ static __code const uint8_t mode_flags[MODES]   = {0, F_POS, F_POS | F_REV, F_PO
 static __code const uint8_t setting_steps[]     = {MODES, HUE_STEPS, 5, 8, 5, 2}; // mode, hue, sat, val, speed, on
 static __code const uint8_t sat_table[5]        = {0, 96, 160, 208, 255};
 static __code const uint8_t val_table[8]        = {8, 16, 32, 64, 96, 144, 200, 255};
-/* Phase advance per pass, in 1/256. One pass per LED frame: 12.7 ms at 24 MHz, 9.5 ms at 32 MHz.
- * FX_ADVANCE scales the advance at 24 MHz to F_CPU, so that one cycle takes 26, 13, 6.5, 3.2 or 1.6 s. */
-#define FX_ADVANCE(a24) ((uint16_t)((a24) * 24UL / (F_CPU / 1000000UL)))
+/* Phase advance per pass, in 1/256. One pass per LED frame of 16896 clocks per COM: 12.7 ms with 18 COMs at
+ * 24 MHz. FX_ADVANCE scales the advance for that frame to LED_DMA_COMS and F_CPU, so that one cycle takes 26,
+ * 13, 6.5, 3.2 or 1.6 s. */
+#define FX_ADVANCE(a24) ((uint16_t)((a24) * 24UL * LED_DMA_COMS / (18UL * (F_CPU / 1000000UL))))
 static __code const uint16_t speed_table[5]     = {FX_ADVANCE(32), FX_ADVANCE(64), FX_ADVANCE(128), FX_ADVANCE(256), FX_ADVANCE(512)};
 
-/*
- * Position of each LED along its zone, 0-191, by buffer slot (COM * 8 + group). F_POS modes add it
- * to the hue (F_REV: subtract it), and F_MOVE modes shift the hue so that the colours move towards
- * higher positions.
- * Keys: key centre x on a 22.5-unit-wide board (standard 104-key positions), so position grows from
- * left to right.
- * Side lights: pair index * 24; stock table @0x30c9 pairs COM c with COM 15 - c, one on each side.
- * Pair 0 (COMs 0 and 15) is at the back of the keyboard (the edge away from the user), pair 7 (COMs 7
- * and 8) at the front, so position grows from back to front.
- * MONO: one LED on the red line, white for G1-G5, red for Rec and the media keys.
- */
-#define MONO 0xFF
-static __code const uint8_t led_pos[LED_DMA_COMS * LED_DMA_GROUPS] = {
-    // clang-format off
-      4,   4,   6,   7,  10,   5,   0,   0, // COM 0
-     21,  13,  17,  19,   0,  16,   0,  24, // COM 1
-     30,  21,  26,  28,  23,  27,   0,  48, // COM 2
-     38,  30,  34,  36,  32,  59,   0,  72, // COM 3
-     47,  38,  43,  45,  41,  91,   0,  96, // COM 4
-     60,  47,  51,  53,  49, 101,   0, 120, // COM 5
-     68,  55,  60,  62,  58, 112, MONO, 144, // COM 6
-     77,  64,  68,  70,  66, 123, MONO, 168, // COM 7
-     85,  73,  77,  79,  75, 134, MONO, 168, // COM 8
-     98,  81,  85,  87,  83, 143, MONO, 144, // COM 9
-    107,  90,  94,  96,  92, 151, MONO, 120, // COM 10
-    115,  98, 102, 105, 100, 166, MONO,  96, // COM 11
-    124, 107, 111,   0,   0, 179, MONO,  72, // COM 12
-    134, 119, 122, 118, 116, 162, MONO,  48, // COM 13
-    143, 134, 134, 162, 143, 171, MONO,  24, // COM 14
-    151, 143, 143, 171, 162, 179, MONO,   0, // COM 15
-    162, 151, 151, 179, 171, 188,   0,   0, // COM 16
-    171, 179, 188, 188, 179,   0,   0,   0, // COM 17
-    // clang-format on
-};
+/* led_pos[]: the keyboard's LED positions (led_fx.h) */
+#include "led_fx_pos.h"
 
 /* Settings, indexed by LED_FX_MODE...LED_FX_ON; zone 0 = keys, zone 1 = side lights */
-static __xdata uint8_t settings[2][LED_FX_SETTINGS] = {
+static __xdata uint8_t settings[LED_FX_ZONES][LED_FX_SETTINGS] = {
     {MODE_WAVE, 0, 4, 4, 2, 1},
+#if LED_FX_ZONES > 1
     {MODE_RAINBOW, 0, 4, 4, 2, 1},
+#endif
 };
-static __xdata uint16_t phase[2];
+static __xdata uint16_t phase[LED_FX_ZONES];
 
 /* Per-zone values for the current pass; in iRAM, as are the other values used for every LED */
 typedef struct {
@@ -75,7 +46,7 @@ typedef struct {
     uint8_t sat;
     uint8_t val;
 } zone_t;
-static __xdata zone_t zone[2];
+static __xdata zone_t zone[LED_FX_ZONES];
 
 static __xdata uint8_t fx_com = LED_DMA_COMS; // next COM to render; LED_DMA_COMS: no pass running
 static __xdata uint8_t fx_frames;             // led_dma_frames at the start of the last pass
@@ -124,7 +95,7 @@ static void start_pass(void) {
     uint8_t           z;
 
     fx_animated = 0;
-    for (z = 0; z < 2; z++, set += LED_FX_SETTINGS, ph++, zs++) {
+    for (z = 0; z < LED_FX_ZONES; z++, set += LED_FX_SETTINGS, ph++, zs++) {
         uint8_t flags = mode_flags[set[LED_FX_MODE]];
         uint8_t p, v = 0;
 
@@ -154,7 +125,7 @@ static void start_pass(void) {
     }
 }
 
-/* Writes red, green, blue of the 8 LEDs of COM c (group 7 = side lights, zone 1) */
+/* Writes red, green, blue of the 8 LEDs of COM c (with 2 zones, group 7 = side lights, zone 1) */
 static void render_com(uint8_t c) {
     __xdata uint8_t      *p   = led_dma_buf + ((uint16_t)c << 5);
     __code const uint8_t *pos = led_pos + (c << 3);
@@ -164,10 +135,17 @@ static void render_com(uint8_t c) {
     for (n = 0; n < LED_DMA_GROUPS; n++, p += 4) {
         uint8_t x = *pos++;
 
+#if LED_FX_ZONES > 1
         if (n == LED_DMA_GROUPS - 1) {
             zs++;
         }
-        if (x == MONO) {
+#endif
+#ifdef LED_FX_SKIP_ENABLE
+        if (x == LED_FX_SKIP) {
+            continue;
+        }
+#endif
+        if (x == LED_FX_MONO) {
             /* single-colour LED: lit at the zone's brightness whatever the hue */
             rgb[0] = zs->val;
             rgb[1] = 0;

@@ -124,10 +124,10 @@ On the tested keyboard, a restore of firmware 1.04 gave a full 64 KB read-back i
   search. Fn+Win toggles Win Lock, which blocks both Win keys and lights the Win Lock LED. Win Lock is off after
   power-up.
 - G1–G5 and Rec: F13–F17 and F18, for shortcuts set in the operating system.
-- Lighting ([led_fx.c](led_fx.c)): two zones with separate settings, the keys and the side lights. Fn plus the
-  keys below steps a setting; with Shift held it steps back. The settings are saved in the data flash 3 s after
-  the last change and kept at power-off ([flash_store.c](flash_store.c)); the LEDs flicker briefly while they
-  are saved.
+- Lighting ([led_fx.c](../common/led_fx.c)): two zones with separate settings, the keys and the side lights. Fn
+  plus the keys below steps a setting; with Shift held it steps back. The settings are saved in the data flash 3 s
+  after the last change and kept at power-off ([flash_store.c](../common/flash_store.c)); the LEDs flicker briefly
+  while they are saved.
 
   | Setting | Keys | Side lights |
   |---|---|---|
@@ -196,4 +196,4 @@ To go back, flash the `default` build. It writes no code flash except the boot m
   lines on P0, P3 and P7, shared with the key matrix. LED row n on common line c is the LED of the key in matrix
   row n, column c (rows 0–6); LED row 7 on common lines 0–15 drives the side lights. G1–G5 (white), Rec and
   the media keys (red) have one LED each, on the red row. The keys are read in the LED controller's interrupt,
-  on each common line ([led_dma.c](led_dma.c)).
+  on each common line ([led_dma.c](../common/led_dma.c)).

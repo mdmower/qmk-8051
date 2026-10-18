@@ -4,11 +4,15 @@
 #include "mcs51_isr.h"
 #include "usb_device.h"
 
+_Static_assert(LED_DMA_COMS == 16 || LED_DMA_COMS == 18, "COMs: P0 and P3, and P7.0 and P7.1 with 18");
+
 /* LED_COMMON value of each COM, in key matrix column order (stock 1.04 table @0x3027) */
 static __code const uint8_t com_select[LED_DMA_COMS] = {
     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, // P0.0-P0.7
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, // P3.0-P3.7
+#if LED_DMA_COMS > 16
     0x0E, 0x0F                                      // P7.0, P7.1
+#endif
 };
 
 __xdata __at(LED_DMA_BUF_ADDR) uint8_t led_dma_buf[LED_DMA_COMS * LED_DMA_GROUPS * 4];
@@ -98,13 +102,16 @@ MCS51_ISR(led_dma_isr, INT_NO_PWM_I2C) {
         P0 &= ~(uint8_t)(1 << com);
     } else if (com < 16) {
         P3 &= ~(uint8_t)(1 << (com - 8));
-    } else if (com == 16) {
+    }
+#if LED_DMA_COMS > 16
+    else if (com == 16) {
         P7 |= bP7_0_DIR;
         P7 &= ~bP7_0_OUT_PU;
     } else {
         P7 |= bP7_1_DIR;
         P7 &= ~bP7_1_OUT_PU;
     }
+#endif
 
     /* P4 to key input with pull-up, wait as stock does, read the rows */
     P4_LED_KEY = 0xFF;
@@ -143,10 +150,14 @@ MCS51_ISR(led_dma_isr, INT_NO_PWM_I2C) {
     P3_MOD_OC  = 0;
     P0_DIR_PU  = 0xFF;
     P3_DIR_PU  = 0xFF;
+#if LED_DMA_COMS > 16
     P7 |= bP7_0_DIR | bP7_1_DIR;
+#endif
     P0 = 0xFF;
     P3 = 0xFF;
+#if LED_DMA_COMS > 16
     P7 |= bP7_0_OUT_PU | bP7_1_OUT_PU;
+#endif
 
     led_dma_keys[com] = ~rows;
     if (com == LED_DMA_COMS - 1) {
@@ -181,7 +192,9 @@ void led_dma_init(void) {
     P4_MOD_OC = 0;
     P3_MOD_OC = 0;
     P0_MOD_OC = 0;
+#if LED_DMA_COMS > 16
     P7 |= bP7_0_DIR | bP7_1_DIR | bP7_0_OUT_PU | bP7_1_OUT_PU;
+#endif
 
     LED_CTRL    = bLED_EN;
     LED_CYCLE   = bLED_INTEN_CYC1 | bLED_INTEN_CYC0; // 64-clock intensity PWM, 256-step colour PWM, Fsys
@@ -224,7 +237,9 @@ void ch555_sleep_enter_kb(uint8_t key_wake) {
     LED_CTRL &= ~bLED_EN;
     P0 = 0;
     P3 = 0;
+#if LED_DMA_COMS > 16
     P7 &= ~(bP7_0_OUT_PU | bP7_1_OUT_PU);
+#endif
     if (key_wake) {
         PORT_CFG |= bP4_IE_LEVEL;
     }
@@ -236,7 +251,9 @@ void ch555_sleep_exit_kb(void) {
     PORT_CFG &= ~bP4_IE_LEVEL;
     P0 = 0xFF;
     P3 = 0xFF;
+#if LED_DMA_COMS > 16
     P7 |= bP7_0_OUT_PU | bP7_1_OUT_PU;
+#endif
     LED_CTRL    = bLED_IE_INHIB | bLED_BLUE_EN | bLED_GREEN_EN | bLED_RED_EN | bLED_COM_AHEAD | bLED_PWM_INHIB | bLED_EN;
     LED_STATUS |= bLED_IF_SET;
 }
