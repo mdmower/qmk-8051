@@ -1,0 +1,57 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+#include "quantum.h"
+#include "led_fx.h"
+
+/*
+ * Functions shared by the Redragon CH555 keyboards: Win Lock, the lighting settings (led_fx.h) and their storage
+ * in the data flash (flash_store.h). The keyboard's own code calls them from its *_kb functions.
+ *
+ * Optional, in the keyboard's config.h:
+ *   LED_INDICATOR_ENABLE_PIN  pin that enables the indicator LEDs, active low; off while the host is suspended
+ *   LED_WIN_LOCK_PIN          Win Lock LED, active high
+ *   REDRAGON_KB_SETTINGS      number of bytes in redragon_kb_settings[], saved after the lighting settings
+ */
+
+/* Keycodes from QK_KB_0: Win Lock, then the lighting settings in led_fx.h order (key LEDs, then side lights with
+ * 2 zones); Shift steps a setting back. A keyboard's own keycodes start at RD_KB_SAFE_RANGE. */
+enum redragon_keycodes {
+    RD_WINLK = QK_KB_0,
+    RD_KMODE,
+    RD_KHUE,
+    RD_KSAT,
+    RD_KVAL,
+    RD_KSPD,
+    RD_KTOG,
+#if LED_FX_ZONES > 1
+    RD_SMODE,
+    RD_SHUE,
+    RD_SSAT,
+    RD_SVAL,
+    RD_SSPD,
+    RD_STOG,
+#endif
+    RD_KB_SAFE_RANGE
+};
+
+#ifndef REDRAGON_KB_SETTINGS
+#    define REDRAGON_KB_SETTINGS 0
+#endif
+#if REDRAGON_KB_SETTINGS > 0
+/* Defined by the keyboard; saved with the lighting settings SAVE_DELAY after redragon_settings_changed(). */
+extern __xdata uint8_t redragon_kb_settings[REDRAGON_KB_SETTINGS];
+#endif
+
+/* From keyboard_post_init_kb: sets up the LED pins and loads the saved settings. Returns the keyboard's saved
+ * bytes (REDRAGON_KB_SETTINGS, in code space), or 0 if nothing has been saved. */
+__code const uint8_t *redragon_init(void);
+/* From process_record_kb: Win Lock and the lighting keycodes. Returns false for a key it has handled or blocked. */
+bool redragon_process_record(uint16_t keycode, keyrecord_t *record);
+/* From housekeeping_task_kb: lighting effects and the delayed save. */
+void redragon_task(void);
+/* From suspend_power_down_kb (true) and suspend_wakeup_init_kb (false): LEDs off while the host is suspended. */
+void redragon_suspend(bool suspended);
+/* Saves the settings SAVE_DELAY after the last call. */
+void redragon_settings_changed(void);

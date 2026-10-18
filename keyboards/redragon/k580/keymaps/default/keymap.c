@@ -1,15 +1,6 @@
-#include QMK_KEYBOARD_H
-#include "led_dma.h"
-#include "led_fx.h"
-#include "flash_store.h"
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-// Custom keycodes: Win Lock; roller toggle key and roller turns; lighting settings, keys then side lights in led_fx.h order
-enum {
-  U_WINLK = SAFE_RANGE,
-  U_ROLL, U_RLDN, U_RLUP,
-  U_KMODE, U_KHUE, U_KSAT, U_KVAL, U_KSPD, U_KTOG,
-  U_SMODE, U_SHUE, U_SSAT, U_SVAL, U_SSPD, U_STOG
-};
+#include QMK_KEYBOARD_H
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 //COM is Row, KeyPu is Column
@@ -22,7 +13,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_LSFT,  KC_Z,     KC_X,    	KC_C,    	KC_V,    	KC_B,    	KC_N,    	KC_M,    	KC_COMM,  KC_DOT,  	KC_SLSH,             	        KC_RSFT,  KC_UP,    KC_P4,      KC_P5,   KC_P6,
         KC_LCTL,  KC_LGUI,  KC_LALT, 	KC_SPC,  	KC_RALT, 	MO(1),   	KC_APP,   	KC_RCTL,  KC_LEFT,  KC_DOWN,  KC_RIGHT, KC_P0, 	  KC_PDOT, 	KC_P1,  	KC_P2,    KC_P3,      KC_PENT,
         /* row 6 — G1-G5 and Rec send F13-F18 (bind them in the OS), roller toggle, media keys */
-                                                                    KC_F13,   KC_F14,   KC_F15,    KC_F16,  KC_F17,   KC_F18,   U_ROLL,   KC_MPRV, KC_MPLY, KC_MNXT),
+                                                                    KC_F13,   KC_F14,   KC_F15,    KC_F16,  KC_F17,   KC_F18,   K580_ROLL,   KC_MPRV, KC_MPLY, KC_MNXT),
 	/* Fn layer: Fn+Esc = bootloader, Fn+F1-F12 = the functions printed on the keycaps (media player,
 	 * volume down/up, mute, stop, previous, play/pause, next, mail, browser home, calculator, search),
 	 * Fn+Win = Win Lock. Lighting (Shift reverses): Ins/G1 mode, Home/G2 hue, PgUp/G3 saturation,
@@ -30,112 +21,17 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 	 * lights. */
 	[1] = LAYOUT_default(
         QK_BOOT, KC_MSEL, KC_VOLD, KC_VOLU, KC_MUTE, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, KC_MAIL, KC_WHOM, KC_CALC, KC_WSCH, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, U_KMODE, U_KHUE,  U_KSAT,  _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, U_KVAL,  U_KSPD,  U_KTOG,  _______,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RD_KMODE, RD_KHUE, RD_KSAT, _______,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RD_KVAL, RD_KSPD, RD_KTOG, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, U_WINLK, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        U_SMODE, U_SHUE,  U_SSAT,  U_SVAL,  U_SSPD,  U_STOG,  _______, _______, _______, _______),
+        _______, RD_WINLK, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
+        RD_SMODE, RD_SHUE, RD_SSAT, RD_SVAL, RD_SSPD, RD_STOG, _______, _______, _______, _______),
 };
-
-/* Win Lock: while it is on, LGUI/RGUI are blocked and the Win Lock LED is lit. */
-static bool win_lock = false;
-/* The roller toggle key switches the roller between volume and key LED brightness. */
-static bool roller_light = false;
-
-/* Settings saved in the data flash SAVE_DELAY after the last change: the lighting settings (led_fx.c),
- * then the roller mode (1 = key LED brightness). */
-#define SAVE_DELAY 3000 // ms
-static uint16_t save_time;
-static bool     save_pending = false;
-
-static void settings_changed(void) {
-    save_pending = true;
-    save_time    = timer_read();
-}
-
-static void settings_task(void) {
-    __xdata uint8_t rec[LED_FX_SAVE_SIZE + 1];
-
-    if (save_pending && timer_elapsed(save_time) >= SAVE_DELAY) {
-        save_pending = false;
-        led_fx_save(rec);
-        rec[LED_FX_SAVE_SIZE] = roller_light;
-        flash_store_save(rec, sizeof(rec));
-    }
-}
-
-bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    if (keycode >= U_KMODE && keycode <= U_STOG) {
-        if (record->event.pressed) {
-            led_fx_adjust(keycode - U_KMODE, get_mods() & MOD_MASK_SHIFT);
-            settings_changed();
-        }
-        return false;
-    }
-    switch (keycode) {
-    case U_ROLL:
-        if (record->event.pressed) {
-            roller_light = !roller_light;
-            settings_changed();
-        }
-        return false;
-    case U_RLDN:
-    case U_RLUP:
-        if (roller_light) {
-            if (record->event.pressed) {
-                led_fx_adjust(LED_FX_VAL, keycode == U_RLDN);
-                settings_changed();
-            }
-        } else if (record->event.pressed) {
-            register_code(keycode == U_RLDN ? KC_VOLD : KC_VOLU);
-        } else {
-            unregister_code(keycode == U_RLDN ? KC_VOLD : KC_VOLU);
-        }
-        return false;
-    case U_WINLK:
-        if (record->event.pressed) {
-            win_lock = !win_lock;
-            gpio_write_pin(LED_WIN_LOCK_PIN, win_lock);
-        }
-        return false;
-    case KC_LGUI:
-    case KC_RGUI:
-        return !win_lock;
-    }
-    return true;
-}
 
 #ifdef ENCODER_MAP_ENABLE
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
-    [0] = { ENCODER_CCW_CW(U_RLDN, U_RLUP) }, // volume or key LED brightness (U_ROLL)
+    [0] = { ENCODER_CCW_CW(K580_RLDN, K580_RLUP) }, // volume or key LED brightness (K580_ROLL)
     [1] = { ENCODER_CCW_CW(_______, _______) },
 };
 #endif
-
-void keyboard_post_init_user(void) {
-    /* P5.4 enables the indicator LEDs, active low (stock 1.04 @0xdc4b) */
-    gpio_set_pin_output(PORT5_4);
-    gpio_write_pin_low(PORT5_4);
-    gpio_set_pin_output(LED_WIN_LOCK_PIN);
-    gpio_write_pin_low(LED_WIN_LOCK_PIN);
-
-    __code const uint8_t *p = flash_store_find();
-    if (p) {
-        led_fx_load(p);
-        roller_light = p[LED_FX_SAVE_SIZE] == 1;
-    }
-}
-/* Indicator LEDs and key LEDs off while the host is suspended (stock 1.04 @0x794f) */
-void suspend_power_down_user(void) {
-    gpio_write_pin_high(PORT5_4);
-    led_dma_output(false);
-}
-void suspend_wakeup_init_user(void) {
-    gpio_write_pin_low(PORT5_4);
-    led_dma_output(true);
-}
-void housekeeping_task_user(void) {
-    led_fx_task();
-    settings_task();
-}

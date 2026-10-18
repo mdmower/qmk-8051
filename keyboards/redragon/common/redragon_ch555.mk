@@ -10,6 +10,8 @@ MCS51_ISR_HEADERS += led_dma.h
 # Lighting settings saved in the data flash (flash_store.c)
 SRC += flash_store.c
 CH555_DATA_FLASH_ENABLE = yes
+# Win Lock, lighting keycodes and the settings save (redragon_ch555.h)
+SRC += redragon_ch555.c
 
 # USB serial number, optional: qmk compile ... -e SERIAL_NUMBER=<serial>. Without it, the serial number is the
 # chip ID (SERIAL_NUMBER_USE_HARDWARE_ID in tmk_core/protocol/ch555/ch555.mk). Letters, digits and . _ : - only

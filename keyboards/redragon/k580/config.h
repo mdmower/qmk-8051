@@ -11,8 +11,12 @@
 /* MCU sleep in USB suspend; the keys wake it (keyboards/redragon/common/led_dma.c) */
 #define CH555_SUSPEND_SLEEP
 
-/* Win Lock LED (Fn+Win in the default keymap) */
+/* Indicator LEDs enabled by P5.4, active low (stock 1.04 @0xdc4b); Win Lock LED on P5.0
+ * (keyboards/redragon/common/redragon_ch555.h) */
+#define LED_INDICATOR_ENABLE_PIN PORT5_4
 #define LED_WIN_LOCK_PIN PORT5_0
+/* Saved with the lighting settings: the roller mode (k580.c) */
+#define REDRAGON_KB_SETTINGS 1
 
 /* Disabled for flash space: tap keys (LT, MT, TT, *_T, tap-toggle) and one-shot keys (OSM, OSL) do nothing;
  * MO() still works. */

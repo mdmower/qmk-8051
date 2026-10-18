@@ -252,21 +252,6 @@
       "shortName": "WinLk"
     },
     {
-      "name": "Roller mode",
-      "title": "Roller: volume or key LED brightness",
-      "shortName": "RlMd"
-    },
-    {
-      "name": "Roller down",
-      "title": "Volume or key LED brightness down (roller mode)",
-      "shortName": "RlDn"
-    },
-    {
-      "name": "Roller up",
-      "title": "Volume or key LED brightness up (roller mode)",
-      "shortName": "RlUp"
-    },
-    {
       "name": "Key LED mode",
       "title": "Next key LED effect (Shift: previous)",
       "shortName": "KMod"
@@ -325,6 +310,21 @@
       "name": "Side LEDs on/off",
       "title": "Side lights on/off",
       "shortName": "STog"
+    },
+    {
+      "name": "Roller mode",
+      "title": "Roller: volume or key LED brightness",
+      "shortName": "RlMd"
+    },
+    {
+      "name": "Roller down",
+      "title": "Volume or key LED brightness down (roller mode)",
+      "shortName": "RlDn"
+    },
+    {
+      "name": "Roller up",
+      "title": "Volume or key LED brightness up (roller mode)",
+      "shortName": "RlUp"
     }
   ]
 }
