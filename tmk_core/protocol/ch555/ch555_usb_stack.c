@@ -34,7 +34,6 @@
 #include "host_driver.h"
 #include "keyboard.h"
 #include "action.h"
-#include "led.h"
 #include "suspend.h"
 #include "wait.h"
 #include "timer.h"
@@ -67,8 +66,6 @@ extern keymap_config_t keymap_config;
 #ifdef RAW_ENABLE
 #    include "raw_hid.h"
 #endif
-
-static uint8_t keyboard_led_state = 0;
 
 /* The current report of the keyboard interface (interface 0, EP1; 8 bytes without report ID in both protocols):
  * the last one loaded into EP1, or one kept until EP1 is free and sent from protocol_post_task(). GET_REPORT
@@ -290,8 +287,9 @@ void raw_hid_task(void) {
 /*******************************************************************************
  * Host driver
  ******************************************************************************/
+/* The LED report of the last SET_REPORT (USB interrupt); QMK core's led_task() calls led_set() when it changes. */
 static uint8_t keyboard_leds(void) {
-    return keyboard_led_state;
+    return KB_USB_SetReport;
 }
 
 /* Waits up to about 10 ms, as LUFA does, for the host to read the report an IN endpoint holds, if the device is
@@ -466,13 +464,6 @@ void protocol_pre_task(void) {
 }
 
 void protocol_post_task(void) {
-    /* Sync LED state from ISR-updated KB_USB_SetReport to keyboard_led_state,
-     * then call led_set() safely from the main loop (not inside the USB ISR). */
-    if (KB_USB_SetReport != keyboard_led_state) {
-        keyboard_led_state = KB_USB_SetReport;
-        led_set(keyboard_led_state);
-    }
-
     /* SET_PROTOCOL (USB interrupt) takes effect here. QMK core builds boot reports (6 key bytes, EP1) in boot
      * protocol and NKRO reports (bitmap, shared endpoint) in report protocol; clear_keyboard() empties the
      * report and sends it in the new format, as LUFA and ChibiOS do. */
