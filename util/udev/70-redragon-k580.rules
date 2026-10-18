@@ -15,8 +15,8 @@ KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:320F:5000.*", MODE="0660", GROUP="plugde
 # Evision OEM bootloader (firmware update mode). It reports no keystrokes, so all of its HID nodes are granted.
 KERNEL=="hidraw*", DEVPATH=="*/0003:0C45:7687.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 
-# QMK (3938:1195), interface 1 only: raw HID (usage page 0xFF60, usage 0x61), used by VIA. It carries no
+# QMK (5244:0580), interface 1 only: raw HID (usage page 0xFF60, usage 0x61), used by VIA. It carries no
 # keystrokes: interface 0 (boot keyboard) and interface 2 (NKRO and media keys) stay root-only.
-KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:3938:1195.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0580.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 
 # The WCH factory ISP bootloader (4348:55e0) is not granted. Flashing through it overwrites the OEM bootloader.

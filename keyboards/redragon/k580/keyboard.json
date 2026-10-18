@@ -1,11 +1,11 @@
 {
     "manufacturer": "Redragon",
     "keyboard_name": "K580 Vata",
-    "maintainer": "you",
+    "maintainer": "mdmower",
     "usb": {
-        "vid": "0x3938",
-        "pid": "0x1195",
-        "device_version": "0.0.2",
+        "vid": "0x5244",
+        "pid": "0x0580",
+        "device_version": "1.0.0",
         "max_power": 500
     },
     "bootloader": "evision-oem",

@@ -1,7 +1,7 @@
 {
   "name": "Redragon K580 RGB (QMK)",
-  "vendorId": "0x3938",
-  "productId": "0x1195",
+  "vendorId": "0x5244",
+  "productId": "0x0580",
   "matrix": {
     "rows": 7,
     "cols": 18

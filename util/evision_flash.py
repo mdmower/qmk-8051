@@ -47,7 +47,7 @@ def HIDIOCGFEATURE(n): return _ioc(3, ord('H'), 0x07, n)
 
 APP_VID, APP_PID = 0x320f, 0x5000
 BOOT_VID, BOOT_PID = 0x0c45, 0x7687
-QMK_VID, QMK_PID = 0x3938, 0x1195        # QMK redragon/k580 (no Evision vendor interface)
+QMK_VID, QMK_PID = 0x5244, 0x0580        # QMK redragon/k580 (no Evision vendor interface)
 APP_BASE = 0x2800
 ERASE_END = 0xEFC0                       # bootloader erases pages 0xA0..0x3BE -> 0x2800..0xEFBF
 PKT = 64

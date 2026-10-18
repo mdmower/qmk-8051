@@ -90,8 +90,11 @@ From the stock firmware:
 
 ```
 python3 -I util/evision_flash.py enter --send
-python3 -I util/evision_flash.py flash redragon_k580_default.bin --expect 3938:1195 --send
+python3 -I util/evision_flash.py flash redragon_k580_default.bin --expect 5244:0580 --send
 ```
+
+QMK enumerates as one USB device (`5244:0580`) with three HID interfaces: boot keyboard, raw HID, and NKRO keyboard
+with system and media keys.
 
 To flash a new build over QMK, enter the bootloader with Fn+Esc, or hold Esc while plugging in the keyboard, then
 run the `flash` command. The Esc check runs before QMK starts, so it also works if a QMK build does not start.
@@ -159,7 +162,7 @@ Build and flash `redragon_k580_via.bin` as above. Then:
 
 1. Open [usevia.app](https://usevia.app) in Chrome or Chromium (WebHID). In Settings, turn on "Show Design tab".
 2. In the Design tab, load the VIA definition [keymaps/via/redragon_k580_via.json](keymaps/via/redragon_k580_via.json).
-3. In the Configure tab, authorize the keyboard (`3938:1195`).
+3. In the Configure tab, authorize the keyboard (`5244:0580`).
 
 How the store works:
 - The EEPROM is 1 KB: QMK's settings, 3 layers, the roller on each layer and about 215 bytes of macros. Layer 0
@@ -182,8 +185,6 @@ To go back, flash the `default` build. It writes no code flash except the boot m
   instead. The `via` keymap keeps QMK's settings in code flash.
 - To save flash, the K580 build turns off tap and one-shot keys ([config.h](config.h)), `send_string` (on in
   the `via` keymap, for macros), Grave Escape, Magic keycodes and Space Cadet ([rules.mk](rules.mk)).
-- QMK enumerates as one USB device (`3938:1195`) with three HID interfaces: boot keyboard, raw HID, and NKRO
-  keyboard with system and media keys.
 - The backup and flash tools (`util/k580_dump.py`, `util/evision_flash.py`) run on Linux only.
 - Vial is not supported: it needs the vial-qmk fork. The `via` keymap supports VIA.
 

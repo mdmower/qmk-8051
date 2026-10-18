@@ -62,6 +62,8 @@ Works:
 - The lighting settings and the roller mode are saved in the CH555 data flash and kept at power-off.
 - Holding Esc while plugging in the keyboard enters the bootloader.
 - USB serial number: the chip ID, or a serial number set at build time.
+- USB: one device (`5244:0580`) with three HID interfaces: boot keyboard, raw HID, and NKRO keyboard with system
+  and media keys.
 - `via` keymap: key and roller remapping in VIA, kept at power-off. VIA macros are untested.
 
 Not implemented:
@@ -77,8 +79,6 @@ Other limits:
   [keyboards/redragon/k580/config.h](keyboards/redragon/k580/config.h) and
   [keyboards/redragon/k580/rules.mk](keyboards/redragon/k580/rules.mk). VIA offers tap keys (`LT`, `MT`); they do
   nothing on this build.
-- QMK enumerates as one USB device (`3938:1195`) with three HID interfaces: boot keyboard, raw HID, and NKRO
-  keyboard with system and media keys.
 - The backup and flash tools (`util/k580_dump.py`, `util/evision_flash.py`) run on Linux only.
 - Other K580 revisions may use a different MCU; one keyboard database lists the K580 with a Sonix SN32F248B.
   [keyboards/redragon/k580/readme.md](keyboards/redragon/k580/readme.md) describes how to check a keyboard
