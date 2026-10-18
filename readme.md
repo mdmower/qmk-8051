@@ -112,14 +112,19 @@ python3 -I util/evision_flash.py flash redragon_${KB}_default.bin --expect $QMK_
 ```
 
 `flash` checks the image before it erases anything, writes only 0x2800–0xEFBF, and then waits for the `--expect`
-ID. If a flash fails or is interrupted, the keyboard stays in the bootloader and the command can be run again.
+ID at the same USB port. If a flash fails or is interrupted, the keyboard stays in the bootloader and the command
+can be run again.
+
+Other Redragon keyboards use the same stock and bootloader IDs, which do not identify the keyboard: `enter`,
+`flash` and `evision_dump.py` refuse to run when more than one keyboard has the ID they need, and print the USB
+port of the keyboard they use.
 
 QMK enumerates as one USB device (`$QMK_ID`) with three HID interfaces: boot keyboard, raw HID (used by VIA), and
 NKRO keyboard with system and media keys.
 
 To flash a new build over QMK, enter the bootloader with Fn+Esc, or hold Esc while plugging in the keyboard, then
-run the `flash` command. With `--poll`, `flash` waits up to 15 s for the bootloader: start it first, then press
-Fn+Esc. Use `--poll` only with one keyboard connected that has this bootloader.
+run the `flash` command. With `--poll --send`, `flash` waits up to 15 s for the bootloader: start it first, then
+press Fn+Esc.
 
 ### Restore the stock firmware
 

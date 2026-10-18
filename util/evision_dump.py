@@ -11,7 +11,8 @@ implement this command: make the backup before flashing QMK.
 Read-only by construction:
   * Sends only command 0x10 (read). Refuses any report that matches the bootloader-entry pattern
     (bytes 1-3 = EE EE 00).
-  * Opens only the hidraw node of 320f:5000 on USB interface 1.
+  * Opens only the hidraw node of 320f:5000 on USB interface 1, and refuses when more than one keyboard has
+    that ID (the K580 and the K552 share it; the stock firmware does not identify the board).
   * DRY-RUN by default. Nothing is sent without --send.
 
 Linux only: talks to the keyboard through hidraw. Python standard library only.
@@ -30,18 +31,33 @@ REPORT_LEN = 64            # 1 report-id byte + 63 data bytes
 MAX_CHUNK = 0x36
 BOOT_MARKER = 0x27C0       # AA 55 33 CC here makes the OEM bootloader start the app at 0x2800
 
+def usb_port(devpath):
+    """USB port path (sysfs name, e.g. 1-2.2) and serial of the USB device of a hidraw devpath."""
+    d = os.path.dirname(os.path.dirname(devpath))   # .../1-2.2/1-2.2:1.1/0003:VVVV:PPPP.NNNN
+    try:
+        serial = open(os.path.join(d, "serial")).read().strip()
+    except OSError:
+        serial = None
+    return "USB %s%s" % (os.path.basename(d), ", serial %s" % serial if serial else "")
+
 def resolve_node():
-    """Find the hidraw node for VID:PID on USB interface 1 (the vendor collection)."""
+    """Find the hidraw node for VID:PID on USB interface 1 (the vendor collection). Return (node, USB port)."""
     hits = []
     for ue in glob.glob("/sys/class/hidraw/hidraw*/device/uevent"):
-        txt = open(ue).read()
+        try:
+            txt = open(ue).read()
+        except OSError:                             # node removed since the glob
+            continue
         if ("HID_ID=0003:0000%04X:0000%04X" % (VID, PID)).upper() not in txt.upper():
             continue
         devpath = os.path.realpath(os.path.dirname(ue))
-        hits.append(("/dev/" + ue.split("/")[4], ":1.1/" in devpath))
-    for node, iface1 in hits:
-        if iface1:
-            return node
+        hits.append(("/dev/" + ue.split("/")[4], ":1.1/" in devpath, devpath))
+    iface1 = [(node, usb_port(devpath)) for node, i1, devpath in sorted(hits) if i1]
+    if len(iface1) > 1:
+        raise SystemExit("%d keyboards with %04x:%04x found (%s); refusing. Unplug all but the one to read."
+                         % (len(iface1), VID, PID, "; ".join("%s at %s" % hit for hit in iface1)))
+    if iface1:
+        return iface1[0]
     if hits:
         raise SystemExit("found %s but not on interface 1; refusing" % hits[0][0])
     raise SystemExit("no hidraw node for %04x:%04x found (is the keyboard connected and running stock firmware?)"
@@ -92,8 +108,8 @@ def main():
         raise SystemExit("need 0 <= start < end <= 0x10000")
     if not (0 < chunk <= MAX_CHUNK):
         raise SystemExit("chunk must be 1..0x%x" % MAX_CHUNK)
-    node = resolve_node()
-    print("device : %04x:%04x  node %s (interface 1)" % (VID, PID, node))
+    node, port = resolve_node()
+    print("device : %04x:%04x  node %s (interface 1, %s)" % (VID, PID, node, port))
     print("read   : 0x%04x-0x%04x (%d bytes) in 0x%02x-byte reads, command 0x10 (read-only)"
           % (start, end - 1, end - start, chunk))
     if not a.send:
