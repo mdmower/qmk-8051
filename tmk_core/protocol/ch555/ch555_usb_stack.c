@@ -100,8 +100,8 @@ host_driver_t ch555_usb_stack_driver = {
 };
 
 #ifdef USE_D0_EP2_IN
-/* The shared endpoint (EP2 IN) holds one report until the host reads it. A report that finds
- * it busy is kept here, the latest one per report ID, and sent from protocol_post_task(). */
+/* The shared endpoint (EP2 IN) holds one report until the host reads it. A report that still finds
+ * it busy after wait_in_ep() is kept here, the latest one per report ID, and sent from protocol_post_task(). */
 static report_nkro_t     nkro_pending;
 static bool              nkro_pending_set = false;
 static report_extra_t    extra_pending[2]; /* [0] REPORT_ID_SYSTEM, [1] REPORT_ID_CONSUMER */
@@ -294,6 +294,17 @@ static uint8_t keyboard_leds(void) {
     return keyboard_led_state;
 }
 
+/* Waits up to about 10 ms, as LUFA does, for the host to read the report an IN endpoint holds, if the device is
+ * configured and the bus is not suspended. Without the wait, reports that come faster than the host polls (a VIA
+ * macro, send_string) replace each other in the one kept report, and a press with its release can be lost. */
+static void wait_in_ep(volatile UINT8X *res) {
+    uint8_t timeout = 255;
+    if (!USB_EnumStatus || (USB_IF & bUX_SUSPEND) || USB_WakeUpSent) return;
+    while (timeout-- && (*res & MASK_UEP_X_RES) == UEP_X_RES_ACK) {
+        wait_us(40);
+    }
+}
+
 /* Sends kbd_report on EP1, or keeps it for protocol_post_task() if EP1 still holds the previous report. */
 static void send_kbd_report(void) {
     kbd_report_pending = !send_report(KEYBOARD_IN_EPNUM, kbd_report, 8);
@@ -305,6 +316,7 @@ static void send_kbd_report(void) {
 /* Boot protocol, or report protocol without NKRO: mods, reserved byte and 6 keys on EP1 */
 static void send_keyboard(report_keyboard_t *report) {
     memcpy(kbd_report, &report->mods, 8);
+    wait_in_ep(&D0_EP1RES);
     send_kbd_report();
 }
 
@@ -312,6 +324,7 @@ static void send_keyboard(report_keyboard_t *report) {
 static void send_nkro(report_nkro_t *report) {
 #ifdef NKRO_ENABLE
 #    ifdef USE_D0_EP2_IN
+    wait_in_ep(&D0_EP2RES);
     nkro_pending_set = !send_report(SHARED_IN_EPNUM, report, sizeof(report_nkro_t));
     if (nkro_pending_set) {
         memcpy(&nkro_pending, report, sizeof(report_nkro_t));
@@ -332,6 +345,7 @@ static void send_extra(report_extra_t *report) {
 #ifdef EXTRAKEY_ENABLE
 #    ifdef USE_D0_EP2_IN
     uint8_t i = (report->report_id == REPORT_ID_CONSUMER) ? 1 : 0;
+    wait_in_ep(&D0_EP2RES);
     extra_pending_set[i] = !send_report(SHARED_IN_EPNUM, report, sizeof(report_extra_t));
     if (extra_pending_set[i]) {
         memcpy(&extra_pending[i], report, sizeof(report_extra_t));
@@ -400,7 +414,7 @@ void protocol_pre_init(void) {
     setup_usb();
 }
 
-/* The main loop does not wait for the host: until SET_CONFIGURATION, EP1 keeps the latest keyboard report and EP2
+/* Until SET_CONFIGURATION the main loop does not wait for the host: EP1 keeps the latest keyboard report and EP2
  * the latest one per report ID, raw HID reports are dropped, and an IN endpoint answers NAK until it holds a report. */
 void protocol_post_init(void) {
     host_set_driver(&ch555_usb_stack_driver);
