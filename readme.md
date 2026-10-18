@@ -26,6 +26,10 @@ and stock firmware 1.04. Other keyboards, other K580 revisions and macOS have no
 | Keyboard | MCU | Flashed through | State |
 |---|---|---|---|
 | [Redragon K580 RGB](keyboards/redragon/k580/) | Evision VS11K33A | Evision OEM bootloader (`0c45:7687`) | Works; tested on one keyboard |
+| [Redragon K552RGB-2](keyboards/redragon/k552/) | Evision VS11K28A | Evision OEM bootloader (`0c45:7687`) | Not run on a keyboard yet: matrix and LEDs from the stock firmware V0101 |
+
+The two keyboards share their LED controller, key matrix and lighting code
+([keyboards/redragon/common](keyboards/redragon/common/)).
 
 ## Firmware options for the K580
 
@@ -90,7 +94,8 @@ The toolchain is SDCC 4.6.0 or 4.4.0, clang with clang-query and llvm-nm, binuti
 stops with an internal error on the CH555 USB code (SDCC bug #3894).
 
 - `util/ch555_build.sh KEYBOARD [KEYMAP]` runs the build in Docker and writes `<keyboard>_<keymap>.bin`, the image
-  for the Evision bootloader: `util/ch555_build.sh redragon/k580` gives `redragon_k580_default.bin`.
+  for the Evision bootloader: `util/ch555_build.sh redragon/k580` gives `redragon_k580_default.bin`,
+  `util/ch555_build.sh redragon/k552 via` gives `redragon_k552_via.bin`.
 - With the toolchain installed, `qmk compile -kb redragon/k580 -km default` (or `-km via`) makes the same image.
 
 ## Toolchain limits

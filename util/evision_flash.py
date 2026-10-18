@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Evision OEM bootloader (0c45:7687) flasher for the Redragon K580 (VS11K33A, CH555-family 8051).
+"""Evision OEM bootloader (0c45:7687) flasher for the Redragon K580 (VS11K33A) and K552RGB-2 (VS11K28A),
+CH555-family 8051s. The bootloader does not identify the keyboard: check that the image is for the board.
 
 The protocol and every guard below come from a disassembly of the OEM bootloader (0x0000-0x27FF of a stock
 1.04 flash dump) and match Glitch752's USB capture (https://github.com/Glitch752/qmk-8051-vs11k28a).
@@ -47,7 +48,8 @@ def HIDIOCGFEATURE(n): return _ioc(3, ord('H'), 0x07, n)
 
 APP_VID, APP_PID = 0x320f, 0x5000
 BOOT_VID, BOOT_PID = 0x0c45, 0x7687
-QMK_IDS = {(0x5244, 0x0580): "K580"}    # QMK redragon/k580 (no Evision vendor interface)
+QMK_IDS = {(0x5244, 0x0580): "K580", (0x5244, 0x0552): "K552"}   # QMK redragon/k580, redragon/k552 (no Evision
+                                                                  # vendor interface)
 APP_BASE = 0x2800
 ERASE_END = 0xEFC0                       # bootloader erases pages 0xA0..0x3BE -> 0x2800..0xEFBF
 PKT = 64
@@ -63,6 +65,8 @@ KNOWN = {   # sha256 of the raw (unpadded) app image -> label
         "K580 stock 1.04 app region, as read from one K580",
     "4f7f1f17694774b452c46418e98981d30aa6274631da73428bcde1454a554ff5":
         "K580 vendor 1.02 app region, from the Redragon updater",
+    "f583bda04856362d9f531fea76fa6df9445840e9b4f5c52110a65aec4b050a58":
+        "K552RGB-2 vendor V0101 app region, from the Redragon updater",
 }
 
 def known_label(sha):

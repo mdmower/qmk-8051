@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Read the code flash of a Redragon K580 (Evision VS11K33A) that runs its stock firmware.
+"""Read the code flash of a Redragon K580 (Evision VS11K33A) or K552RGB-2 (VS11K28A) running its stock firmware.
 
 The stock firmware (USB 320f:5000) answers vendor command 0x10 on USB interface 1 with up to 0x36 bytes read
 from code flash at 0xA700 + offset (mod 0x10000), so the whole 64 KB, including the OEM bootloader, can be
-read. The read handler contains no flash write or erase. Tested with stock firmware 1.04. QMK does not
+read. The read handler contains no flash write or erase. Tested with stock firmware 1.04. The K552RGB-2 stock
+firmware V0101 (VS11K28A, also 320f:5000) has the same handler (static analysis; not run on a K552). QMK does not
 implement this command: make the backup before flashing QMK.
 
 Read-only by construction:
