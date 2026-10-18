@@ -25,11 +25,11 @@ Other K580 revisions may use a different MCU. This firmware does not apply to th
 - Access to the keyboard's hidraw nodes: install the udev rule and be a member of the `plugdev` group. The rule
   also grants the raw HID interface of QMK, which VIA uses.
   ```
-  sudo cp util/udev/70-redragon-k580.rules /etc/udev/rules.d/
+  sudo cp util/udev/70-redragon-ch555.rules /etc/udev/rules.d/
   sudo udevadm control --reload && sudo udevadm trigger
   ```
 
-Run the commands below from the top directory of this repository. `util/k580_dump.py` and
+Run the commands below from the top directory of this repository. `util/evision_dump.py` and
 `util/evision_flash.py` send nothing to the keyboard unless `--send` is given; without it they print what they
 would do.
 
@@ -55,8 +55,8 @@ erases anything.
 QMK does not implement the read command that the backup uses. Make the backup before flashing QMK.
 
 ```
-python3 -I util/k580_dump.py --out k580_stock_1.bin --send
-python3 -I util/k580_dump.py --out k580_stock_2.bin --send
+python3 -I util/evision_dump.py --out k580_stock_1.bin --send
+python3 -I util/evision_dump.py --out k580_stock_2.bin --send
 cmp k580_stock_1.bin k580_stock_2.bin
 python3 -I util/evision_flash.py extract k580_stock_1.bin k580_stock_app.bin
 ```
@@ -67,8 +67,8 @@ application region, the image that restores the stock firmware. Keep both.
 ## 2. Build
 
 ```
-util/k580_build.sh            # keymap "default", in Docker (SDCC, clang and the QMK CLI)
-util/k580_build.sh via        # keymap "via"
+util/ch555_build.sh redragon/k580        # keymap "default", in Docker (SDCC, clang and the QMK CLI)
+util/ch555_build.sh redragon/k580 via    # keymap "via"
 ```
 
 or, with SDCC 4.6.0 (4.4.0 also works; 4.5.0 does not), clang (with clang-query and llvm-nm) and binutils
@@ -81,7 +81,7 @@ The USB serial number is the chip ID unless one is set at build time (letters, d
 most 126 characters):
 
 ```
-SERIAL_NUMBER=RDK580RGB00000000000 util/k580_build.sh
+SERIAL_NUMBER=RDK580RGB00000000000 util/ch555_build.sh redragon/k580
 ```
 
 ## 3. Flash QMK
@@ -112,7 +112,7 @@ python3 -I util/evision_flash.py flash k580_stock_app.bin --send
 To compare the flash with the backup while the stock firmware runs:
 
 ```
-python3 -I util/k580_dump.py --start 0x2800 --end 0xEFC0 --out readback.bin --send
+python3 -I util/evision_dump.py --start 0x2800 --end 0xEFC0 --out readback.bin --send
 python3 -I util/evision_flash.py verify readback.bin k580_stock_app.bin
 ```
 
@@ -124,7 +124,7 @@ On the tested keyboard, a restore of firmware 1.04 gave a full 64 KB read-back i
   switches it to key LED brightness and back. The roller mode is saved like the lighting settings.
 - Layer 1 (Fn): Fn+Esc enters the bootloader (`QK_BOOT`). Fn+F1–F12 send the functions printed on the keycaps:
   media player, volume down, volume up, mute, stop, previous, play/pause, next, mail, browser home, calculator,
-  search. Fn+Win toggles Win Lock, which blocks both Win keys and lights the Win Lock LED. Win Lock is off after
+  search. Fn+Win toggles Win Lock, which blocks the Win key and lights the Win Lock LED. Win Lock is off after
   power-up.
 - G1–G5 and Rec: F13–F17 and F18, for shortcuts set in the operating system.
 - Lighting ([led_fx.c](../common/led_fx.c)): two zones with separate settings, the keys and the side lights. Fn
@@ -185,7 +185,7 @@ To go back, flash the `default` build. It writes no code flash except the boot m
   instead. The `via` keymap keeps QMK's settings in code flash.
 - To save flash, the K580 build turns off tap and one-shot keys ([config.h](config.h)), `send_string` (on in
   the `via` keymap, for macros), Grave Escape, Magic keycodes and Space Cadet ([rules.mk](rules.mk)).
-- The backup and flash tools (`util/k580_dump.py`, `util/evision_flash.py`) run on Linux only.
+- The backup and flash tools (`util/evision_dump.py`, `util/evision_flash.py`) run on Linux only.
 - Vial is not supported: it needs the vial-qmk fork. The `via` keymap supports VIA.
 
 ## Hardware

@@ -1,12 +1,12 @@
-# Build environment for util/k580_build.sh: the official SDCC binary (MCS51 files only), binutils (objcopy: the
+# Build environment for util/ch555_build.sh: the official SDCC binary (MCS51 files only), binutils (objcopy: the
 # .ihx to ELF conversion of platforms/mcs51/sdcc_cc.py), clang, clang-query and llvm-nm (sdcc_cc.py: weak
 # definitions and the check for constructs that SDCC compiles to wrong code) and the QMK CLI.
 # SDCC 4.5.0 (the Debian trixie package) stops with an internal error on tmk_core/protocol/ch555/usb_device.c
 # (SDCC bug #3894, fixed in 4.6.0). 4.4.0 also works.
-# git is not installed: qmk compile warns that the tree is not a git repo and sets QMK_VERSION to "NA", which the
-# K580 image does not contain.
-# util/k580_build.sh builds this image with the tree's requirements.txt as the only other file in the context,
-# and tags it qmk-8051-k580:sdcc-<SDCC_VER>-clang.
+# git is not installed: util/ch555_build.sh passes SKIP_GIT=yes, so version.h has QMK_VERSION "NA" (the default
+# images do not contain it; VIA images contain its QMK_BUILDDATE).
+# util/ch555_build.sh builds this image with the tree's requirements.txt as the only other file in the context,
+# and tags it qmk-8051-ch555:sdcc-<SDCC_VER>-clang.
 ARG SDCC_VER=4.6.0
 
 FROM debian:trixie-slim AS sdcc

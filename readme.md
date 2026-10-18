@@ -79,7 +79,7 @@ Other limits:
   [keyboards/redragon/k580/config.h](keyboards/redragon/k580/config.h) and
   [keyboards/redragon/k580/rules.mk](keyboards/redragon/k580/rules.mk). VIA offers tap keys (`LT`, `MT`); they do
   nothing on this build.
-- The backup and flash tools (`util/k580_dump.py`, `util/evision_flash.py`) run on Linux only.
+- The backup and flash tools (`util/evision_dump.py`, `util/evision_flash.py`) run on Linux only.
 - Other K580 revisions may use a different MCU; one keyboard database lists the K580 with a Sonix SN32F248B.
   [keyboards/redragon/k580/readme.md](keyboards/redragon/k580/readme.md) describes how to check a keyboard
   before flashing.
@@ -89,8 +89,8 @@ Other limits:
 The toolchain is SDCC 4.6.0 or 4.4.0, clang with clang-query and llvm-nm, binutils and the QMK CLI. SDCC 4.5.0
 stops with an internal error on the CH555 USB code (SDCC bug #3894).
 
-- `util/k580_build.sh [KEYMAP]` runs the K580 build in Docker and writes `redragon_k580_<keymap>.bin`, the image
-  for the Evision bootloader.
+- `util/ch555_build.sh KEYBOARD [KEYMAP]` runs the build in Docker and writes `<keyboard>_<keymap>.bin`, the image
+  for the Evision bootloader: `util/ch555_build.sh redragon/k580` gives `redragon_k580_default.bin`.
 - With the toolchain installed, `qmk compile -kb redragon/k580 -km default` (or `-km via`) makes the same image.
 
 ## Toolchain limits

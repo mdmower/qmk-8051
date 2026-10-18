@@ -16,8 +16,8 @@ Read-only by construction:
 Linux only: talks to the keyboard through hidraw. Python standard library only.
 
 Usage:
-  python3 -I util/k580_dump.py --out k580_full64k.bin [--send]
-  python3 -I util/k580_dump.py --start 0x2800 --end 0xEFC0 --out readback.bin [--send]
+  python3 -I util/evision_dump.py --out k580_full64k.bin [--send]
+  python3 -I util/evision_dump.py --start 0x2800 --end 0xEFC0 --out readback.bin [--send]
 """
 import os, glob, argparse, hashlib, select
 

@@ -47,7 +47,7 @@ def HIDIOCGFEATURE(n): return _ioc(3, ord('H'), 0x07, n)
 
 APP_VID, APP_PID = 0x320f, 0x5000
 BOOT_VID, BOOT_PID = 0x0c45, 0x7687
-QMK_VID, QMK_PID = 0x5244, 0x0580        # QMK redragon/k580 (no Evision vendor interface)
+QMK_IDS = {(0x5244, 0x0580): "K580"}    # QMK redragon/k580 (no Evision vendor interface)
 APP_BASE = 0x2800
 ERASE_END = 0xEFC0                       # bootloader erases pages 0xA0..0x3BE -> 0x2800..0xEFBF
 PKT = 64
@@ -60,9 +60,9 @@ POLL_TIMEOUT = 15                        # flash --poll: seconds to wait for the
 
 KNOWN = {   # sha256 of the raw (unpadded) app image -> label
     "75eb9250cb7842b82220cb1ffb7374042d49a7461b076ee79e0ea5fdaabdaea4":
-        "stock 1.04 app region, as read from one K580",
+        "K580 stock 1.04 app region, as read from one K580",
     "4f7f1f17694774b452c46418e98981d30aa6274631da73428bcde1454a554ff5":
-        "vendor 1.02 app region, from the Redragon updater",
+        "K580 vendor 1.02 app region, from the Redragon updater",
 }
 
 def known_label(sha):
@@ -161,7 +161,7 @@ def mode():
         return "bootloader"
     if find_nodes(APP_VID, APP_PID):
         return "app"
-    if usb_devices(QMK_VID, QMK_PID):
+    if any(usb_devices(vid, pid) for vid, pid in QMK_IDS):
         return "QMK"
     return None
 
@@ -267,10 +267,11 @@ def do_status(a):
             s = usb_strings(devpath)
             print("%-15s %04x:%04x  %s  iface1=%s  bcdDevice=%s  %r / %r"
                   % (label, vid, pid, node, i1, s["bcdDevice"], s["manufacturer"], s["product"]))
-    for d in usb_devices(QMK_VID, QMK_PID):     # QMK: one device (a hub plus devices D0-D2 before 7de3419d54)
-        s = usb_attrs(d)
-        print("%-15s %04x:%04x  %s  bcdDevice=%s  %r / %r"
-              % ("QMK", QMK_VID, QMK_PID, os.path.basename(d), s["bcdDevice"], s["manufacturer"], s["product"]))
+    for (vid, pid), kb in QMK_IDS.items():
+        for d in usb_devices(vid, pid):
+            s = usb_attrs(d)
+            print("%-15s %04x:%04x  %s  bcdDevice=%s  %r / %r"
+                  % ("QMK " + kb, vid, pid, os.path.basename(d), s["bcdDevice"], s["manufacturer"], s["product"]))
     m = mode()
     print("mode: %s" % (m or "keyboard not found"))
 
@@ -343,7 +344,7 @@ def do_flash(a):
     finally:
         os.close(fd)
     ids = ([tuple(int(x, 16) for x in a.expect.split(":"))] if a.expect
-           else [(APP_VID, APP_PID), (QMK_VID, QMK_PID)])
+           else [(APP_VID, APP_PID)] + list(QMK_IDS))
     names = " or ".join("%04x:%04x" % i for i in ids)
     print("reset sent; waiting for %s ..." % names, flush=True)
     got = wait_usb(ids, 30)
@@ -379,7 +380,7 @@ def main():
                         % POLL_TIMEOUT)
     p.add_argument("--gap", type=float, default=0.03, help="seconds between data packets (vendor tool ~0.031)")
     p.add_argument("--expect", help="VID:PID the flashed firmware enumerates as (default: stock %04x:%04x or "
-                                     "QMK %04x:%04x)" % (APP_VID, APP_PID, QMK_VID, QMK_PID))
+                                     "QMK %s)" % (APP_VID, APP_PID, " or ".join("%04x:%04x" % i for i in QMK_IDS)))
     p.add_argument("--no-status", action="store_true",
                    help="don't read GET_FEATURE status (fallback if it fails on this host); success = app reappears")
     p.set_defaults(fn=do_flash)
