@@ -6,7 +6,8 @@
 
 _Static_assert(LED_FX_SAVE_SIZE + REDRAGON_KB_SETTINGS <= FLASH_STORE_SIZE, "saved settings: at most FLASH_STORE_SIZE bytes");
 
-/* Win Lock: while it is on, LGUI/RGUI are blocked and the Win Lock LED (if any) is lit. */
+/* Win Lock: while it is on, LGUI/RGUI presses are blocked and the Win Lock LED (if any) is lit. Releases pass, so a
+ * GUI key held when Win Lock turns on is released on the host. */
 static bool win_lock = false;
 
 /* Settings saved in the data flash SAVE_DELAY after the last change: the lighting settings (led_fx.c), then
@@ -59,7 +60,7 @@ bool redragon_process_record(uint16_t keycode, keyrecord_t *record) {
         return false;
     case KC_LGUI:
     case KC_RGUI:
-        return !win_lock;
+        return !win_lock || !record->event.pressed;
     }
     return true;
 }
