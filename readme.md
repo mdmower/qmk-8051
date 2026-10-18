@@ -1,102 +1,213 @@
 # QMK for CH555-family 8051 keyboards
 
-A branch of [QMK](https://github.com/qmk/qmk_firmware) (`develop`) that builds QMK for 8051 microcontrollers in
-the WCH CH555 family with the SDCC compiler. It supports the Redragon K580 RGB (Evision VS11K33A), flashed
-through the keyboard's own Evision bootloader.
+A branch of [QMK](https://github.com/qmk/qmk_firmware) (`develop`) that builds QMK with the SDCC compiler for
+8051 microcontrollers in the WCH CH555 family. It supports two Redragon keyboards with Evision MCUs of that
+family. The firmware is flashed through the keyboard's own Evision bootloader, which stays in place, so the stock
+firmware can be restored from a backup.
 
-The code comes from [mdmower/vial-qmk-8051](https://github.com/mdmower/vial-qmk-8051) (branch `k580-ch55x`), a
-fork of vial-qmk that keeps the full commit history of the original 8051 port and of the K580 work. Here that
-code is a new series of commits on QMK `develop`; their `Co-authored-by` lines name the authors of the original
-code.
-
-## Credits
-
-- **vuhuycan**, [vuhuycan/qmk-8051](https://github.com/vuhuycan/qmk-8051): the port of vial-qmk to the 8051 and
-  SDCC, including the MCS-51 platform code and the CH555 USB stack.
-- **TechnoClasher**, [RakeRaven/qmk-8051](https://github.com/RakeRaven/qmk-8051): the Redragon K580 keyboard
-  definition, changes to the CH555 platform, and fixes to the CH555 USB stack, NKRO and the lock LEDs.
-- **Glitch752**, [Glitch752/qmk-8051-vs11k28a](https://github.com/Glitch752/qmk-8051-vs11k28a): reverse
-  engineering of the Evision OEM bootloader's flash protocol.
-
-## Status
-
-Experimental. The firmware has been tested on **one** keyboard, a Redragon K580 RGB with an Evision VS11K33A MCU
-and stock firmware 1.04. Other keyboards, other K580 revisions and macOS have not been tested.
-
-| Keyboard | MCU | Flashed through | State |
+| Keyboard | MCU | USB ID: stock / QMK | State |
 |---|---|---|---|
-| [Redragon K580 RGB](keyboards/redragon/k580/) | Evision VS11K33A | Evision OEM bootloader (`0c45:7687`) | Works; tested on one keyboard |
-| [Redragon K552RGB-2](keyboards/redragon/k552/) | Evision VS11K28A | Evision OEM bootloader (`0c45:7687`) | Not run on a keyboard yet: matrix and LEDs from the stock firmware V0101 |
+| [Redragon K580 RGB](keyboards/redragon/k580/) | Evision VS11K33A | `320f:5000` / `5244:0580` | Works; tested on one keyboard (Linux, Windows 11) |
+| [Redragon K552RGB-2](keyboards/redragon/k552/) | Evision VS11K28A | `320f:5000` / `5244:0552` | Not run on a keyboard yet |
 
-The two keyboards share their LED controller, key matrix and lighting code
-([keyboards/redragon/common](keyboards/redragon/common/)).
+Both keyboards have the same Evision bootloader (`0c45:7687`) and share their LED controller, key matrix and
+lighting code ([keyboards/redragon/common](keyboards/redragon/common/)). This readme describes what is common to
+them: the risks, backup, flashing, restore, the `default` and `via` keymaps, and the build. The keyboard readmes
+describe each keyboard's checks, keymap, lighting keys and hardware.
 
-## Firmware options for the K580
+## Before you flash
 
-The K580 has two keymaps. Both contain the same layout, Fn layer and lighting.
+- The firmware is experimental. It has been tested on one K580 with stock firmware 1.04. Other revisions of these
+  keyboards and macOS have not been tested.
+- Back up the stock firmware before the first flash ([step 1](#1-back-up-the-stock-firmware)). The backup can be
+  made only while the stock firmware runs, because it reads the flash through a command of the stock firmware.
+- The stock firmware of both keyboards (and of other Redragon keyboards) enumerates as `320f:5000`, and both
+  bootloaders as `0c45:7687`. The bootloader does not identify the keyboard and accepts an image built for another
+  one: check the keyboard as its readme describes, and flash only images built for it.
+- Entering the bootloader erases the boot marker. The keyboard then stays in the bootloader, also after a replug,
+  until a flash completes.
+- The CH555 has no write protection for the Evision bootloader: one enable bit allows writes to all of code flash.
+  Every firmware for these keyboards uses it. The stock firmware and QMK erase the boot marker page, the last page
+  of the bootloader's region, to enter the bootloader (QMK: Fn+Esc, `QK_BOOT`, Esc held at plug-in). The K580's
+  stock firmware 1.04 also keeps its settings in code flash, and so does the `via` keymap
+  ([Keymaps](#keymaps-default-and-via)). A fault in one of these writers could damage the bootloader. The
+  keyboard could then no longer be flashed, and no tested way exists to restore the bootloader.
 
-| | `default` (recommended) | `via` (at your own risk) |
+## Requirements
+
+- Linux (the backup and flash tools use hidraw), Python 3 (standard library only), and Docker for the build, or
+  the toolchain in [Building](#building).
+- Access to the keyboard's hidraw nodes: install the udev rule and be a member of the `plugdev` group. The rule
+  grants the stock firmware's vendor interface, the bootloader, and QMK's raw HID interface, which VIA uses.
+  ```
+  sudo cp util/udev/70-redragon-ch555.rules /etc/udev/rules.d/
+  sudo udevadm control --reload && sudo udevadm trigger
+  ```
+
+Run the commands below from the top directory of this repository. `util/evision_dump.py` and
+`util/evision_flash.py` send nothing to the keyboard unless `--send` is given; without it they print what they
+would do. `python3 -I util/evision_flash.py status` shows which mode the keyboard is in: stock firmware,
+bootloader or QMK.
+
+## Flash layout
+
+| Range | Contents |
+|---|---|
+| 0x0000–0x27FF | Evision bootloader (USB `0c45:7687`). `util/evision_flash.py` never writes it. |
+| 0x27C0 | Boot marker `AA 55 33 CC`, in the last page of the bootloader's region. The bootloader starts the application only while the marker is present, and writes it after a successful flash. |
+| 0x2800–0xEFBF | Application: stock firmware or QMK. The bootloader erases and programs this range on every flash. The `via` keymap keeps its store at 0xE740–0xEFBF. |
+| 0xF000–0xF3FF | Data flash. QMK keeps the keyboard's own settings here (lighting; K580: roller mode). Flashing does not erase it. The K580's stock firmware 1.04 does not use it. |
+| 0xF400– | WCH factory ISP bootloader (`4348:55e0`). Not used: flashing through it overwrites the Evision bootloader. |
+
+A QMK image starts with a check for Esc at 0x2803 and contains the interrupt table that the bootloader jumps to at
+0x3000; both are added by `util/evision_oem_image.py`. The Esc check runs before QMK starts, so holding Esc while
+plugging in the keyboard enters the bootloader also when a QMK build does not start. It reads column P0.0 and row
+P4.0, the Esc key on both keyboards.
+
+## Back up, build, flash, restore
+
+The commands use two shell variables for the keyboard. Set the variables relevant to your keyboard, for example:
+
+```
+KB=k580 QMK_ID=5244:0580    # K580 RGB
+# OR
+KB=k552 QMK_ID=5244:0552    # K552RGB-2
+```
+
+`KB` is the keyboard's directory under `keyboards/redragon/`, used in the build command and the file names below.
+`QMK_ID` is the USB ID that QMK enumerates as on that keyboard; `flash --expect` waits for it.
+
+### 1. Back up the stock firmware
+
+```
+python3 -I util/evision_dump.py --out ${KB}_stock_1.bin --send
+python3 -I util/evision_dump.py --out ${KB}_stock_2.bin --send
+cmp ${KB}_stock_1.bin ${KB}_stock_2.bin
+python3 -I util/evision_flash.py extract ${KB}_stock_1.bin ${KB}_stock_app.bin
+```
+
+The stock firmware's replies to the read command contain no checksum of the data, so the flash is read twice and
+the two dumps are compared: `cmp` prints nothing when they are identical. If they differ, read again.
+
+The dump prints whether the boot marker `AA 55 33 CC` is at 0x27C0. If it is not, the flash layout above does not
+apply: do not flash. `${KB}_stock_1.bin` is the full 64 KB code flash, including the bootloader.
+`${KB}_stock_app.bin` is its application region, the image that restores the stock firmware. Keep both.
+
+### 2. Build
+
+```
+util/ch555_build.sh redragon/$KB          # keymap default: redragon_${KB}_default.bin
+util/ch555_build.sh redragon/$KB via      # keymap via: redragon_${KB}_via.bin
+```
+
+[Building](#building) describes the build without Docker and the USB serial number.
+
+### 3. Flash QMK
+
+From the stock firmware:
+
+```
+python3 -I util/evision_flash.py enter --send
+python3 -I util/evision_flash.py flash redragon_${KB}_default.bin --expect $QMK_ID --send
+```
+
+`flash` checks the image before it erases anything, writes only 0x2800–0xEFBF, and then waits for the `--expect`
+ID. If a flash fails or is interrupted, the keyboard stays in the bootloader and the command can be run again.
+
+QMK enumerates as one USB device (`$QMK_ID`) with three HID interfaces: boot keyboard, raw HID (used by VIA), and
+NKRO keyboard with system and media keys.
+
+To flash a new build over QMK, enter the bootloader with Fn+Esc, or hold Esc while plugging in the keyboard, then
+run the `flash` command. With `--poll`, `flash` waits up to 15 s for the bootloader: start it first, then press
+Fn+Esc. Use `--poll` only with one keyboard connected that has this bootloader.
+
+### Restore the stock firmware
+
+Enter the bootloader (Fn+Esc in QMK), then:
+
+```
+python3 -I util/evision_flash.py flash ${KB}_stock_app.bin --send
+```
+
+To compare the flash with the backup while the stock firmware runs:
+
+```
+python3 -I util/evision_dump.py --start 0x2800 --end 0xEFC0 --out readback.bin --send
+python3 -I util/evision_flash.py verify readback.bin ${KB}_stock_app.bin
+```
+
+On the tested K580, a restore of firmware 1.04 gave a full 64 KB read-back identical to the original backup.
+
+## Keymaps: `default` and `via`
+
+Each keyboard has two keymaps with the same layout, Fn layer and lighting.
+
+| | `default` | `via` |
 |---|---|---|
-| Keymap changes | In the source; build and flash again | Live, in [VIA](https://usevia.app) (3 layers, macros) |
-| Saved at power-off | Lighting settings and roller mode (data flash) | The same, and QMK's settings, the keymap and the macros (code flash, 0xE740–0xEFBF) |
-| Code flash written by the firmware | Only the boot marker page, to enter the bootloader | Also the EEPROM store at 0xE740–0xEFBF |
-| Tested with | Linux and Windows 11 | Linux |
+| Keymap changes | In the source; build and flash again | Live, in [VIA](https://usevia.app): 3 layers, macros |
+| Kept at power-off | The keyboard's own settings (data flash) | The same, and QMK's settings, the keymap and the macros (code flash, 0xE740–0xEFBF) |
+| Code flash written by the firmware | The boot marker page, to enter the bootloader | The same, and the store at 0xE740–0xEFBF, 2 s after each change |
 
-**The `via` keymap writes to code flash while the keyboard runs.** The CH555 enables writes to all of code
-flash at once, including the Evision bootloader at 0x0000–0x27FF. The store code writes only its own pages and
-checks the address before and after it enables writes, but a fault in this code, or in the firmware around it,
-could erase or damage the bootloader. No tested way exists to restore the bootloader: the keyboard could then no
-longer be flashed or used. Use the `default` keymap unless you accept this risk.
+To use VIA:
 
-Details, build and flash steps for both: [keyboards/redragon/k580/readme.md](keyboards/redragon/k580/readme.md).
+1. Build and flash the `via` image (`redragon_${KB}_via.bin`).
+2. Open [usevia.app](https://usevia.app) in Chrome or Chromium (WebHID). In Settings, turn on "Show Design tab".
+3. In the Design tab, load the keyboard's VIA definition,
+   `keyboards/redragon/$KB/keymaps/via/redragon_${KB}_via.json`.
+4. In the Configure tab, authorize the keyboard (`$QMK_ID`).
 
-### Redragon K580 RGB
+The store ([lib/ch555/eeprom_code_flash.c](lib/ch555/eeprom_code_flash.c)):
+- QMK's EEPROM is 1 KB: QMK's settings, 3 layers, the encoders (the K580's roller) and the macros (the keyboard
+  readmes give the size). Layers 0 and 1 start as the default keymap, layer 2 as transparent keys.
+- A change is saved 2 s after the last one. The store has two copies: a save erases and writes the older copy and
+  marks it valid last, so a power loss during a save keeps the previous state.
+- The store writes only its own pages. It checks the page address before it enables writes and again after, and
+  the build stops if the code reaches the store.
+- Every flash erases the store: after a flash the keymap is the default again. Save the layout in VIA first
+  (Save + Load) and load it again after the flash. The keyboard's own settings in the data flash are kept.
+- VIA's "Reset" key (`QK_BOOT`) enters the bootloader, as Fn+Esc does. The keyboard then stays in the bootloader
+  until a flash, and the flash erases the store.
+- The custom keys of the default keymap (Win Lock, lighting settings; K580: roller mode) have names in VIA.
 
-Works:
-- All keys of the main block, the navigation cluster and the numpad; NKRO.
-- Fn layer: Fn+Esc enters the bootloader, Fn+F1–F12 send the media and application keys printed on the keycaps,
-  Fn+Win toggles Win Lock.
-- Media keys and the volume roller. The roller toggle key switches the roller between volume and key LED
-  brightness.
-- G1–G5 and Rec send F13–F18, for shortcuts set in the operating system.
-- Num Lock, Caps Lock, Scroll Lock and Win Lock LEDs. They turn off while the host is suspended.
-- Key LEDs (RGB; one colour on G1–G5, Rec and the media keys) and side lights, driven by the CH555 LED
-  controller, with separate effect settings for the keys and the side lights, set on the Fn layer. The LEDs turn
-  off while the host is suspended.
-- The lighting settings and the roller mode are saved in the CH555 data flash and kept at power-off.
-- Holding Esc while plugging in the keyboard enters the bootloader.
-- USB serial number: the chip ID, or a serial number set at build time.
-- USB: one device (`5244:0580`) with three HID interfaces: boot keyboard, raw HID, and NKRO keyboard with system
-  and media keys.
-- `via` keymap: key and roller remapping in VIA, kept at power-off. VIA macros are untested.
+To go back, flash the `default` image; the flash erases the store.
 
-Not implemented:
-- QMK's `rgb_matrix` and the VIA lighting controls: the K580 has its own lighting code.
-- Vial: it needs the vial-qmk fork.
-- In the `default` keymap, QMK's EEPROM: QMK settings kept in EEPROM (eeconfig) last until power-off.
+## Limits
 
-Other limits:
-- In the `default` build about 14 KB of the application region (0x2800–0xEFBF, 51,136 bytes) is free; the `via`
-  build leaves about 2 KB below its EEPROM store.
-- To save flash, the K580 build turns off tap and one-shot keys, Grave Escape, Magic keycodes, Space Cadet and,
-  in the `default` keymap, `send_string`; the lists are in
-  [keyboards/redragon/k580/config.h](keyboards/redragon/k580/config.h) and
-  [keyboards/redragon/k580/rules.mk](keyboards/redragon/k580/rules.mk). VIA offers tap keys (`LT`, `MT`); they do
-  nothing on this build.
+- `default` keymap: QMK's settings (eeconfig) are kept in RAM only (transient EEPROM driver) and are QMK's
+  defaults after power-up. The keyboard's own settings use the data flash instead.
+- Turned off for flash space (each keyboard's `config.h` and `rules.mk`): tap and one-shot keys, Grave Escape
+  (`QK_GESC`), Space Cadet, Magic keycodes (among them the modifier swaps and the NKRO keys `NK_TOGG`, `NK_ON`,
+  `NK_OFF`) and, in the `default` keymap, `send_string` (the `via` keymap needs it for macros). The `default`
+  keymaps use none of these features. A keymap changed in the source that uses one must turn it on again, if the
+  flash space allows (the keyboard readmes give the free space).
+- VIA lists keycodes of features that these builds do not contain: the features above and others, such as mouse
+  keys. Assigned in VIA, these keycodes do nothing, with two exceptions: `LT(layer, key)` sends only its key, and
+  `OSL(layer)` works as `MO(layer)`.
+- QMK's `rgb_matrix` does not compile with SDCC: the keyboards have their own lighting code, and VIA has no
+  lighting controls for them.
+- Vial is not supported: it would need the vial-qmk fork.
 - The backup and flash tools (`util/evision_dump.py`, `util/evision_flash.py`) run on Linux only.
-- Other K580 revisions may use a different MCU; one keyboard database lists the K580 with a Sonix SN32F248B.
-  [keyboards/redragon/k580/readme.md](keyboards/redragon/k580/readme.md) describes how to check a keyboard
-  before flashing.
 
 ## Building
 
-The toolchain is SDCC 4.6.0 or 4.4.0, clang with clang-query and llvm-nm, binutils and the QMK CLI. SDCC 4.5.0
-stops with an internal error on the CH555 USB code (SDCC bug #3894).
+`util/ch555_build.sh KEYBOARD [KEYMAP]` builds in Docker (SDCC, clang and the QMK CLI;
+[util/ch555_build.Dockerfile](util/ch555_build.Dockerfile)) and writes `<keyboard>_<keymap>.bin` in the top
+directory: `util/ch555_build.sh redragon/k580` gives `redragon_k580_default.bin`. The file is the application
+image for the Evision bootloader, based at 0x2800.
 
-- `util/ch555_build.sh KEYBOARD [KEYMAP]` runs the build in Docker and writes `<keyboard>_<keymap>.bin`, the image
-  for the Evision bootloader: `util/ch555_build.sh redragon/k580` gives `redragon_k580_default.bin`,
-  `util/ch555_build.sh redragon/k552 via` gives `redragon_k552_via.bin`.
-- With the toolchain installed, `qmk compile -kb redragon/k580 -km default` (or `-km via`) makes the same image.
+Without Docker, the toolchain is SDCC 4.6.0, clang with clang-query and llvm-nm, binutils and the QMK CLI.
+`qmk compile -kb redragon/k580 -km default` then writes the same file. The build checks for SDCC's
+miscompilations ([platforms/mcs51/sdcc_check.query](platforms/mcs51/sdcc_check.query)) are written for SDCC
+4.6.0. SDCC 4.5.0 stops with an internal error on the CH555 USB code (SDCC bug #3894).
+
+The USB serial number is the chip ID unless one is set at build time (letters, digits and `. _ : -`, at most 126
+characters):
+
+```
+SERIAL_NUMBER=RDK580RGB00000000000 util/ch555_build.sh redragon/k580               # in Docker
+# OR
+qmk compile -kb redragon/k580 -km default -e SERIAL_NUMBER=RDK580RGB00000000000    # without Docker
+```
 
 ## Toolchain limits
 
@@ -110,7 +221,8 @@ These limits of SDCC and of this port affect keyboard and keymap code:
   call operand, the address of a compound literal at file scope, a designated initializer that names a member of
   an anonymous struct or union, and arithmetic on a void pointer.
 - SDCC rejects some GNU C that GCC accepts (case ranges, casts to union types, empty initializers, variable-length
-  arrays). The QMK core is edited in the files the K580 build compiles; other features may need the same edits.
+  arrays). The QMK core is edited in the files that the K580 and K552 builds compile; other features may need the
+  same edits.
 - SDCC compiles a copy of every `static inline` function of a header into each file that includes the header,
   used or not. Use a macro, or define the function once in a `.c` file.
 - SDCC keeps values that do not fit in registers in direct RAM (0x08–0x7F), which the K580 build fills almost
@@ -121,3 +233,20 @@ These limits of SDCC and of this port affect keyboard and keymap code:
   bootloader; untested).
 - SDCC puts an interrupt handler into its vector table only if `main.c` sees its declaration: a keyboard adds the
   header that declares its handler with `MCS51_ISR_HEADERS += <header>` in `rules.mk`.
+- A Redragon keyboard with the same LED controller wiring includes
+  [keyboards/redragon/common/redragon_ch555.mk](keyboards/redragon/common/redragon_ch555.mk) in its `rules.mk`;
+  the K552 is the smaller example.
+
+## History and credits
+
+The code comes from [mdmower/vial-qmk-8051](https://github.com/mdmower/vial-qmk-8051) (branch `k580-ch55x`), a
+fork of vial-qmk that keeps the full commit history of the original 8051 port and of the K580 work. Here that
+code is a new series of commits on QMK `develop`; their `Co-authored-by` lines name the authors of the original
+code.
+
+- **vuhuycan**, [vuhuycan/qmk-8051](https://github.com/vuhuycan/qmk-8051): the port of vial-qmk to the 8051 and
+  SDCC, including the MCS-51 platform code and the CH555 USB stack.
+- **TechnoClasher**, [RakeRaven/qmk-8051](https://github.com/RakeRaven/qmk-8051): the Redragon K580 keyboard
+  definition, changes to the CH555 platform, and fixes to the CH555 USB stack, NKRO and the lock LEDs.
+- **Glitch752**, [Glitch752/qmk-8051-vs11k28a](https://github.com/Glitch752/qmk-8051-vs11k28a): reverse
+  engineering of the Evision OEM bootloader's flash protocol.

@@ -1,40 +1,45 @@
 # Redragon K552RGB-2
 
-QMK for the Redragon K552 Kumara RGB, board K552RGB-2, with an Evision VS11K28A MCU (an 8051 in the WCH CH555
-family). The firmware is flashed through the keyboard's own Evision bootloader, which stays in place, as on the
-[K580](../k580/readme.md).
+QMK for the Redragon K552 Kumara RGB, board K552RGB-2, with an Evision VS11K28A MCU, an 8051 in the WCH CH555
+family. The firmware is flashed through the keyboard's own Evision bootloader, which stays in place.
 
-**Not run on a keyboard yet.** The key matrix, the LED layout and the indicators come from the stock firmware
-V0101 (Redragon's updater for the K552RGB-1/-2); the firmware is tested only in a simulator. The LED controller,
-key matrix and lighting code are shared with the K580 ([common](../common/)), where they are tested.
+* Keyboard maintainer: [mdmower](https://github.com/mdmower)
+* Hardware supported: Redragon K552RGB-2 with an Evision VS11K28A MCU
+* State: **not run on a keyboard yet.** The key matrix, the LED layout and the indicators come from the stock
+  firmware V0101 (Redragon's updater for the K552RGB-1/-2); the firmware is tested only in a simulator. The LED
+  controller, key matrix and lighting code are shared with the [K580](../k580/), where they are tested.
 
-Two keymaps: `default` and `via` (at your own risk, as on the K580).
+Backup, flashing, restore, the `via` keymap and the risks of flashing:
+[top-level readme](../../../readme.md#before-you-flash). Make the backup before the first flash: it reads the
+flash through the stock firmware, which the flash erases.
 
 ## Check the keyboard first
 
-- With the stock firmware, the keyboard enumerates as `320f:5000` (`lsusb`), the same ID as the K580. The
-  updater's firmware reports bcdDevice 0x0101 (V0101).
+- With the stock firmware, the keyboard enumerates as `320f:5000` (`lsusb`). The updater's firmware reports
+  bcdDevice 0x0101 (V0101). Other Redragon keyboards, the K580 among them, report the same ID: check that the
+  keyboard is a K552RGB-2.
 - The K552RGB-1 has a different MCU (Evision VS11K09A, a Sonix SN32; `0c45:5004`). This firmware does not apply
   to it.
-- The backup in step 1 prints whether the boot marker `AA 55 33 CC` is at 0x27C0. If it is not, the flash layout
-  does not apply: do not flash.
-- The bootloader does not identify the keyboard (the K580 has the same `0c45:7687`): flash only images built for
-  `redragon/k552`.
+- The backup prints whether the boot marker `AA 55 33 CC` is at 0x27C0. If it is not, do not flash.
 
-## Backup, build, flash, restore
-
-As for the K580 ([readme](../k580/readme.md)), with these names:
+## Build and flash
 
 ```
-python3 -I util/evision_dump.py --out k552_stock_1.bin --send         # backup (stock firmware; same read command)
-python3 -I util/evision_flash.py extract k552_stock_1.bin k552_stock_app.bin
-util/ch555_build.sh redragon/k552                                      # or: qmk compile -kb redragon/k552 -km default
-python3 -I util/evision_flash.py enter --send                          # stock firmware -> bootloader
+util/ch555_build.sh redragon/k552                 # or: qmk compile -kb redragon/k552 -km default
+python3 -I util/evision_flash.py enter --send     # from the stock firmware; from QMK: Fn+Esc
 python3 -I util/evision_flash.py flash redragon_k552_default.bin --expect 5244:0552 --send
 ```
 
-Over QMK, enter the bootloader with Fn+Esc, or hold Esc while plugging in the keyboard (Esc is at matrix
-position (0, 0), as on the K580). To restore the stock firmware, flash `k552_stock_app.bin` from the bootloader.
+## Bootloader
+
+Enter the Evision bootloader (`0c45:7687`) in one of these ways:
+
+* Fn+Esc (`QK_BOOT` on layer 1).
+* Hold Esc while plugging in the keyboard. This check runs before QMK starts, so it also works when a QMK build
+  does not start.
+* With the stock firmware: `python3 -I util/evision_flash.py enter --send`.
+
+The keyboard stays in the bootloader, also after a replug, until a flash completes.
 
 ## Default keymap
 
@@ -42,9 +47,12 @@ position (0, 0), as on the K580). To restore the stock firmware, flash `k552_sto
 - Layer 1 (Fn): Fn+Esc enters the bootloader (`QK_BOOT`). Fn+F1–F12 send the functions printed on the keycaps:
   media player, volume down, volume up, mute, stop, previous, play/pause, next, mail, browser home, calculator,
   search. Fn+Win toggles Win Lock, which blocks the Win key. Win Lock is off after power-up.
-- Lighting ([led_fx.c](../common/led_fx.c)): one zone, the key LEDs, with the K580's keys. Fn plus a key below
-  steps a setting; with Shift held it steps back. The settings are saved in the data flash 3 s after the last
-  change.
+- Caps Lock and Scroll Lock indicators (right of the logo): red and green, lit by the host's lock state also
+  while the key LEDs are off.
+- Lighting ([led_fx.c](../common/led_fx.c)): one zone, the key LEDs, set with the same keys as on the K580. Fn
+  plus a key below steps a setting; with Shift held it steps back. The settings are saved in the data flash 3 s
+  after the last change and kept at power-off ([flash_store.c](../common/flash_store.c)); the LEDs flicker briefly
+  while they are saved.
 
   | Setting | Keys |
   |---|---|
@@ -56,17 +64,22 @@ position (0, 0), as on the K580). To restore the stock firmware, flash `k552_sto
   | On/off | Fn+PgDn |
 
   Modes: static colour, rainbow, reversed rainbow, wave, reversed wave, colour cycle, breathing. Default: wave.
-- Caps Lock and Scroll Lock indicators (right of the logo): red and green, lit by the host's lock state also
-  while the key LEDs are off.
 
 The other lighting legends on the keycaps (Ins–PgDn 1–6, −/= speed, arrows brightness, direction and colour) are
 not used, as on the K580: Fn+Ins–PgDn set everything. Not implemented either: per-key colour editing (Fn+\`) and
 factory reset (Fn+PrtSc).
 
-## VIA keymap (at your own risk)
+## VIA keymap
 
-The same as on the K580 (see its readme for the risk and how the store works). VIA definition:
-[keymaps/via/redragon_k552_via.json](keymaps/via/redragon_k552_via.json); the keyboard is `5244:0552`.
+The default keymap with VIA ([top-level readme](../../../readme.md#keymaps-default-and-via)). VIA definition:
+[keymaps/via/redragon_k552_via.json](keymaps/via/redragon_k552_via.json). About 400 bytes of the EEPROM are left
+for macros.
+
+## Flash space
+
+The application region (0x2800–0xEFBF) has about 17.5 KB free with the `default` keymap and about 6 KB below the
+store with the `via` keymap. The features turned off for flash space are listed in [config.h](config.h) and
+[rules.mk](rules.mk).
 
 ## Hardware
 
@@ -80,5 +93,5 @@ From the stock firmware V0101 (static analysis):
   7: Caps Lock (common line 9, red) and Scroll Lock (common line 8, green); common line 10 is in the stock
   lighting effects, between Esc and F1.
 - No GPIO indicators, roller or side lights; nothing on P5 or P7.
-- The stock firmware runs at 48 MHz, which the CH555 datasheet lists for tests only; this firmware runs at
-  32 MHz, as the K580 and the K589 (also a VS11K28A).
+- The stock firmware runs at 48 MHz, which the CH555 datasheet lists for tests only. This firmware runs at
+  32 MHz, as the stock firmware of the K580 and of the K589 (also a VS11K28A) does.
