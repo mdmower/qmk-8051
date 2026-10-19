@@ -11,6 +11,7 @@ firmware can be restored from a backup.
 | [Redragon K552RGB-2](keyboards/redragon/k552/) | Evision VS11K28A | `320f:5000` / `5244:0552` | Not run on a keyboard yet |
 | [Redragon K551RGB-1](keyboards/redragon/k551/) | Evision VS11K28A | `320f:5000` / `5244:0551` | Not run on a keyboard yet |
 | [Redragon K582RGB](keyboards/redragon/k582/) | Evision VS11K28A | `320f:5000` / `5244:0582` | Not run on a keyboard yet |
+| [Redragon K589RGB](keyboards/redragon/k589/) | Evision VS11K28A | `320f:5000` / `5244:0589` | Not run on a keyboard yet |
 
 The keyboards have the same Evision bootloader (`0c45:7687`) and share their LED controller, key matrix and
 lighting code ([keyboards/redragon/common](keyboards/redragon/common/)). This readme describes what is common to
@@ -78,6 +79,8 @@ KB=k552 QMK_ID=5244:0552    # K552RGB-2
 KB=k551 QMK_ID=5244:0551    # K551RGB-1
 # OR
 KB=k582 QMK_ID=5244:0582    # K582RGB
+# OR
+KB=k589 QMK_ID=5244:0589    # K589RGB
 ```
 
 `KB` is the keyboard's directory under `keyboards/redragon/`, used in the build command and the file names below.

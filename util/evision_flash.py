@@ -58,6 +58,7 @@ QMK_IDS = {   # QMK redragon/<keyboard> (no Evision vendor interface)
     (0x5244, 0x0552): "K552",
     (0x5244, 0x0551): "K551",
     (0x5244, 0x0582): "K582",
+    (0x5244, 0x0589): "K589",
 }
 APP_BASE = 0x2800
 ERASE_END = 0xEFC0                       # bootloader erases pages 0xA0..0x3BE -> 0x2800..0xEFBF

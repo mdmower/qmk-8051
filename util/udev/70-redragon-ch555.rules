@@ -25,5 +25,7 @@ KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0552.*", MODE="0660", GROUP="plugde
 KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0551.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 # QMK on the K582 (5244:0582), interface 1 only, as above.
 KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0582.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+# QMK on the K589 (5244:0589), interface 1 only, as above.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0589.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 
 # The WCH factory ISP bootloader (4348:55e0) is not granted. Flashing through it overwrites the OEM bootloader.
