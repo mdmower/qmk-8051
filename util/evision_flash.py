@@ -27,7 +27,9 @@ SAFETY BY CONSTRUCTION:
     0x2800-0xEFBF (799 packets), the range the bootloader erases. Past that it would program unerased data
     flash or the WCH factory bootloader, or wrap around to 0x0000.
   * Image checks: LJMP at 0x2800 and a 13-entry LJMP interrupt table at 0x3000 (the bootloader forwards
-    every interrupt there), all targets inside the app range.
+    every interrupt there), all targets inside the app range. Except for the known stock images, the LJMP at
+    0x2800 must lead to the Esc check of util/evision_oem_image.py (Esc held at plug-in enters the
+    bootloader), so that a flashed image that fails at startup can still be replaced.
   * Checks device identity (VID:PID on USB interface 1) and the bootloader's hello fingerprint before
     erasing. Checks status after every command and never sends reset (05) unless the checksum is OK.
   * Refuses when more than one keyboard has the ID it needs (the K580 and the K552 share the stock and
@@ -61,6 +63,14 @@ STATUS_OK = b"\xfa\xfa\xfa\xfa"
 HELLO_TAIL = b"\x00\x11\x22\x33"         # bootloader fingerprint in every GET_FEATURE reply
 ENTER_REPORT = bytes([0x04, 0xee, 0xee]) + bytes(61)   # app: erase marker page 0x27C0 + reset
 POLL_TIMEOUT = 15                        # flash --poll: seconds to wait for the bootloader
+# The Esc check of evision_oem_image.py (esc_check()) up to the opcode of its final LJMP to the app; the two
+# target bytes follow. Its branches are relative, so the bytes do not depend on where the check is placed.
+ESC_CHECK = bytes.fromhex(
+    "c2afa8c1a9c2aac4abc575c1ff75c2ffd2c053c4fe43c501c280"
+    "7e207f00dffedefa7d4020c0377f00dffeddf775a15575a1aa43"
+    "b1087585277584c0758f80758e00e58630e6037586a675a15575"
+    "a1aa53b1f775a15575a1aa43b11080fed2808bc58ac489c288c1"
+    "02")
 
 KNOWN = {   # sha256 of the raw (unpadded) app image -> label
     "75eb9250cb7842b82220cb1ffb7374042d49a7461b076ee79e0ea5fdaabdaea4":
@@ -93,9 +103,20 @@ def load_image(path):
         errs.append("image is %d bytes (%d packets); max is %d packets (0x%04x-0x%04x)"
                     % (len(raw), n, MAX_PACKETS, APP_BASE, ERASE_END - 1))
     end = APP_BASE + n * PKT
-    t = ljmp_target(raw, 0)
-    if t is None or not (APP_BASE <= t < end):
+    sha = hashlib.sha256(raw).hexdigest()
+    label = known_label(sha)
+    entry = ljmp_target(raw, 0)
+    app = None
+    if entry is None or not (APP_BASE <= entry < end):
         errs.append("no LJMP into the app at 0x2800 (got %s)" % raw[:3].hex(" "))
+    elif not label:
+        off = entry - APP_BASE
+        if raw[off:off + len(ESC_CHECK)] == ESC_CHECK:
+            app = ljmp_target(raw, off + len(ESC_CHECK) - 1)
+        if app is None or not (APP_BASE <= app < end):
+            errs.append("the LJMP at 0x2800 does not lead to the Esc check (without it a failing image can be "
+                        "replaced only through the WCH factory ISP); add it with "
+                        "util/evision_oem_image.py stock")
     for k in range(IVT_ENTRIES):
         a = IVT_BASE + 3 * k
         t = ljmp_target(raw, a - APP_BASE)
@@ -108,9 +129,8 @@ def load_image(path):
         errs.append("checksum 0x%x does not fit 24 bits" % cks)
     if errs:
         raise SystemExit("image rejected:\n  " + "\n  ".join(errs))
-    sha = hashlib.sha256(raw).hexdigest()
     return img, {"path": path, "size": len(raw), "packets": n, "end": end - 1, "checksum": cks,
-                 "sha256": sha, "label": known_label(sha)}
+                 "sha256": sha, "label": label, "entry": entry, "app": app}
 
 def print_image(info):
     print("image   : %s" % info["path"])
@@ -118,6 +138,9 @@ def print_image(info):
     print("range   : 0x%04x-0x%04x  (%d bytes, %d x 64 B packets)" % (APP_BASE, info["end"], info["size"],
                                                                     info["packets"]))
     print("checksum: 0x%06x" % info["checksum"])
+    if info["app"] is not None:
+        print("entry   : 0x%04x: Esc check (hold Esc at plug-in: bootloader), then 0x%04x"
+              % (info["entry"], info["app"]))
 
 # --- device discovery (sysfs only) ----------------------------------------------------------------------
 def find_nodes(vid, pid):
@@ -233,14 +256,8 @@ def get_feature(fd):
     fcntl.ioctl(fd, HIDIOCGFEATURE(len(buf)), buf, True)
     return bytes(buf[1:])
 
-def expect_ok(fd, cmd, timeout, what, blind=False):
-    """Poll GET_FEATURE until it echoes cmd with status OK. Exit (board stays in bootloader) otherwise.
-    blind: skip the status read (fallback if GET_FEATURE doesn't work on this host); wait instead. Still safe:
-    without a checksum match the bootloader never writes the boot marker, so reset returns to the bootloader."""
-    if blind:
-        time.sleep(2.5 if cmd == 0x02 else 0.2)
-        print("  %-8s sent (no status check)" % what, flush=True)
-        return None
+def expect_ok(fd, cmd, timeout, what):
+    """Poll GET_FEATURE until it echoes cmd with status OK. Exit (board stays in bootloader) otherwise."""
     deadline = time.monotonic() + timeout
     last = None
     while time.monotonic() < deadline:
@@ -280,9 +297,6 @@ def do_check(a):
     _, info = load_image(a.image)
     print_image(info)
     print("OK: passes all image checks.")
-    if not info["label"]:
-        print("NOTE: unknown image. Make sure it can re-enter this bootloader (erase page 0x27C0 + reset);\n"
-              "      otherwise the only way back is the WCH factory ISP.")
 
 def do_status(a):
     for vid, pid, label in ((APP_VID, APP_PID, "app"), (BOOT_VID, BOOT_PID, "OEM bootloader")):
@@ -346,8 +360,6 @@ def do_flash(a):
           % begin[:10].hex(" "))
     print("          -> %d data packets (%.0f ms apart) -> %s -> 05 reset (only if status OK) -> %s"
           % (info["packets"], a.gap * 1000, finish[:12].hex(" "), names))
-    if not info["label"]:
-        print("WARNING : unknown image. If it can't re-enter this bootloader, only the WCH ISP can recover.")
     if not a.send:
         print("\nDRY-RUN. Nothing sent. Re-run with --send to flash."); return
     if not hit and a.poll:
@@ -367,11 +379,11 @@ def do_flash(a):
     try:
         try:
             set_feature(fd, cmd_report(0x01)); time.sleep(0.1)
-            expect_ok(fd, 0x01, 5, "hello", a.no_status)
+            expect_ok(fd, 0x01, 5, "hello")
             set_feature(fd, cmd_report(0x02)); time.sleep(7.5)
-            expect_ok(fd, 0x02, 30, "erase", a.no_status)
+            expect_ok(fd, 0x02, 30, "erase")
             set_feature(fd, begin); time.sleep(0.1)
-            expect_ok(fd, 0x03, 5, "begin", a.no_status)
+            expect_ok(fd, 0x03, 5, "begin")
             for i in range(info["packets"]):
                 set_feature(fd, img[i * PKT:(i + 1) * PKT])
                 time.sleep(a.gap)
@@ -379,7 +391,7 @@ def do_flash(a):
                     print("  data     %d/%d" % (i + 1, info["packets"]), flush=True)
             time.sleep(0.5)
             set_feature(fd, finish); time.sleep(1.0)
-            expect_ok(fd, 0x04, 10, "checksum", a.no_status)
+            expect_ok(fd, 0x04, 10, "checksum")
         except OSError as e:
             raise SystemExit("ABORT: %s. Board stays in bootloader; safe to retry." % e)
         try:
@@ -443,8 +455,6 @@ def main():
     p.add_argument("--expect", type=usb_id,
                    help="VID:PID the flashed firmware enumerates as (default: stock %04x:%04x or QMK %s)"
                         % (APP_VID, APP_PID, " or ".join("%04x:%04x" % i for i in QMK_IDS)))
-    p.add_argument("--no-status", action="store_true",
-                   help="don't read GET_FEATURE status (fallback if it fails on this host); success = app reappears")
     p.set_defaults(fn=do_flash)
     p = sub.add_parser("verify"); p.add_argument("dump"); p.add_argument("image"); p.set_defaults(fn=do_verify)
     a = ap.parse_args()

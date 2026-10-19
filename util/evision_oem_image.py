@@ -135,23 +135,32 @@ def do_stock(a):
     finish(img, a.out)
 
 def parse_ihx(path):
+    """Return {address: byte}. Requires the end-of-file record, a length byte that matches each record, and
+    no address in more than one record (a truncated or damaged .ihx would otherwise give a shorter image)."""
     mem = {}
     for line in open(path):
         line = line.strip()
         if not line.startswith(":"):
             continue
-        rec = bytes.fromhex(line[1:])
+        try:
+            rec = bytes.fromhex(line[1:])
+        except ValueError:
+            raise SystemExit("ihx: not a hex record: %s" % line)
+        if len(rec) < 5 or len(rec) != rec[0] + 5:
+            raise SystemExit("ihx: record length does not match its length byte: %s" % line)
         n, addr, typ = rec[0], (rec[1] << 8) | rec[2], rec[3]
         if (sum(rec) & 0xFF) != 0:
             raise SystemExit("ihx checksum error: %s" % line)
         if typ == 0:
             for i in range(n):
+                if addr + i in mem:
+                    raise SystemExit("ihx: address 0x%04x is in more than one record" % (addr + i))
                 mem[addr + i] = rec[4 + i]
         elif typ == 1:
-            break
+            return mem
         else:
             raise SystemExit("unsupported ihx record type %d" % typ)
-    return mem
+    raise SystemExit("ihx: no end-of-file record (truncated file?): %s" % path)
 
 def parse_vectors(asm):
     """Return list of SDCC vector slots (index n -> 'ljmp _X' symbol or None for reti)."""
