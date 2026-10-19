@@ -275,8 +275,7 @@ typedef struct {
 #    endif
 } PACKED report_joystick_t;
 #else
-// Without the joystick feature the report has no members, and ISO C has no empty structs: an incomplete type,
-// for the send_joystick() declarations
+// Use an incomplete type for the send_joystick() declarations
 typedef struct report_joystick_t report_joystick_t;
 #endif
 
