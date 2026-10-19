@@ -100,9 +100,20 @@ float default_layer_songs[][16][2] = DEFAULT_LAYER_SONGS;
 #endif
 
 uint8_t extract_mod_bits(uint16_t code) {
+#ifdef __SDCC
+    // SDCC accepts case ranges only from C2y, and even then makes one case label per value, which takes minutes
+    // for keycode ranges (https://sourceforge.net/p/sdcc/feature-requests/1038/)
     if (!IS_QK_MODS(code)) {
         return 0;
     }
+#else
+    switch (code) {
+        case QK_MODS ... QK_MODS_MAX:
+            break;
+        default:
+            return 0;
+    }
+#endif
 
     uint8_t mods_to_send = 0;
 

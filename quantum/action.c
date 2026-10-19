@@ -1175,14 +1175,36 @@ bool is_tap_action(action_t action) {
         case ACT_RMODS_TAP:
         case ACT_LAYER_TAP:
         case ACT_LAYER_TAP_EXT:
+#ifdef __SDCC
+            // SDCC accepts case ranges only from C2y, and even then makes one case label per value, which takes minutes
+            // for keycode ranges (https://sourceforge.net/p/sdcc/feature-requests/1038/)
             return action.layer_tap.code <= KC_RIGHT_GUI || action.layer_tap.code == OP_TAP_TOGGLE || action.layer_tap.code == OP_ONESHOT;
+#else
+            switch (action.layer_tap.code) {
+                case KC_NO ... KC_RIGHT_GUI:
+                case OP_TAP_TOGGLE:
+                case OP_ONESHOT:
+                    return true;
+            }
+            return false;
+#endif
         case ACT_SWAP_HANDS:
+#ifdef __SDCC
             return action.swap.code <= KC_RIGHT_GUI || action.swap.code == OP_SH_TAP_TOGGLE;
+#else
+            switch (action.swap.code) {
+                case KC_NO ... KC_RIGHT_GUI:
+                case OP_SH_TAP_TOGGLE:
+                    return true;
+            }
+            return false;
+#endif
     }
     return false;
 }
 
 uint16_t get_tap_keycode(uint16_t keycode) {
+#ifdef __SDCC
     if (IS_QK_MOD_TAP(keycode)) {
         return QK_MOD_TAP_GET_TAP_KEYCODE(keycode);
     } else if (IS_QK_LAYER_TAP(keycode)) {
@@ -1194,6 +1216,21 @@ uint16_t get_tap_keycode(uint16_t keycode) {
             return QK_SWAP_HANDS_GET_TAP_KEYCODE(keycode);
         }
     }
+#else
+    switch (keycode) {
+        case QK_MOD_TAP ... QK_MOD_TAP_MAX:
+            return QK_MOD_TAP_GET_TAP_KEYCODE(keycode);
+        case QK_LAYER_TAP ... QK_LAYER_TAP_MAX:
+            return QK_LAYER_TAP_GET_TAP_KEYCODE(keycode);
+        case QK_SWAP_HANDS ... QK_SWAP_HANDS_MAX:
+            // IS_SWAP_HANDS_KEYCODE() tests for the special action keycodes
+            // like SH_TOGG, SH_TT, ..., which overlap the SH_T(kc) range.
+            if (!IS_SWAP_HANDS_KEYCODE(keycode)) {
+                return QK_SWAP_HANDS_GET_TAP_KEYCODE(keycode);
+            }
+            break;
+    }
+#endif
     return keycode;
 }
 
