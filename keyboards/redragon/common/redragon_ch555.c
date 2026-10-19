@@ -56,6 +56,9 @@ bool redragon_process_record(uint16_t keycode, keyrecord_t *record) {
 #ifdef LED_WIN_LOCK_PIN
             gpio_write_pin(LED_WIN_LOCK_PIN, win_lock);
 #endif
+#ifdef LED_WIN_LOCK_BYTE
+            led_dma_buf[LED_WIN_LOCK_BYTE] = win_lock ? 0xFF : 0;
+#endif
         }
         return false;
     case KC_LGUI:
@@ -83,6 +86,20 @@ void redragon_task(void) {
         flash_store_save(rec, sizeof(rec));
     }
 }
+
+#if defined(LED_NUM_LOCK_BYTE) || defined(LED_CAPS_LOCK_BYTE) || defined(LED_SCROLL_LOCK_BYTE)
+void redragon_led_update(led_t led_state) {
+#    ifdef LED_NUM_LOCK_BYTE
+    led_dma_buf[LED_NUM_LOCK_BYTE] = led_state.num_lock ? 0xFF : 0;
+#    endif
+#    ifdef LED_CAPS_LOCK_BYTE
+    led_dma_buf[LED_CAPS_LOCK_BYTE] = led_state.caps_lock ? 0xFF : 0;
+#    endif
+#    ifdef LED_SCROLL_LOCK_BYTE
+    led_dma_buf[LED_SCROLL_LOCK_BYTE] = led_state.scroll_lock ? 0xFF : 0;
+#    endif
+}
+#endif
 
 void redragon_suspend(bool suspended) {
 #ifdef LED_INDICATOR_ENABLE_PIN

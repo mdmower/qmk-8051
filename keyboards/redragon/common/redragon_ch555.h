@@ -12,6 +12,10 @@
  * Optional, in the keyboard's config.h:
  *   LED_INDICATOR_ENABLE_PIN  pin that enables the indicator LEDs, active low; off while the host is suspended
  *   LED_WIN_LOCK_PIN          Win Lock LED, active high
+ *   LED_NUM_LOCK_BYTE, LED_CAPS_LOCK_BYTE, LED_SCROLL_LOCK_BYTE, LED_WIN_LOCK_BYTE
+ *                             indicator LEDs in the LED matrix: index of the LED's colour byte in led_dma_buf
+ *                             (LED_DMA_BYTE in led_dma.h), 0xFF while the lock is on; the slot needs LED_FX_SKIP in
+ *                             led_fx_pos.h. The lock indicators are set by redragon_led_update().
  *   REDRAGON_KB_SETTINGS      number of bytes in redragon_kb_settings[], saved after the lighting settings
  */
 
@@ -51,6 +55,10 @@ __code const uint8_t *redragon_init(void);
 bool redragon_process_record(uint16_t keycode, keyrecord_t *record);
 /* From housekeeping_task_kb: lighting effects and the delayed save. */
 void redragon_task(void);
+#if defined(LED_NUM_LOCK_BYTE) || defined(LED_CAPS_LOCK_BYTE) || defined(LED_SCROLL_LOCK_BYTE)
+/* From led_update_kb: the lock indicators in the LED matrix (LED_*_LOCK_BYTE). */
+void redragon_led_update(led_t led_state);
+#endif
 /* From suspend_power_down_kb (true) and suspend_wakeup_init_kb (false): LEDs off while the host is suspended. */
 void redragon_suspend(bool suspended);
 /* Saves the settings SAVE_DELAY after the last call. */
