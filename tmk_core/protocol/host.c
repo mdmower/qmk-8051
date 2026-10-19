@@ -170,8 +170,7 @@ uint8_t host_keyboard_leds(void) {
 }
 
 led_t host_keyboard_led_state(void) {
-    led_t leds = {.raw = host_keyboard_leds()}; // SDCC returns a struct correctly only from a variable
-    return leds;
+    return (led_t){.raw = host_keyboard_leds()};
 }
 
 /* send report */

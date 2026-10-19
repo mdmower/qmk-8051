@@ -4,8 +4,12 @@ set output diag
 set bind-root false
 set traversal AsIs
 # A struct or union return of anything but a variable: the callee returns the address of a value of its own and
-# never writes the caller's result buffer (`return f();`, `return *p;`, `return a[i];`, `return (T){1, 2};`).
-match returnStmt(hasReturnValue(expr(hasType(hasUnqualifiedDesugaredType(recordType())), unless(ignoringParenImpCasts(declRefExpr(to(varDecl()))))).bind("sdcc-struct-return")))
+# never writes the caller's result buffer (`return f();`, `return *p;`, `return a[i];`, `return (T){1, 2};`,
+# `return (T){1, f()};`). A compound literal whose members are all calls or variables is returned correctly
+# (`return (T){.raw = f()};`).
+let sdccCallOrVariable ignoringParenImpCasts(anyOf(callExpr(), declRefExpr(to(varDecl()))))
+let sdccRuntimeLiteral compoundLiteralExpr(has(initListExpr(unless(has(expr(unless(anyOf(sdccCallOrVariable, designatedInitExpr(has(expr(sdccCallOrVariable)))))))))))
+match returnStmt(hasReturnValue(expr(hasType(hasUnqualifiedDesugaredType(recordType())), unless(ignoringParenImpCasts(declRefExpr(to(varDecl())))), unless(ignoringParenImpCasts(sdccRuntimeLiteral))).bind("sdcc-struct-return")))
 # One struct or union variable returned by two return statements of a function: the second return copies the
 # value from one byte before the variable.
 match functionDecl(returns(hasUnqualifiedDesugaredType(recordType())), hasDescendant(returnStmt(hasReturnValue(ignoringParenImpCasts(declRefExpr(to(varDecl().bind("v")))))).bind("first")), hasDescendant(returnStmt(unless(equalsBoundNode("first")), hasReturnValue(ignoringParenImpCasts(declRefExpr(to(varDecl(equalsBoundNode("v"))))))).bind("sdcc-struct-return-twice")))

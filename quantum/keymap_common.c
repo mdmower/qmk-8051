@@ -47,8 +47,13 @@ extern keymap_config_t keymap_config;
 action_t action_for_key(uint8_t layer, keypos_t key) {
     // 16bit keycodes - important
     uint16_t keycode = keymap_key_to_keycode(layer, key);
-    action_t action  = action_for_keycode(keycode); // SDCC returns a struct correctly only from a variable
+#ifdef __SDCC
+    // SDCC returns a struct correctly only from a variable (https://sourceforge.net/p/sdcc/bugs/4157/)
+    action_t action = action_for_keycode(keycode);
     return action;
+#else
+    return action_for_keycode(keycode);
+#endif
 }
 
 action_t action_for_keycode(uint16_t keycode) {

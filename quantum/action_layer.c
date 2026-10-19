@@ -386,11 +386,16 @@ static uint16_t read_keycode_cache(keypos_t key) {
  * event as they may get stuck otherwise.
  */
 action_t store_or_get_action(bool pressed, keypos_t key) {
-    // SDCC returns a struct correctly only from a variable, and a variable from one return statement
 #if !defined(NO_ACTION_LAYER) && !defined(STRICT_LAYER_RELEASE)
     if (disable_action_cache) {
+#    ifdef __SDCC
+        // SDCC returns a struct correctly only from a variable (https://sourceforge.net/p/sdcc/bugs/4157/),
+        // and a variable from one return statement (https://sourceforge.net/p/sdcc/bugs/4158/)
         action_t uncached = layer_switch_get_action(key);
         return uncached;
+#    else
+        return layer_switch_get_action(key);
+#    endif
     }
 
     uint8_t layer;
@@ -416,20 +421,37 @@ action_t store_or_get_action(bool pressed, keypos_t key) {
         cache_used = (keycode != KC_NO);
 #    endif
     }
+#    ifdef __SDCC
     action_t action;
-#    ifndef KEYCODE_CACHE_ENABLE
+#        ifndef KEYCODE_CACHE_ENABLE
     action = action_for_key(layer, key);
-#    else
+#        else
     if (cache_used) {
         action = action_for_keycode(keycode);
     } else {
         action = action_for_key(layer, key);
     }
+#        endif
+    return action;
+#    else
+#        ifndef KEYCODE_CACHE_ENABLE
+    return action_for_key(layer, key);
+#        else
+    if (cache_used) {
+        return action_for_keycode(keycode);
+    } else {
+        return action_for_key(layer, key);
+    }
+#        endif
 #    endif
 #else
+#    ifdef __SDCC
     action_t action = layer_switch_get_action(key);
-#endif
     return action;
+#    else
+    return layer_switch_get_action(key);
+#    endif
+#endif
 }
 
 /** \brief Layer switch get layer
@@ -463,8 +485,13 @@ uint8_t layer_switch_get_layer(keypos_t key) {
  * Gets action code based on key position
  */
 action_t layer_switch_get_action(keypos_t key) {
-    action_t action = action_for_key(layer_switch_get_layer(key), key); // SDCC: returned from a variable
+#ifdef __SDCC
+    // SDCC returns a struct correctly only from a variable (https://sourceforge.net/p/sdcc/bugs/4157/)
+    action_t action = action_for_key(layer_switch_get_layer(key), key);
     return action;
+#else
+    return action_for_key(layer_switch_get_layer(key), key);
+#endif
 }
 
 #ifndef NO_ACTION_LAYER

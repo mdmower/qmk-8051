@@ -359,8 +359,7 @@ uint8_t get_mods(void) {
  * Same as \ref get_mods but returns \ref mod_t for convenience.
  */
 mod_t get_mod_state(void) {
-    mod_t mods = {.raw = get_mods()}; // SDCC returns a struct correctly only from a variable
-    return mods;
+    return (mod_t){.raw = get_mods()};
 }
 /** \brief add mods
  *
@@ -403,8 +402,7 @@ uint8_t get_weak_mods(void) {
  * Same as \ref get_weak_mods but returns \ref mod_t for convenience.
  */
 mod_t get_weak_mod_state(void) {
-    mod_t mods = {.raw = get_weak_mods()}; // SDCC returns a struct correctly only from a variable
-    return mods;
+    return (mod_t){.raw = get_weak_mods()};
 }
 /** \brief add weak mods
  *
