@@ -50,7 +50,6 @@ void eeprom_write_dword(uint32_t *addr, uint32_t value) {
 }
 
 void eeprom_update_block(const void *buf, void *addr, size_t len) {
-    // Compared in chunks: variable-length arrays are optional since C11
     uint8_t read_buf[16];
     for (size_t offset = 0; offset < len; offset += sizeof(read_buf)) {
         size_t chunk = len - offset < sizeof(read_buf) ? len - offset : sizeof(read_buf);
