@@ -35,15 +35,19 @@ volatile UINT8  USB_WakeUpSent = 0x00;											/* remote wakeup signalled, no 
 
 #ifdef USE_D0_EP1_OUT
 volatile UINT8  ep1_data_wait   = 0x00;											/* endpoint 1 data waiting flag*/
+volatile UINT8  ep1_rx_len;														/* endpoint 1: length of the waiting packet */
 #endif
 #ifdef USE_D0_EP2_OUT
 volatile UINT8  ep2_data_wait   = 0x00;											/* endpoint 2 data waiting flag*/
+volatile UINT8  ep2_rx_len;														/* endpoint 2: length of the waiting packet */
 #endif
 #ifdef USE_D0_EP3_OUT
 volatile UINT8  ep3_data_wait   = 0x00;											/* endpoint 3 data waiting flag*/
+volatile UINT8  ep3_rx_len;														/* endpoint 3: length of the waiting packet */
 #endif
 #ifdef USE_D0_EP4_OUT
 volatile UINT8  ep4_data_wait   = 0x00;											/* endpoint 4 data waiting flag*/
+volatile UINT8  ep4_rx_len;														/* endpoint 4: length of the waiting packet */
 #endif
 
 #if !defined(SERIAL_NUMBER) && defined(SERIAL_NUMBER_USE_HARDWARE_ID)
@@ -280,6 +284,7 @@ USB_DevIntNext:
 					/* a new packet; without bUXS_TOG_OK it repeats the previous one and is dropped */
 					D0_EP4RES ^= bUEP_X_TOG;
 					D0_EP4RES = D0_EP4RES & ~MASK_UEP_X_RES | UEP_X_RES_NAK; 		/* Pause download */
+					ep4_rx_len = D0_RX_LEN;									/* the next packet to any endpoint changes D0_RX_LEN */
 					ep4_data_wait = 0x01;
 				}
                 break; 
@@ -292,6 +297,7 @@ USB_DevIntNext:
 					/* a new packet; without bUXS_TOG_OK it repeats the previous one and is dropped */
 					D0_EP3RES ^= bUEP_X_TOG;
 					D0_EP3RES = D0_EP3RES & ~MASK_UEP_X_RES | UEP_X_RES_NAK; 		/* Pause download */
+					ep3_rx_len = D0_RX_LEN;									/* the next packet to any endpoint changes D0_RX_LEN */
 					ep3_data_wait = 0x01;
 				}
                 break; 
@@ -304,6 +310,7 @@ USB_DevIntNext:
 					/* a new packet; without bUXS_TOG_OK it repeats the previous one and is dropped */
 					D0_EP2RES ^= bUEP_X_TOG;
 					D0_EP2RES = D0_EP2RES & ~MASK_UEP_X_RES | UEP_X_RES_NAK; 		/* Pause download */
+					ep2_rx_len = D0_RX_LEN;									/* the next packet to any endpoint changes D0_RX_LEN */
 					ep2_data_wait = 0x01;
 				}
                 break; 
@@ -316,6 +323,7 @@ USB_DevIntNext:
 					/* a new packet; without bUXS_TOG_OK it repeats the previous one and is dropped */
 					D0_EP1RES ^= bUEP_X_TOG;
 					D0_EP1RES = D0_EP1RES & ~MASK_UEP_X_RES | UEP_X_RES_NAK; 		/* Pause download */
+					ep1_rx_len = D0_RX_LEN;									/* the next packet to any endpoint changes D0_RX_LEN */
 					ep1_data_wait = 0x01;
 				}
                 break; 

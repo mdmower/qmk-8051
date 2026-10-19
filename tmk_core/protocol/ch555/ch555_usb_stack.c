@@ -212,14 +212,19 @@ void send_report_EP5(void *report, size_t size) {
 #endif
 
 /* epN_data_wait is cleared after the copy: CLEAR_FEATURE(ENDPOINT_HALT) sets a halted OUT endpoint to ACK
- * only while no packet waits. */
+ * only while no packet waits. A packet of another length than size is dropped, as ChibiOS's receive_report()
+ * does: after a short packet and its 2 CRC bytes, the endpoint buffer still holds bytes of earlier packets. */
 #ifdef USE_D0_EP1_OUT
 bool read_EP1(void *report, size_t size) {
     if (ep1_data_wait) {
-        memcpy(report, pUSB_BUF_DEV0 + UX_EP1_ADDR, size);
+        if (ep1_rx_len == size) {
+            memcpy(report, pUSB_BUF_DEV0 + UX_EP1_ADDR, size);
+            ep1_data_wait = 0;
+            ack_from_nak(&D0_EP1RES);
+            return true;
+        }
         ep1_data_wait = 0;
         ack_from_nak(&D0_EP1RES);
-        return true;
     }
     return false;
 }
@@ -227,10 +232,14 @@ bool read_EP1(void *report, size_t size) {
 #ifdef USE_D0_EP2_OUT
 bool read_EP2(void *report, size_t size) {
     if (ep2_data_wait) {
-        memcpy(report, pUSB_BUF_DEV0 + UX_EP2_ADDR, size);
+        if (ep2_rx_len == size) {
+            memcpy(report, pUSB_BUF_DEV0 + UX_EP2_ADDR, size);
+            ep2_data_wait = 0;
+            ack_from_nak(&D0_EP2RES);
+            return true;
+        }
         ep2_data_wait = 0;
         ack_from_nak(&D0_EP2RES);
-        return true;
     }
     return false;
 }
@@ -238,10 +247,14 @@ bool read_EP2(void *report, size_t size) {
 #ifdef USE_D0_EP3_OUT
 bool read_EP3(void *report, size_t size) {
     if (ep3_data_wait) {
-        memcpy(report, pUSB_BUF_DEV0 + UX_EP3_ADDR, size);
+        if (ep3_rx_len == size) {
+            memcpy(report, pUSB_BUF_DEV0 + UX_EP3_ADDR, size);
+            ep3_data_wait = 0;
+            ack_from_nak(&D0_EP3RES);
+            return true;
+        }
         ep3_data_wait = 0;
         ack_from_nak(&D0_EP3RES);
-        return true;
     }
     return false;
 }
@@ -249,10 +262,14 @@ bool read_EP3(void *report, size_t size) {
 #ifdef USE_D0_EP4_OUT
 bool read_EP4(void *report, size_t size) {
     if (ep4_data_wait) {
-        memcpy(report, pUSB_BUF_DEV0 + UX_EP4_ADDR, size);
+        if (ep4_rx_len == size) {
+            memcpy(report, pUSB_BUF_DEV0 + UX_EP4_ADDR, size);
+            ep4_data_wait = 0;
+            ack_from_nak(&D0_EP4RES);
+            return true;
+        }
         ep4_data_wait = 0;
         ack_from_nak(&D0_EP4RES);
-        return true;
     }
     return false;
 }

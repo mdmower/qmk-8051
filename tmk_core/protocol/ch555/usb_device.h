@@ -110,15 +110,19 @@ extern volatile UINT8  Idle_Value;												/* SET_IDLE duration of interface 
 extern UINT8 kbd_report[8];														/* current report of interface 0 (ch555_usb_stack.c) */
 #ifdef USE_D0_EP1_OUT
 extern volatile UINT8  ep1_data_wait;											/* endpoint 1 data waiting flag*/
+extern volatile UINT8  ep1_rx_len;											/* endpoint 1: length of the waiting packet */
 #endif
 #ifdef USE_D0_EP2_OUT
 extern volatile UINT8  ep2_data_wait;											/* endpoint 2 data waiting flag*/
+extern volatile UINT8  ep2_rx_len;											/* endpoint 2: length of the waiting packet */
 #endif
 #ifdef USE_D0_EP3_OUT
 extern volatile UINT8  ep3_data_wait;											/* endpoint 3 data waiting flag*/
+extern volatile UINT8  ep3_rx_len;											/* endpoint 3: length of the waiting packet */
 #endif
 #ifdef USE_D0_EP4_OUT
 extern volatile UINT8  ep4_data_wait;											/* endpoint 4 data waiting flag*/
+extern volatile UINT8  ep4_rx_len;											/* endpoint 4: length of the waiting packet */
 #endif
 /***********************************************************************************************************************/
 /* Function expansion */
