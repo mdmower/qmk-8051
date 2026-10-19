@@ -35,12 +35,21 @@ static uint8_t suppressed_mods    = 0;
 
 // TODO: pointer variable is not needed
 // report_keyboard_t keyboard_report = {};
-// Named objects: SDCC places a compound literal at file scope in code memory
+#ifdef __SDCC
+// SDCC before r16763 places a compound literal at file scope in code memory
+// (https://sourceforge.net/p/sdcc/bugs/4044/)
 static report_keyboard_t keyboard_report_object;
 report_keyboard_t       *keyboard_report = &keyboard_report_object;
+#else
+report_keyboard_t *keyboard_report = &(report_keyboard_t){};
+#endif
 #ifdef NKRO_ENABLE
+#    ifdef __SDCC
 static report_nkro_t nkro_report_object;
 report_nkro_t       *nkro_report = &nkro_report_object;
+#    else
+report_nkro_t *nkro_report = &(report_nkro_t){};
+#    endif
 #endif
 
 #ifndef __SDCC
