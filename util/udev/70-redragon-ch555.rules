@@ -1,5 +1,5 @@
-# Redragon K580 RGB (Evision VS11K33A) and K552RGB-2 (VS11K28A), CH555-family 8051s: user access to the hidraw
-# nodes that util/evision_dump.py, util/evision_flash.py and VIA use.
+# Redragon keyboards with an Evision CH555-family 8051 (K580 RGB: VS11K33A; K552RGB-2, K551RGB-1, K582RGB,
+# K589RGB: VS11K28A): user access to the hidraw nodes that util/evision_dump.py, util/evision_flash.py and VIA use.
 #   sudo cp util/udev/70-redragon-ch555.rules /etc/udev/rules.d/
 #   sudo udevadm control --reload && sudo udevadm trigger
 # The 70- prefix matters: uaccess tags must be applied before 73-seat-late.rules.
@@ -21,5 +21,7 @@ KERNEL=="hidraw*", DEVPATH=="*/0003:0C45:7687.*", MODE="0660", GROUP="plugdev", 
 KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0580.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 # QMK on the K552 (5244:0552), interface 1 only, as above.
 KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0552.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+# QMK on the K551 (5244:0551), interface 1 only, as above.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0551.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 
 # The WCH factory ISP bootloader (4348:55e0) is not granted. Flashing through it overwrites the OEM bootloader.

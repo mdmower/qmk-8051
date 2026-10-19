@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Evision OEM bootloader (0c45:7687) flasher for the Redragon K580 (VS11K33A) and K552RGB-2 (VS11K28A),
-CH555-family 8051s. The bootloader does not identify the keyboard: check that the image is for the board.
+"""Evision OEM bootloader (0c45:7687) flasher for Redragon keyboards with an Evision CH555-family 8051
+(K580: VS11K33A; the others in QMK_IDS: VS11K28A). The bootloader does not identify the keyboard: check that the
+image is for the board.
 
 The protocol and every guard below come from a disassembly of the OEM bootloader (0x0000-0x27FF of a stock
 1.04 flash dump) and match Glitch752's USB capture (https://github.com/Glitch752/qmk-8051-vs11k28a).
@@ -32,8 +33,8 @@ SAFETY BY CONSTRUCTION:
     bootloader), so that a flashed image that fails at startup can still be replaced.
   * Checks device identity (VID:PID on USB interface 1) and the bootloader's hello fingerprint before
     erasing. Checks status after every command and never sends reset (05) unless the checksum is OK.
-  * Refuses when more than one keyboard has the ID it needs (the K580 and the K552 share the stock and
-    bootloader IDs, which do not identify the board) and prints the USB port of the one it uses.
+  * Refuses when more than one keyboard has the ID it needs (the keyboards share the stock and bootloader
+    IDs, which do not identify the board) and prints the USB port of the one it uses.
   * DRY-RUN by default. Nothing is sent without --send.
 
 Usage:
@@ -52,8 +53,11 @@ def HIDIOCGFEATURE(n): return _ioc(3, ord('H'), 0x07, n)
 
 APP_VID, APP_PID = 0x320f, 0x5000
 BOOT_VID, BOOT_PID = 0x0c45, 0x7687
-QMK_IDS = {(0x5244, 0x0580): "K580", (0x5244, 0x0552): "K552"}   # QMK redragon/k580, redragon/k552 (no Evision
-                                                                  # vendor interface)
+QMK_IDS = {   # QMK redragon/<keyboard> (no Evision vendor interface)
+    (0x5244, 0x0580): "K580",
+    (0x5244, 0x0552): "K552",
+    (0x5244, 0x0551): "K551",
+}
 APP_BASE = 0x2800
 ERASE_END = 0xEFC0                       # bootloader erases pages 0xA0..0x3BE -> 0x2800..0xEFBF
 PKT = 64
@@ -79,6 +83,8 @@ KNOWN = {   # sha256 of the raw (unpadded) app image -> label
         "K580 vendor 1.02 app region, from the Redragon updater",
     "f583bda04856362d9f531fea76fa6df9445840e9b4f5c52110a65aec4b050a58":
         "K552RGB-2 vendor V0101 app region, from the Redragon updater",
+    "4718cf8b32ef3b396b33df348849121ded521f425a0a15f11f5c0e5d4af3b3fb":
+        "K551RGB-1/K582RGB/K589RGB vendor V0107 app region, from the Redragon updater",
 }
 
 def known_label(sha):
@@ -168,7 +174,7 @@ def usb_port(d):
 
 def iface1_node(vid, pid):
     """Return (node, USB device dir) of the keyboard with vid:pid on interface 1, or None. Exit if there are
-    several: the stock and bootloader IDs are the same on the K580 and the K552."""
+    several: the keyboards share the stock and bootloader IDs."""
     hits = [(node, usb_dir(devpath)) for node, i1, devpath in find_nodes(vid, pid) if i1]
     if len(hits) > 1:
         raise SystemExit("%d keyboards with %04x:%04x found (%s); refusing. Unplug all but the one to use."

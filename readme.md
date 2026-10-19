@@ -1,7 +1,7 @@
 # QMK for CH555-family 8051 keyboards
 
 A branch of [QMK](https://github.com/qmk/qmk_firmware) (`develop`) that builds QMK with the SDCC compiler for
-8051 microcontrollers in the WCH CH555 family. It supports two Redragon keyboards with Evision MCUs of that
+8051 microcontrollers in the WCH CH555 family. It supports Redragon keyboards with Evision MCUs of that
 family. The firmware is flashed through the keyboard's own Evision bootloader, which stays in place, so the stock
 firmware can be restored from a backup.
 
@@ -9,8 +9,9 @@ firmware can be restored from a backup.
 |---|---|---|---|
 | [Redragon K580 RGB](keyboards/redragon/k580/) | Evision VS11K33A | `320f:5000` / `5244:0580` | Works; tested on one keyboard (Linux, Windows 11) |
 | [Redragon K552RGB-2](keyboards/redragon/k552/) | Evision VS11K28A | `320f:5000` / `5244:0552` | Not run on a keyboard yet |
+| [Redragon K551RGB-1](keyboards/redragon/k551/) | Evision VS11K28A | `320f:5000` / `5244:0551` | Not run on a keyboard yet |
 
-Both keyboards have the same Evision bootloader (`0c45:7687`) and share their LED controller, key matrix and
+The keyboards have the same Evision bootloader (`0c45:7687`) and share their LED controller, key matrix and
 lighting code ([keyboards/redragon/common](keyboards/redragon/common/)). This readme describes what is common to
 them: the risks, backup, flashing, restore, the `default` and `via` keymaps, and the build. The keyboard readmes
 describe each keyboard's checks, keymap, lighting keys and hardware.
@@ -21,7 +22,7 @@ describe each keyboard's checks, keymap, lighting keys and hardware.
   keyboards and macOS have not been tested.
 - Back up the stock firmware before the first flash ([step 1](#1-back-up-the-stock-firmware)). The backup can be
   made only while the stock firmware runs, because it reads the flash through a command of the stock firmware.
-- The stock firmware of both keyboards (and of other Redragon keyboards) enumerates as `320f:5000`, and both
+- The stock firmware of these keyboards (and of other Redragon keyboards) enumerates as `320f:5000`, and their
   bootloaders as `0c45:7687`. The bootloader does not identify the keyboard and accepts an image built for another
   one: check the keyboard as its readme describes, and flash only images built for it.
 - Entering the bootloader erases the boot marker. The keyboard then stays in the bootloader, also after a replug,
@@ -62,7 +63,7 @@ bootloader or QMK.
 A QMK image starts with a check for Esc at 0x2803 and contains the interrupt table that the bootloader jumps to at
 0x3000; both are added by `util/evision_oem_image.py`. The Esc check runs before QMK starts, so holding Esc while
 plugging in the keyboard enters the bootloader also when a QMK build does not start. It reads column P0.0 and row
-P4.0, the Esc key on both keyboards.
+P4.0, the Esc key on all of these keyboards.
 
 ## Back up, build, flash, restore
 
@@ -72,6 +73,8 @@ The commands use two shell variables for the keyboard. Set the variables relevan
 KB=k580 QMK_ID=5244:0580    # K580 RGB
 # OR
 KB=k552 QMK_ID=5244:0552    # K552RGB-2
+# OR
+KB=k551 QMK_ID=5244:0551    # K551RGB-1
 ```
 
 `KB` is the keyboard's directory under `keyboards/redragon/`, used in the build command and the file names below.

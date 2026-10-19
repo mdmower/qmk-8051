@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Read the code flash of a Redragon K580 (Evision VS11K33A) or K552RGB-2 (VS11K28A) running its stock firmware.
+"""Read the code flash of a Redragon keyboard with an Evision CH555-family 8051 (K580: VS11K33A; K552RGB-2,
+K551RGB-1, K582RGB, K589RGB: VS11K28A) running its stock firmware.
 
 The stock firmware (USB 320f:5000) answers vendor command 0x10 on USB interface 1 with up to 0x36 bytes read
 from code flash at 0xA700 + offset (mod 0x10000), so the whole 64 KB, including the OEM bootloader, can be
 read. The read handler contains no flash write or erase. Tested with stock firmware 1.04. The K552RGB-2 stock
-firmware V0101 (VS11K28A, also 320f:5000) has the same handler (static analysis; not run on a K552). QMK does not
-implement this command: make the backup before flashing QMK.
+firmware V0101 and the K551RGB-1/K582RGB/K589RGB stock firmware V0107 (VS11K28A, also 320f:5000) have the same
+handler (static analysis; not run on these keyboards). QMK does not implement this command: make the backup
+before flashing QMK.
 
 Read-only by construction:
   * Sends only command 0x10 (read). Refuses any report that matches the bootloader-entry pattern
     (bytes 1-3 = EE EE 00).
   * Opens only the hidraw node of 320f:5000 on USB interface 1, and refuses when more than one keyboard has
-    that ID (the K580 and the K552 share it; the stock firmware does not identify the board).
+    that ID (these keyboards share it; the stock firmware does not identify the board).
   * DRY-RUN by default. Nothing is sent without --send.
 
 Linux only: talks to the keyboard through hidraw. Python standard library only.
