@@ -24,8 +24,9 @@ Usage:
       For an SDCC build linked with --code-loc CODE_LOC (>= 0x3027) whose code ends below CODE_END
       (<= 0xEFC0; lower when the app keeps data at the top of its region). Writes the LJMP at 0x2800, the Esc
       check, and the 13-entry interrupt table at 0x3000. Each table entry jumps to SDCC's vector slot
-      (CODE_LOC+3+8n), or to a RETI for a vector SDCC did not emit. MAIN.asm is the SDCC module that holds
-      __interrupt_vect (quantum/main.asm in a QMK build).
+      (CODE_LOC+3+8n), or to a RET for a vector SDCC did not emit (the bootloader's stub calls the entry with
+      LCALL and ends the interrupt with its own RETI). MAIN.asm is the SDCC module that holds __interrupt_vect
+      (quantum/main.asm in a QMK build).
   python3 util/evision_oem_image.py stock APP.bin OUT.bin
       Adds the Esc check to an existing app image based at 0x2800 (for example stock firmware), in the
       free space after the app, and changes the LJMP at 0x2800 to jump to it. The interrupt table is not
@@ -46,7 +47,7 @@ bCODE_WE, bSW_RESET = 0x08, 0x10
 MARKER_PAGE = 0x27C0
 
 def esc_check(base, cont):
-    """Assemble the Esc check at address base; returns (bytes, reti_addr)."""
+    """Assemble the Esc check at address base; returns (bytes, ret_addr)."""
     code, labels, fix = bytearray(), {}, []
     def emit(*b): code.extend(b)
     def label(n): labels[n] = base + len(code)
@@ -95,13 +96,13 @@ def esc_check(base, cont):
     emit(0x89, P4_MOD_OC)                # MOV P4_MOD_OC,R1
     emit(0x88, P4_LED_KEY)               # MOV P4_LED_KEY,R0
     emit(0x02, cont >> 8, cont & 0xFF)   # LJMP cont
-    label("reti"); emit(0x32)            # RETI (target for unused interrupt slots)
+    label("ret"); emit(0x22)             # RET (target for unused interrupt slots, called by the stub)
     for off, n in fix:
         d = labels[n] - (base + off + 1)
         if not -128 <= d <= 127:
             raise SystemExit("Esc check: branch to %s out of range" % n)
         code[off] = d & 0xFF
-    return bytes(code), labels["reti"]
+    return bytes(code), labels["ret"]
 
 def ljmp(t): return bytes([0x02, t >> 8, t & 0xFF])
 
@@ -206,7 +207,7 @@ def do_sdcc(a):
     for addr, b in mem.items():
         img[addr - APP_BASE] = b
     cbase = APP_BASE + 3
-    code, reti = esc_check(cbase, code_loc)
+    code, ret = esc_check(cbase, code_loc)
     if cbase + len(code) > IVT_BASE:
         raise SystemExit("Esc check too large")
     img[3:3 + len(code)] = code
@@ -214,11 +215,11 @@ def do_sdcc(a):
     print("Esc check at 0x%04x (%d bytes), then LJMP to SDCC reset vector 0x%04x" % (cbase, len(code), code_loc))
     for j, v in enumerate(HW_VECTORS):
         n = (v - 3) // 8
-        tgt = code_loc + v if n < len(slots) and slots[n] else reti
+        tgt = code_loc + v if n < len(slots) and slots[n] else ret
         img[IVT_BASE - APP_BASE + 3 * j:IVT_BASE - APP_BASE + 3 * j + 3] = ljmp(tgt)
-        if tgt != reti:
+        if tgt != ret:
             print("  vector 0x%02x (int %2d, %s) -> 0x3000+%2d: LJMP 0x%04x" % (v, n, slots[n], 3 * j, tgt))
-    print("  all other vectors -> RETI at 0x%04x" % reti)
+    print("  all other vectors -> RET at 0x%04x" % ret)
     finish(img, a.out)
 
 def main():
