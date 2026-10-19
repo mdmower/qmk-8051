@@ -14,7 +14,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define REPORT_C // report.h defines KEYCODE2SYSTEM() and KEYCODE2CONSUMER() here under SDCC
+#ifdef __SDCC
+#    define REPORT_C // report.h defines KEYCODE2SYSTEM() and KEYCODE2CONSUMER() here
+#endif
 #include "report.h"
 #include "action_util.h"
 #include "host.h"
