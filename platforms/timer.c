@@ -8,7 +8,10 @@
 #include <timer.h>
 
 // Generate out-of-line copies for inline functions defined in timer.h.
-#ifndef __SDCC
+#ifdef __SDCC
+// SDCC emits no definition for these declarations (https://sourceforge.net/p/sdcc/bugs/1900/); timer.h
+// defines the functions as macros under SDCC
+#else
 extern inline fast_timer_t timer_read_fast(void);
 extern inline fast_timer_t timer_elapsed_fast(fast_timer_t last);
 #endif

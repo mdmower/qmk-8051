@@ -54,7 +54,8 @@ uint32_t timer_elapsed32(uint32_t last);
 #    define timer_expired_fast(current, future) timer_expired(current, future)
 typedef uint16_t fast_timer_t;
 #    ifdef __SDCC
-// SDCC does not emit the external definitions that `extern inline` asks for (timer.c)
+// SDCC emits no external definition for an inline function declared extern after its definition, as in timer.c
+// (https://sourceforge.net/p/sdcc/bugs/1900/)
 #        define timer_read_fast() timer_read()
 #        define timer_elapsed_fast(last) timer_elapsed(last)
 #    else

@@ -52,7 +52,10 @@ report_nkro_t *nkro_report = &(report_nkro_t){};
 #    endif
 #endif
 
-#ifndef __SDCC
+#ifdef __SDCC
+// SDCC emits no definition for these declarations (https://sourceforge.net/p/sdcc/bugs/1900/);
+// action_util.h defines the functions as macros under SDCC
+#else
 extern inline void add_key(uint8_t key);
 extern inline void del_key(uint8_t key);
 extern inline void clear_keys(void);

@@ -51,7 +51,8 @@ void send_keyboard_report(void);
 
 /* key */
 #ifdef __SDCC
-// SDCC does not emit the external definitions that `extern inline` asks for (action_util.c)
+// SDCC emits no external definition for an inline function declared extern after its definition, as in
+// action_util.c (https://sourceforge.net/p/sdcc/bugs/1900/)
 #    define add_key(key) add_key_to_report(key)
 #    define del_key(key) del_key_from_report(key)
 #    define clear_keys() clear_keys_from_report()
