@@ -298,13 +298,15 @@ def link(args):
     for o in objs:
         b = o[:-2]
         rel = b + ".rel"
+        # The .rel of an earlier link can be a hard link to the object: remove it, so that sdas8051 does not
+        # write the weakened object into the object file.
+        if os.path.exists(rel):
+            os.remove(rel)
         if o in rename:
             wasm = b + ".weakened.asm"
             weaken(b + ".asm", wasm, rename[o], re.sub(r"\W", "_", os.path.basename(b)))
             run([SDAS, "-plosgffw", rel, wasm])
         else:
-            if os.path.exists(rel):
-                os.remove(rel)
             os.link(o, rel)
         rels.append(rel)
     with open(base + ".weak.txt", "w") as f:
