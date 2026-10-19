@@ -10,7 +10,8 @@
  * (row, col) has its LED at slot col * 8 + row (stock V0101 tables @0x3027 and @0x31a9).
  * Also: slot 0x57 (COM 10, group 7), the small LED right of Esc (stock effect grid @0x30a7), at x 1.25; the ISO
  * key left of Z (slot 12) and ISO # (slot 99) at their ISO positions, the ABNT2 key left of Right Shift (slot 100)
- * at its ABNT2 position. LED_FX_SKIP: the Caps Lock (0x4F) and Scroll Lock (0x47) indicators, driven by k552.c.
+ * at its ABNT2 position. LED_FX_SKIP: the Caps Lock (0x4F) and Scroll Lock (0x47) indicators, driven by
+ * keyboards/redragon/common/redragon_ch555.c.
  */
 static __code const uint8_t led_pos[LED_DMA_COMS * LED_DMA_GROUPS] = {
     // clang-format off

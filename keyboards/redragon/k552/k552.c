@@ -1,12 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "k552.h"
-#include "led_dma.h"
-
-/* Caps Lock and Scroll Lock indicators (right of the logo): LEDs in group 7 of COMs 9 and 8, Caps Lock on the red
- * line and Scroll Lock on the green line (stock V0101 @0xd988). Buffer offsets: slot * 4 + colour byte. */
-#define CAPS_LOCK_LED ((9 * LED_DMA_GROUPS + 7) * 4 + 1)
-#define SCROLL_LOCK_LED ((8 * LED_DMA_GROUPS + 7) * 4 + 2)
 
 void keyboard_post_init_kb(void) {
     redragon_init();
@@ -21,8 +15,7 @@ bool led_update_kb(led_t led_state) {
     bool res = led_update_user(led_state);
 
     if (res) {
-        led_dma_buf[CAPS_LOCK_LED]   = led_state.caps_lock ? 0xFF : 0;
-        led_dma_buf[SCROLL_LOCK_LED] = led_state.scroll_lock ? 0xFF : 0;
+        redragon_led_update(led_state);
     }
     return res;
 }
