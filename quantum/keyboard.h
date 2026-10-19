@@ -84,7 +84,13 @@ static inline bool IS_DIPSWITCHEVENT(const keyevent_t event) {
 #define MAKE_KEYPOS(row_num, col_num) ((keypos_t){.row = (row_num), .col = (col_num)})
 
 /* Common keyevent_t object factory */
-#define MAKE_EVENT(row_num, col_num, press, event_type) ((keyevent_t){.key = {.row = (row_num), .col = (col_num)}, .pressed = (press), .time = timer_read(), .type = (event_type)})
+#ifdef __SDCC
+// SDCC before r16747 gives a compound literal that initializes an object no storage
+// (https://sourceforge.net/p/sdcc/bugs/3886/)
+#    define MAKE_EVENT(row_num, col_num, press, event_type) ((keyevent_t){.key = {.row = (row_num), .col = (col_num)}, .pressed = (press), .time = timer_read(), .type = (event_type)})
+#else
+#    define MAKE_EVENT(row_num, col_num, press, event_type) ((keyevent_t){.key = MAKE_KEYPOS((row_num), (col_num)), .pressed = (press), .time = timer_read(), .type = (event_type)})
+#endif
 
 /**
  * @brief Constructs a key event for a pressed or released key.
