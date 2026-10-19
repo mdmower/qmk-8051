@@ -19,33 +19,46 @@ bool nvm_eeconfig_is_disabled(void);
 void nvm_eeconfig_enable(void);
 void nvm_eeconfig_disable(void);
 
-union debug_config_t;
-void                         nvm_eeconfig_read_debug(union debug_config_t *debug_config);
-void                         nvm_eeconfig_update_debug(const union debug_config_t *debug_config);
+#ifdef __SDCC
+// SDCC gives error 141 for a repeated typedef of a union tag (https://sourceforge.net/p/sdcc/bugs/4159/); the
+// typedefs of this header are in platforms/mcs51/sdcc_compat.h, which is included before every source file
+#else
+typedef union debug_config_t debug_config_t;
+#endif
+void                         nvm_eeconfig_read_debug(debug_config_t *debug_config);
+void                         nvm_eeconfig_update_debug(const debug_config_t *debug_config);
 
 layer_state_t nvm_eeconfig_read_default_layer(void);
 void          nvm_eeconfig_update_default_layer(layer_state_t state);
 
-union keymap_config_t;
-void                          nvm_eeconfig_read_keymap(union keymap_config_t *keymap_config);
-void                          nvm_eeconfig_update_keymap(const union keymap_config_t *keymap_config);
+#ifndef __SDCC
+typedef union keymap_config_t keymap_config_t;
+#endif
+void                          nvm_eeconfig_read_keymap(keymap_config_t *keymap_config);
+void                          nvm_eeconfig_update_keymap(const keymap_config_t *keymap_config);
 
 #ifdef AUDIO_ENABLE
-union audio_config_t;
-void                         nvm_eeconfig_read_audio(union audio_config_t *audio_config);
-void                         nvm_eeconfig_update_audio(const union audio_config_t *audio_config);
+#    ifndef __SDCC
+typedef union audio_config_t audio_config_t;
+#    endif
+void                         nvm_eeconfig_read_audio(audio_config_t *audio_config);
+void                         nvm_eeconfig_update_audio(const audio_config_t *audio_config);
 #endif // AUDIO_ENABLE
 
 #ifdef UNICODE_COMMON_ENABLE
-union unicode_config_t;
-void                           nvm_eeconfig_read_unicode_mode(union unicode_config_t *unicode_config);
-void                           nvm_eeconfig_update_unicode_mode(const union unicode_config_t *unicode_config);
+#    ifndef __SDCC
+typedef union unicode_config_t unicode_config_t;
+#    endif
+void                           nvm_eeconfig_read_unicode_mode(unicode_config_t *unicode_config);
+void                           nvm_eeconfig_update_unicode_mode(const unicode_config_t *unicode_config);
 #endif // UNICODE_COMMON_ENABLE
 
 #ifdef BACKLIGHT_ENABLE
-union backlight_config_t;
-void                             nvm_eeconfig_read_backlight(union backlight_config_t *backlight_config);
-void                             nvm_eeconfig_update_backlight(const union backlight_config_t *backlight_config);
+#    ifndef __SDCC
+typedef union backlight_config_t backlight_config_t;
+#    endif
+void                             nvm_eeconfig_read_backlight(backlight_config_t *backlight_config);
+void                             nvm_eeconfig_update_backlight(const backlight_config_t *backlight_config);
 #endif // BACKLIGHT_ENABLE
 
 #ifdef STENO_ENABLE
@@ -54,21 +67,27 @@ void    nvm_eeconfig_update_steno_mode(uint8_t val);
 #endif // STENO_ENABLE
 
 #ifdef RGB_MATRIX_ENABLE
-union rgb_config_t;
-void                       nvm_eeconfig_read_rgb_matrix(union rgb_config_t *rgb_matrix_config);
-void                       nvm_eeconfig_update_rgb_matrix(const union rgb_config_t *rgb_matrix_config);
+#    ifndef __SDCC
+typedef union rgb_config_t rgb_config_t;
+#    endif
+void                       nvm_eeconfig_read_rgb_matrix(rgb_config_t *rgb_matrix_config);
+void                       nvm_eeconfig_update_rgb_matrix(const rgb_config_t *rgb_matrix_config);
 #endif
 
 #ifdef LED_MATRIX_ENABLE
-union led_eeconfig_t;
-void                         nvm_eeconfig_read_led_matrix(union led_eeconfig_t *led_matrix_config);
-void                         nvm_eeconfig_update_led_matrix(const union led_eeconfig_t *led_matrix_config);
+#    ifndef __SDCC
+typedef union led_eeconfig_t led_eeconfig_t;
+#    endif
+void                         nvm_eeconfig_read_led_matrix(led_eeconfig_t *led_matrix_config);
+void                         nvm_eeconfig_update_led_matrix(const led_eeconfig_t *led_matrix_config);
 #endif // LED_MATRIX_ENABLE
 
 #ifdef RGBLIGHT_ENABLE
-union rgblight_config_t;
-void                            nvm_eeconfig_read_rgblight(union rgblight_config_t *rgblight_config);
-void                            nvm_eeconfig_update_rgblight(const union rgblight_config_t *rgblight_config);
+#    ifndef __SDCC
+typedef union rgblight_config_t rgblight_config_t;
+#    endif
+void                            nvm_eeconfig_read_rgblight(rgblight_config_t *rgblight_config);
+void                            nvm_eeconfig_update_rgblight(const rgblight_config_t *rgblight_config);
 #endif // RGBLIGHT_ENABLE
 
 #if (EECONFIG_KB_DATA_SIZE) == 0
@@ -82,15 +101,19 @@ void     nvm_eeconfig_update_user(uint32_t val);
 #endif // (EECONFIG_USER_DATA_SIZE) == 0
 
 #ifdef HAPTIC_ENABLE
-union haptic_config_t;
-void                          nvm_eeconfig_read_haptic(union haptic_config_t *haptic_config);
-void                          nvm_eeconfig_update_haptic(const union haptic_config_t *haptic_config);
+#    ifndef __SDCC
+typedef union haptic_config_t haptic_config_t;
+#    endif
+void                          nvm_eeconfig_read_haptic(haptic_config_t *haptic_config);
+void                          nvm_eeconfig_update_haptic(const haptic_config_t *haptic_config);
 #endif // HAPTIC_ENABLE
 
 #ifdef CONNECTION_ENABLE
-union connection_config_t;
-void                              nvm_eeconfig_read_connection(union connection_config_t *config);
-void                              nvm_eeconfig_update_connection(const union connection_config_t *config);
+#    ifndef __SDCC
+typedef union connection_config_t connection_config_t;
+#    endif
+void                              nvm_eeconfig_read_connection(connection_config_t *config);
+void                              nvm_eeconfig_update_connection(const connection_config_t *config);
 #endif // CONNECTION_ENABLE
 
 bool nvm_eeconfig_read_handedness(void);

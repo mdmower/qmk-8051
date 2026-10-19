@@ -20,3 +20,17 @@ typedef unsigned int wchar_t;
 #ifndef QMK_SDCC_ATTRIBUTES
 #    define __attribute__(x)
 #endif
+
+/* quantum/eeconfig.h, quantum/nvm/nvm_eeconfig.h: SDCC gives error 141 for a repeated typedef of a union tag
+ * (https://sourceforge.net/p/sdcc/bugs/4159/) but accepts a forward typedef followed by the defining one. Under SDCC
+ * the two headers leave out their forward typedefs and use these, which come before every definition. */
+typedef union debug_config_t      debug_config_t;
+typedef union keymap_config_t     keymap_config_t;
+typedef union audio_config_t      audio_config_t;
+typedef union unicode_config_t    unicode_config_t;
+typedef union backlight_config_t  backlight_config_t;
+typedef union rgb_config_t        rgb_config_t;
+typedef union led_eeconfig_t      led_eeconfig_t;
+typedef union rgblight_config_t   rgblight_config_t;
+typedef union haptic_config_t     haptic_config_t;
+typedef union connection_config_t connection_config_t;
