@@ -640,7 +640,7 @@ void mousekey_send(void) {
 }
 
 void mousekey_clear(void) {
-    mouse_report          = (report_mouse_t){0};
+    mouse_report          = (report_mouse_t){};
     mousekey_repeat       = 0;
     mousekey_wheel_repeat = 0;
     mousekey_accel        = 0;

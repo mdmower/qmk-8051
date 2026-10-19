@@ -55,7 +55,7 @@ action_t action_for_keycode(uint16_t keycode) {
     // keycode remapping
     keycode = keycode_config(keycode);
 
-    action_t action = {0};
+    action_t action = {};
     uint8_t  action_layer, mod;
 
     (void)action_layer;
