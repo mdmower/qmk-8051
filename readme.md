@@ -38,19 +38,28 @@ describe each keyboard's checks, keymap, lighting keys and hardware.
 
 ## Requirements
 
-- Linux (the backup and flash tools use hidraw), Python 3 (standard library only), and Docker for the build, or
-  the toolchain in [Build with QMK](#build-with-qmk).
-- Access to the keyboard's hidraw nodes: install the udev rule and be a member of the `plugdev` group. The rule
-  grants the stock firmware's vendor interface, the bootloader, and QMK's raw HID interface, which VIA uses.
+- Python 3 (standard library only) for the backup and flash tools, on Linux or Windows.
+- For the build: Docker (Linux) or Docker Desktop (Windows), or the toolchain in [Build with QMK](#build-with-qmk).
+- The submodule `lib/lufa`: clone with `git clone --recurse-submodules`, or run
+  `git submodule update --init lib/lufa` in an existing clone.
+- Linux: access to the keyboard's hidraw nodes: install the udev rule and be a member of the `plugdev` group. The
+  rule grants the stock firmware's vendor interface, the bootloader, and QMK's raw HID interface, which VIA uses.
   ```
   sudo cp util/udev/70-redragon-ch555.rules /etc/udev/rules.d/
   sudo udevadm control --reload && sudo udevadm trigger
   ```
+- Windows: Python from [python.org](https://www.python.org/downloads/windows/) or the Microsoft Store. No driver
+  and no setting is needed: any user can open the HID interfaces that the tools use. Smart App Control
+  can block a DLL of an unsigned Python build; the tools then say so. Quit the Redragon software before a backup
+  or a flash: it uses the same interface of the keyboard.
 
-Run the commands below from the top directory of this repository. `util/evision_dump.py` and
-`util/evision_flash.py` send nothing to the keyboard unless `--send` is given; without it they print what they
-would do. `python3 -I util/evision_flash.py status` shows which mode the keyboard is in: stock firmware,
-bootloader or QMK.
+Run the commands below from the top directory of this repository: in a shell on Linux, in PowerShell on Windows.
+On Windows, type `python` where the commands say `python3`: the python.org installer does not add a `python3`
+command.
+
+`util/evision_dump.py` and `util/evision_flash.py` send nothing to the keyboard unless `--send` is given; without it
+they print what they would do. `python3 -I util/evision_flash.py status` shows which mode the keyboard is in: stock
+firmware, bootloader or QMK.
 
 ## Flash layout
 
@@ -83,30 +92,30 @@ KB=k582 QMK_ID=5244:0582    # K582RGB
 KB=k589 QMK_ID=5244:0589    # K589RGB
 ```
 
+In PowerShell, set them as `$KB = "k580"; $QMK_ID = "5244:0580"`. The commands below are the same in both shells.
+
 `KB` is the keyboard's directory under `keyboards/redragon/`, used in the build command and the file names below.
 `QMK_ID` is the USB ID that QMK enumerates as on that keyboard; `flash --expect` waits for it.
 
 ### 1. Back up the stock firmware
 
 ```
-python3 -I util/evision_dump.py --out ${KB}_stock_1.bin --send
-python3 -I util/evision_dump.py --out ${KB}_stock_2.bin --send
-cmp ${KB}_stock_1.bin ${KB}_stock_2.bin
-python3 -I util/evision_flash.py extract ${KB}_stock_1.bin ${KB}_stock_app.bin
+python3 -I util/evision_dump.py --out ${KB}_stock.bin --send
+python3 -I util/evision_flash.py extract ${KB}_stock.bin ${KB}_stock_app.bin
 ```
 
-The stock firmware's replies to the read command contain no checksum of the data, so the flash is read twice and
-the two dumps are compared: `cmp` prints nothing when they are identical. If they differ, read again.
+The stock firmware's replies to the read command contain no checksum of the data, so `evision_dump.py` reads the
+flash twice and writes the file only if both reads are identical. If they differ, it says so; run it again.
 
 The dump prints whether the boot marker `AA 55 33 CC` is at 0x27C0. If it is not, the flash layout above does not
-apply: do not flash. `${KB}_stock_1.bin` is the full 64 KB code flash, including the bootloader.
+apply: do not flash. `${KB}_stock.bin` is the full 64 KB code flash, including the bootloader.
 `${KB}_stock_app.bin` is its application region, the image that restores the stock firmware. Keep both.
 
 ### 2. Build
 
 ```
-util/ch555_build.sh redragon/$KB          # keymap default: redragon_${KB}_default.bin
-util/ch555_build.sh redragon/$KB via      # keymap via: redragon_${KB}_via.bin
+python3 -I util/ch555_build.py redragon/$KB          # keymap default: redragon_${KB}_default.bin
+python3 -I util/ch555_build.py redragon/$KB via      # keymap via: redragon_${KB}_via.bin
 ```
 
 [Building](#building) describes the build without Docker and the USB serial number.
@@ -200,7 +209,7 @@ To go back, flash the `default` image; the flash erases the store.
 - QMK's `rgb_matrix` does not compile with SDCC: the keyboards have their own lighting code, and VIA has no
   lighting controls for them.
 - Vial is not supported: it would need the vial-qmk fork.
-- The backup and flash tools (`util/evision_dump.py`, `util/evision_flash.py`) run on Linux only.
+- The backup and flash tools (`util/evision_dump.py`, `util/evision_flash.py`) run on Linux and Windows only.
 
 ## Building
 
@@ -212,15 +221,16 @@ characters).
 
 ### Build with Docker
 
-`util/ch555_build.sh KEYBOARD [KEYMAP]` builds in Docker (SDCC, clang and the QMK CLI;
-[util/ch555_build.Dockerfile](util/ch555_build.Dockerfile)):
+`util/ch555_build.py KEYBOARD [KEYMAP] [--serial SERIAL]` builds in Docker (SDCC, clang and the QMK CLI;
+[util/ch555_build.Dockerfile](util/ch555_build.Dockerfile)), on Linux, and with Docker Desktop on Windows. The
+first build makes the Docker image, which takes a few minutes.
 
 ```
 # Option 1: Use chip ID for serial number
-util/ch555_build.sh redragon/k580
+python3 -I util/ch555_build.py redragon/k580
 
 # Option 2: Provide serial number (from sticker on keyboard)
-SERIAL_NUMBER=RDK580RGB00000000000 util/ch555_build.sh redragon/k580
+python3 -I util/ch555_build.py redragon/k580 --serial RDK580RGB00000000000
 ```
 
 ### Build with QMK

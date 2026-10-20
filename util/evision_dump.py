@@ -10,20 +10,23 @@ firmware V0101 and the K551RGB-1/K582RGB/K589RGB stock firmware V0107 (VS11K28A,
 handler (static analysis; not run on these keyboards). QMK does not implement this command: make the backup
 before flashing QMK.
 
+The replies contain no checksum of the data: the range is read twice, and the file is written only if both reads
+are identical.
+
 Read-only by construction:
   * Sends only command 0x10 (read). Refuses any report that matches the bootloader-entry pattern
     (bytes 1-3 = EE EE 00).
-  * Opens only the hidraw node of 320f:5000 on USB interface 1, and refuses when more than one keyboard has
-    that ID (these keyboards share it; the stock firmware does not identify the board).
+  * Opens only the vendor collection of 320f:5000 on USB interface 1, and refuses when more than one keyboard
+    has that ID (these keyboards share it; the stock firmware does not identify the board).
   * DRY-RUN by default. Nothing is sent without --send.
 
-Linux only: talks to the keyboard through hidraw. Python standard library only.
+Linux (hidraw and sysfs) and Windows (hid.dll and SetupAPI, in util/evision_win.py). Python standard library only.
 
 Usage:
   python3 -I util/evision_dump.py --out k580_full64k.bin [--send]
   python3 -I util/evision_dump.py --start 0x2800 --end 0xEFC0 --out readback.bin [--send]
 """
-import os, glob, argparse, hashlib, select
+import sys, os, glob, argparse, hashlib, select, importlib.util
 
 VID, PID = 0x320f, 0x5000
 READ_OP = 0x10
@@ -42,19 +45,24 @@ def usb_port(devpath):
         serial = None
     return "USB %s%s" % (os.path.basename(d), ", serial %s" % serial if serial else "")
 
-def resolve_node():
-    """Find the hidraw node for VID:PID on USB interface 1 (the vendor collection). Return (node, USB port)."""
+def find_nodes(vid, pid):
+    """Return [(node, iface1, devpath)] for the hidraw nodes of vid:pid."""
     hits = []
     for ue in glob.glob("/sys/class/hidraw/hidraw*/device/uevent"):
         try:
             txt = open(ue).read()
         except OSError:                             # node removed since the glob
             continue
-        if ("HID_ID=0003:0000%04X:0000%04X" % (VID, PID)).upper() not in txt.upper():
+        if ("HID_ID=0003:0000%04X:0000%04X" % (vid, pid)).upper() not in txt.upper():
             continue
         devpath = os.path.realpath(os.path.dirname(ue))
         hits.append(("/dev/" + ue.split("/")[4], ":1.1/" in devpath, devpath))
-    iface1 = [(node, usb_port(devpath)) for node, i1, devpath in sorted(hits) if i1]
+    return sorted(hits)
+
+def resolve_node():
+    """Find the node for VID:PID on USB interface 1 (the vendor collection). Return (node, USB port)."""
+    hits = find_nodes(VID, PID)
+    iface1 = [(node, usb_port(devpath)) for node, i1, devpath in hits if i1]
     if len(iface1) > 1:
         raise SystemExit("%d keyboards with %04x:%04x found (%s); refusing. Unplug all but the one to read."
                          % (len(iface1), VID, PID, "; ".join("%s at %s" % hit for hit in iface1)))
@@ -62,8 +70,22 @@ def resolve_node():
         return iface1[0]
     if hits:
         raise SystemExit("found %s but not on interface 1; refusing" % hits[0][0])
-    raise SystemExit("no hidraw node for %04x:%04x found (is the keyboard connected and running stock firmware?)"
+    raise SystemExit("no HID device for %04x:%04x found (is the keyboard connected and running stock firmware?)"
                      % (VID, PID))
+
+def open_node(node):
+    return os.open(node, os.O_RDWR)
+
+def close_node(fd):
+    os.close(fd)
+
+def write_report(fd, data):
+    os.write(fd, data)
+
+def read_report(fd, timeout):
+    """One input report, or None if none arrives within timeout seconds."""
+    rl, _, _ = select.select([fd], [], [], timeout)
+    return os.read(fd, REPORT_LEN) if rl else None
 
 def build_report(offset, length):
     if length > MAX_CHUNK:
@@ -87,15 +109,23 @@ def read_chunk(fd, addr, n):
     offset = (addr - BASE_ADDR) & 0xffff
     report = build_report(offset, n)
     for _ in range(3):
-        os.write(fd, report)
-        rl, _, _ = select.select([fd], [], [], 1.0)
-        if not rl:
+        write_report(fd, report)
+        resp = read_report(fd, 1.0)
+        if resp is None:
             continue
-        resp = os.read(fd, REPORT_LEN)
         # the reply echoes the request header; a mismatch means a stray or rejected report
         if resp[3] == READ_OP and resp[4] == n and resp[5] == (offset & 0xff) and resp[6] == ((offset >> 8) & 0xff):
             return bytes(resp[8:8 + n])
     return None
+
+# --- Windows: the same functions on hid.dll and SetupAPI ------------------------------------------------------
+if sys.platform == "win32":
+    _spec = importlib.util.spec_from_file_location(
+        "evision_win", os.path.join(os.path.dirname(os.path.abspath(__file__)), "evision_win.py"))
+    _win = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_win)
+    for _name in ("find_nodes", "usb_port", "open_node", "close_node", "write_report", "read_report"):
+        globals()[_name] = getattr(_win, _name)
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -112,25 +142,32 @@ def main():
         raise SystemExit("chunk must be 1..0x%x" % MAX_CHUNK)
     node, port = resolve_node()
     print("device : %04x:%04x  node %s (interface 1, %s)" % (VID, PID, node, port))
-    print("read   : 0x%04x-0x%04x (%d bytes) in 0x%02x-byte reads, command 0x10 (read-only)"
+    print("read   : 0x%04x-0x%04x (%d bytes) twice, in 0x%02x-byte reads, command 0x10 (read-only)"
           % (start, end - 1, end - start, chunk))
     if not a.send:
         print("\nDRY-RUN. Nothing sent. Re-run with --send to read."); return
-    fd = os.open(node, os.O_RDWR)
-    out = bytearray()
+    fd = open_node(node)
+    reads = []
     try:
-        addr = start
-        while addr < end:
-            n = min(chunk, end - addr)
-            data = read_chunk(fd, addr, n)
-            if data is None or len(data) != n:
-                raise SystemExit("read failed at 0x%04x" % addr)
-            out += data
-            addr += n
-            if (addr - start) % 0x1000 == 0:
-                print("  0x%04x  (%d/%d)" % (addr, addr - start, end - start), flush=True)
+        for k in (1, 2):
+            print("read %d of 2" % k, flush=True)
+            out = bytearray()
+            addr = start
+            while addr < end:
+                n = min(chunk, end - addr)
+                data = read_chunk(fd, addr, n)
+                if data is None or len(data) != n:
+                    raise SystemExit("read failed at 0x%04x" % addr)
+                out += data
+                addr += n
+                if (addr - start) % 0x1000 == 0:
+                    print("  0x%04x  (%d/%d)" % (addr, addr - start, end - start), flush=True)
+            reads.append(out)
     finally:
-        os.close(fd)
+        close_node(fd)
+    if reads[0] != reads[1]:
+        bad = next(i for i in range(len(out)) if reads[0][i] != reads[1][i])
+        raise SystemExit("the two reads differ (first at 0x%04x); nothing written. Run again." % (start + bad))
     open(a.out, "wb").write(out)
     print("wrote %d bytes to %s" % (len(out), a.out))
     print("sha256 : %s" % hashlib.sha256(out).hexdigest())

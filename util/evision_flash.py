@@ -6,7 +6,7 @@ image is for the board.
 
 The protocol and every guard below come from a disassembly of the OEM bootloader (0x0000-0x27FF of a stock
 1.04 flash dump) and match Glitch752's USB capture (https://github.com/Glitch752/qmk-8051-vs11k28a).
-Linux only: talks to the keyboard through hidraw. Python standard library only.
+Linux (hidraw and sysfs) and Windows (hid.dll and SetupAPI, in util/evision_win.py). Python standard library only.
 
 How the board boots: the bootloader jumps to the app (0x2800) only if code[0x27C0..0x27C3] == AA 55 33 CC.
 The app's "enter bootloader" report (04 EE EE 00) erases the 64-byte page at 0x27C0 and resets, so the board
@@ -45,7 +45,9 @@ Usage:
   python3 -I util/evision_flash.py flash IMAGE.bin [--poll] [--send]  # bootloader: erase, write, verify, reset
   python3 -I util/evision_flash.py verify DUMP.bin IMAGE.bin          # compare a read-back dump to an image
 """
-import sys, os, glob, argparse, array, fcntl, hashlib, time
+import sys, os, glob, argparse, array, hashlib, time, importlib.util
+if sys.platform != "win32":
+    import fcntl
 
 def _ioc(d, t, nr, size): return (d << 30) | (size << 16) | (t << 8) | nr
 def HIDIOCSFEATURE(n): return _ioc(3, ord('H'), 0x06, n)
@@ -264,6 +266,25 @@ def get_feature(fd):
     fcntl.ioctl(fd, HIDIOCGFEATURE(len(buf)), buf, True)
     return bytes(buf[1:])
 
+def open_node(node):
+    return os.open(node, os.O_RDWR)
+
+def close_node(fd):
+    os.close(fd)
+
+def write_report(fd, data):
+    os.write(fd, data)
+
+# --- Windows: the same functions on hid.dll and SetupAPI ------------------------------------------------------
+if sys.platform == "win32":
+    _spec = importlib.util.spec_from_file_location(
+        "evision_win", os.path.join(os.path.dirname(os.path.abspath(__file__)), "evision_win.py"))
+    _win = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_win)
+    for _name in ("find_nodes", "usb_dir", "usb_port", "usb_attrs", "usb_devices", "wait_usb_at", "wait_access",
+                  "set_feature", "get_feature", "open_node", "close_node", "write_report"):
+        globals()[_name] = getattr(_win, _name)
+
 def expect_ok(fd, cmd, timeout, what):
     """Poll GET_FEATURE until it echoes cmd with status OK. Exit (board stays in bootloader) otherwise."""
     deadline = time.monotonic() + timeout
@@ -337,11 +358,11 @@ def do_enter(a):
           % (BOOT_VID, BOOT_PID))
     if not a.send:
         print("\nDRY-RUN. Nothing sent. Re-run with --send to transmit."); return
-    fd = os.open(node, os.O_RDWR)
+    fd = open_node(node)
     try:
-        os.write(fd, ENTER_REPORT)
+        write_report(fd, ENTER_REPORT)
     finally:
-        os.close(fd)
+        close_node(fd)
     print("sent; waiting for bootloader ...", flush=True)
     if not wait_for(BOOT_VID, BOOT_PID, 15):
         raise SystemExit("bootloader did not appear within 15 s; run 'status'")
@@ -375,7 +396,7 @@ def do_flash(a):
               % (POLL_TIMEOUT, BOOT_VID, BOOT_PID), flush=True)
         hit = wait_for(BOOT_VID, BOOT_PID, POLL_TIMEOUT)
         if hit and not wait_access(hit[0], 5):
-            raise SystemExit("no read/write access to %s; is the udev rule for %04x:%04x installed?"
+            raise SystemExit("no read/write access to %s (Linux: is the udev rule for %04x:%04x installed?)"
                              % (hit[0], BOOT_VID, BOOT_PID))
         if hit:
             print("device  : %04x:%04x  node %s (interface 1, %s)" % (BOOT_VID, BOOT_PID, hit[0],
@@ -383,7 +404,7 @@ def do_flash(a):
     if not hit:
         raise SystemExit("bootloader not present")
     node, dev = hit
-    fd = os.open(node, os.O_RDWR)
+    fd = open_node(node)
     try:
         try:
             set_feature(fd, cmd_report(0x01)); time.sleep(0.1)
@@ -408,7 +429,7 @@ def do_flash(a):
             raise SystemExit("checksum OK (boot marker written), but the reset failed: %s. Replug the board to "
                              "start the new firmware." % e)
     finally:
-        os.close(fd)
+        close_node(fd)
     print("reset sent; waiting for %s at %s ..." % (names, usb_port(dev)), flush=True)
     got = wait_usb_at(dev, ids, 30)
     if not got:

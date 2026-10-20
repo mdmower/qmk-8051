@@ -13,9 +13,9 @@ flash through the stock firmware, which the flash erases.
 
 ## Check the keyboard first
 
-- With the stock firmware, the keyboard enumerates as `320f:5000` (`lsusb`). The tested keyboard reports
-  bcdDevice 0x0104 (firmware 1.04). Other Redragon keyboards, the K552RGB-2 among them, report the same ID: check
-  that the keyboard is a K580.
+- With the stock firmware, the keyboard enumerates as `320f:5000` (`python3 -I util/evision_flash.py status`). The
+  tested keyboard reports bcdDevice 0x0104 (firmware 1.04). Other Redragon keyboards, the K552RGB-2 among them, report
+  the same ID: check that the keyboard is a K580.
 - Other K580 revisions may use a different MCU; one keyboard database lists the K580 with a Sonix SN32F248B. This
   firmware does not apply to them.
 - The backup prints whether the boot marker `AA 55 33 CC` is at 0x27C0. If it is not, do not flash.
@@ -23,7 +23,7 @@ flash through the stock firmware, which the flash erases.
 ## Build and flash
 
 ```
-util/ch555_build.sh redragon/k580                 # or: qmk compile -kb redragon/k580 -km default
+python3 -I util/ch555_build.py redragon/k580      # or: qmk compile -kb redragon/k580 -km default
 python3 -I util/evision_flash.py enter --send     # from the stock firmware; from QMK: Fn+Esc
 python3 -I util/evision_flash.py flash redragon_k580_default.bin --expect 5244:0580 --send
 ```

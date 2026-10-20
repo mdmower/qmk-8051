@@ -16,9 +16,9 @@ flash through the stock firmware, which the flash erases.
 
 ## Check the keyboard first
 
-- With the stock firmware, the keyboard enumerates as `320f:5000` (`lsusb`). The updater's firmware reports
-  bcdDevice 0x0107 (V0107). Other Redragon keyboards, the K580 among them, report the same ID: check that the
-  keyboard is a K582RGB.
+- With the stock firmware, the keyboard enumerates as `320f:5000` (`python3 -I util/evision_flash.py status`). The
+  updater's firmware reports bcdDevice 0x0107 (V0107). Other Redragon keyboards, the K580 among them, report the same
+  ID: check that the keyboard is a K582RGB.
 - The K582RGB-PRO (optical switches) has a different MCU (Evision VS11K09A-1, a Sonix SN32). This firmware does
   not apply to it.
 - The backup prints whether the boot marker `AA 55 33 CC` is at 0x27C0. If it is not, do not flash.
@@ -26,7 +26,7 @@ flash through the stock firmware, which the flash erases.
 ## Build and flash
 
 ```
-util/ch555_build.sh redragon/k582                 # or: qmk compile -kb redragon/k582 -km default
+python3 -I util/ch555_build.py redragon/k582      # or: qmk compile -kb redragon/k582 -km default
 python3 -I util/evision_flash.py enter --send     # from the stock firmware; from QMK: Fn+Esc
 python3 -I util/evision_flash.py flash redragon_k582_default.bin --expect 5244:0582 --send
 ```
