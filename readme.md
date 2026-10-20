@@ -39,7 +39,7 @@ describe each keyboard's checks, keymap, lighting keys and hardware.
 ## Requirements
 
 - Linux (the backup and flash tools use hidraw), Python 3 (standard library only), and Docker for the build, or
-  the toolchain in [Building](#building).
+  the toolchain in [Build with QMK](#build-with-qmk).
 - Access to the keyboard's hidraw nodes: install the udev rule and be a member of the `plugdev` group. The rule
   grants the stock firmware's vendor interface, the bootloader, and QMK's raw HID interface, which VIA uses.
   ```
@@ -204,23 +204,53 @@ To go back, flash the `default` image; the flash erases the store.
 
 ## Building
 
-`util/ch555_build.sh KEYBOARD [KEYMAP]` builds in Docker (SDCC, clang and the QMK CLI;
-[util/ch555_build.Dockerfile](util/ch555_build.Dockerfile)) and writes `<keyboard>_<keymap>.bin` in the top
-directory: `util/ch555_build.sh redragon/k580` gives `redragon_k580_default.bin`. The file is the application
-image for the Evision bootloader, based at 0x2800.
-
-Without Docker, the toolchain is SDCC 4.6.0, clang with clang-query and llvm-nm, binutils and the QMK CLI.
-`qmk compile -kb redragon/k580 -km default` then writes the same file. The build checks for SDCC's
-miscompilations ([platforms/mcs51/sdcc_check.query](platforms/mcs51/sdcc_check.query)) are written for SDCC
-4.6.0. SDCC 4.5.0 stops with an internal error on the CH555 USB code (SDCC bug #3894).
+Both builds write `<keyboard>_<keymap>.bin` in the top directory: the `default` keymap of `redragon/k580` gives
+`redragon_k580_default.bin`. The file is the application image for the Evision bootloader, based at 0x2800.
 
 The USB serial number is the chip ID unless one is set at build time (letters, digits and `. _ : -`, at most 126
-characters):
+characters).
+
+### Build with Docker
+
+`util/ch555_build.sh KEYBOARD [KEYMAP]` builds in Docker (SDCC, clang and the QMK CLI;
+[util/ch555_build.Dockerfile](util/ch555_build.Dockerfile)):
 
 ```
-SERIAL_NUMBER=RDK580RGB00000000000 util/ch555_build.sh redragon/k580               # in Docker
-# OR
-qmk compile -kb redragon/k580 -km default -e SERIAL_NUMBER=RDK580RGB00000000000    # without Docker
+# Option 1: Use chip ID for serial number
+util/ch555_build.sh redragon/k580
+
+# Option 2: Provide serial number (from sticker on keyboard)
+SERIAL_NUMBER=RDK580RGB00000000000 util/ch555_build.sh redragon/k580
+```
+
+### Build with QMK
+
+The toolchain is SDCC 4.6.0, clang with clang-query and llvm-nm, binutils and the QMK CLI. The build stops at
+constructs that SDCC 4.6.0 compiles to wrong code
+([platforms/mcs51/sdcc_check.query](platforms/mcs51/sdcc_check.query); tickets in
+[SDCC bug reports and feature requests](#sdcc-bug-reports-and-feature-requests)). SDCC 4.6.0 is required.
+
+```
+# System packages
+sudo apt install binutils bzip2 clang clang-tools curl libstdc++6 llvm make python3 python3-venv wget
+
+# QMK CLI installs to ~/.local/bin
+curl -fsSL https://install.qmk.fm | sh
+
+# Install SDCC to ~/.local/sdcc-4.6.0
+wget -O /tmp/sdcc-4.6.0.tar.bz2 https://sourceforge.net/projects/sdcc/files/sdcc-linux-amd64/4.6.0/sdcc-4.6.0-amd64-unknown-linux2.5.tar.bz2/download
+tar -xjf /tmp/sdcc-4.6.0.tar.bz2 -C ~/.local
+echo 'export PATH="$HOME/.local/sdcc-4.6.0/bin:$HOME/.local/bin:$PATH"' >> ~/.bashrc
+```
+
+Then, in a new shell, from the project directory:
+
+```
+# Option 1: Use chip ID for serial number
+qmk compile -kb redragon/k580 -km default
+
+# Option 2: Provide serial number (from sticker on keyboard)
+qmk compile -kb redragon/k580 -km default -e SERIAL_NUMBER=RDK580RGB00000000000
 ```
 
 ## Toolchain limits
@@ -250,6 +280,28 @@ These limits of SDCC and of this port affect keyboard and keymap code:
 - A Redragon keyboard with the same LED controller wiring includes
   [keyboards/redragon/common/redragon_ch555.mk](keyboards/redragon/common/redragon_ch555.mk) in its `rules.mk`;
   the K552 is the smaller example.
+
+### SDCC bug reports and feature requests
+
+The following bugs and feature requests have workarounds applied to QMK, most guarded by `#ifdef __SDCC`, or in
+the compiler driver (weak symbols, the checks of
+[platforms/mcs51/sdcc_check.query](platforms/mcs51/sdcc_check.query)):
+
+- [Feature Request 595: Weak linkage](https://sourceforge.net/p/sdcc/feature-requests/595/)
+- [Feature Request 1038: Compile case ranges as ranges instead of one case per value](https://sourceforge.net/p/sdcc/feature-requests/1038/)
+- [Bug 1900: calling inline function](https://sourceforge.net/p/sdcc/bugs/1900/)
+- [Bug 3857: Ternary operator in struct assignment using a function call fails](https://sourceforge.net/p/sdcc/bugs/3857/)
+  (checked by the driver; no site in the build)
+- [Bug 3886: Compiler don't create constant for compound literal](https://sourceforge.net/p/sdcc/bugs/3886/)
+  (fixed after 4.6.0, in r16747)
+- [Bug 3979: error 147: excess elements in struct initializer](https://sourceforge.net/p/sdcc/bugs/3979/)
+  (designated initializers into an anonymous struct:
+  [comment 5099](https://sourceforge.net/p/sdcc/bugs/3979/#5099))
+- [Bug 4044: Initializer loses const qualifier](https://sourceforge.net/p/sdcc/bugs/4044/) (fixed after 4.6.0,
+  in r16763)
+- [Bug 4157: Struct returned from a function call is not copied to the caller](https://sourceforge.net/p/sdcc/bugs/4157/)
+- [Bug 4158: mcs51: second return of the same struct variable gives wrong values (large model)](https://sourceforge.net/p/sdcc/bugs/4158/)
+- [Bug 4159: Repeated typedef of a struct or union tag gives error 141](https://sourceforge.net/p/sdcc/bugs/4159/)
 
 ## History and credits
 
