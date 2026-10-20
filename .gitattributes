@@ -44,6 +44,11 @@ Makefile eol=lf
 # make files (need to always use lf for compatibility with Windows 10 bash)
 *.sh eol=lf
 
+# files read in the Linux build container or by udev
+*.Dockerfile text eol=lf
+*.query      text eol=lf
+*.rules      text eol=lf
+
 # documentation
 *.markdown   text eol=lf
 *.md         text eol=lf
