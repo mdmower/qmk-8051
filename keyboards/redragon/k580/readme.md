@@ -46,6 +46,7 @@ The keyboard stays in the bootloader until a flash completes, even across a repl
 - Layer 1 (Fn): Fn+Esc enters the bootloader (`QK_BOOT`). Fn+F1–F12 send the functions printed on the keycaps: media
   player, volume down, volume up, mute, stop, previous, play/pause, next, mail, browser home, calculator and search.
   Fn+Win toggles Win Lock, which blocks the Win key and lights the Win Lock LED; Win Lock is off after power-up.
+  Fn+R turns the Rec LED on and off (see [Lighting](#lighting)).
 - G1–G5 and Rec send F13–F17 and F18, for shortcuts set in the operating system.
 - Num Lock, Caps Lock, Scroll Lock and Win Lock LEDs. They and the key LEDs turn off while the host is suspended.
 
@@ -79,9 +80,10 @@ The default keymap with a macro recorder on G1–G5 and Rec, in place of F13–F
 Key and side lights are controlled independently. Lighting changes are saved 3 seconds after the last change and
 survive power loss; the LEDs blink briefly when a save happens.
 
-The G1–G5, Rec and media keys have fixed colors (no RGB), with a brightness that matches the RGB key brightness. In
-the `macro` keymap, G1–G5 and Rec show the recorder's state while you choose a G key and while recording; Rec
-is dark otherwise.
+The G1–G5, Rec and media keys have fixed colors (no RGB), with a brightness that matches the RGB key brightness. The Rec
+key is not lit by default; it can be toggled on with Fn+R to follow the lighting of its neighbor G1–G5 keys. In the
+`macro` keymap, G1–G5 and Rec show the recorder's state while you choose a G key and while recording; Rec is dark
+otherwise (no Fn+R toggle).
 
 ### Key lighting
 

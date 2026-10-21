@@ -2,15 +2,26 @@
 
 #include "k580.h"
 
-/* [0]: roller mode, saved with the lighting settings; 1 = key LED brightness, 0 = volume */
+/* Saved with the lighting settings: [0] roller mode, 1 = key LED brightness, 0 = volume; [1] Rec LED, 1 = lit at the
+ * key LEDs' brightness, 0 = dark */
 __xdata uint8_t redragon_kb_settings[REDRAGON_KB_SETTINGS];
 #define roller_light redragon_kb_settings[0]
+#define rec_light redragon_kb_settings[1]
+
+/* LED buffer slot (COM * 8 + group) of Rec: matrix row 6, column 11 */
+#define REC_LED_SLOT (11 * 8 + 6)
+
+/* Rec is dark unless K580_RECL has turned it on; a keymap can define its own (keymaps/macro). */
+__attribute__((weak)) uint8_t led_fx_mono_val(uint8_t slot, uint8_t val) {
+    return slot == REC_LED_SLOT && !rec_light ? 0 : val;
+}
 
 void keyboard_post_init_kb(void) {
     __code const uint8_t *p = redragon_init();
 
     if (p) {
         roller_light = p[0] == 1;
+        rec_light    = p[1] == 1;
     }
     keyboard_post_init_user();
 }
@@ -23,6 +34,13 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     case K580_ROLL:
         if (record->event.pressed) {
             roller_light = !roller_light;
+            redragon_settings_changed();
+        }
+        return false;
+    case K580_RECL:
+        if (record->event.pressed) {
+            rec_light = !rec_light;
+            led_fx_refresh();
             redragon_settings_changed();
         }
         return false;

@@ -325,6 +325,11 @@
       "name": "Roller up",
       "title": "Volume or key LED brightness up (roller mode)",
       "shortName": "RlUp"
+    },
+    {
+      "name": "Rec LED on/off",
+      "title": "Rec LED on/off",
+      "shortName": "RecL"
     }
   ]
 }

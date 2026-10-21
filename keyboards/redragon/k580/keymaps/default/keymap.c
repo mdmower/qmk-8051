@@ -14,13 +14,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                                                     KC_F13,   KC_F14,   KC_F15,    KC_F16,  KC_F17,   KC_F18,   K580_ROLL,   KC_MPRV, KC_MPLY, KC_MNXT),
 	/* Fn layer: Fn+Esc = bootloader, Fn+F1-F12 = the functions printed on the keycaps (media player,
 	 * volume down/up, mute, stop, previous, play/pause, next, mail, browser home, calculator, search),
-	 * Fn+Win = Win Lock. Lighting (Shift reverses): Ins/G1 mode, Home/G2 hue, PgUp/G3 saturation,
+	 * Fn+Win = Win Lock, Fn+R = Rec LED on/off. Lighting (Shift reverses): Ins/G1 mode, Home/G2 hue, PgUp/G3 saturation,
 	 * Del/G4 brightness, End/G5 speed, PgDn/Rec on/off; Ins-PgDn for the keys, G1-Rec for the side
 	 * lights. */
 	[1] = LAYOUT_default(
         QK_BOOT, KC_MSEL, KC_VOLD, KC_VOLU, KC_MUTE, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, KC_MAIL, KC_WHOM, KC_CALC, KC_WSCH, _______, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RD_KMODE, RD_KHUE, RD_KSAT, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RD_KVAL, RD_KSPD, RD_KTOG, _______,
+        _______, _______, _______, _______, K580_RECL, _______, _______, _______, _______, _______, _______, _______, _______, _______, RD_KVAL, RD_KSPD, RD_KTOG, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
         _______, RD_WINLK, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
