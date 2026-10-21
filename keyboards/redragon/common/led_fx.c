@@ -89,11 +89,17 @@ static __xdata uint8_t key_level[LED_DMA_COMS * LED_DMA_GROUPS];
 static __xdata uint8_t key_prev[LED_DMA_COMS];
 #define HEAT_STEP 32 // heat added per key press
 
-/* By LED group, i.e. key row: position for F_ROWS (3 * y), and distance from the middle of the 6 key rows for
+/* By key row (KEY_ROW): position for F_ROWS (3 * y), and distance from the middle of the 6 key rows for
  * F_CHEVRON and F_DIST, with y = 12 position units per row (a key is about 8.5 units wide). X_MID: the middle of
  * led_pos. */
 static __code const uint8_t row_pos[LED_DMA_GROUPS]  = {0, 36, 72, 108, 144, 180, 0, 0};
 static __code const uint8_t row_dist[LED_DMA_GROUPS] = {30, 18, 6, 6, 18, 30, 0, 0};
+/* Key row of group n of the COM being rendered: led_row[] with LED_FX_KEY_ROWS, else the group */
+#ifdef LED_FX_KEY_ROWS
+#    define KEY_ROW(n) (rows[n])
+#else
+#    define KEY_ROW(n) (n)
+#endif
 #define X_MID (HUE_RANGE / 2)
 
 /* 16-bit linear congruential generator, for raindrops */
@@ -195,6 +201,9 @@ static void start_pass(void) {
 static void render_com(uint8_t c) {
     __xdata uint8_t      *p   = led_dma_buf + ((uint16_t)c << 5);
     __code const uint8_t *pos = led_pos + (c << 3);
+#ifdef LED_FX_KEY_ROWS
+    __code const uint8_t *rows = led_row + (c << 3);
+#endif
     __xdata zone_t       *zs  = zone;
     __xdata uint8_t      *kp  = key_level + (c << 3);
     uint8_t               keys    = led_dma_keys[c];
@@ -260,12 +269,12 @@ static void render_com(uint8_t c) {
                 }
             } else if (flags & F_POS) {
                 if (flags & F_ROWS) {
-                    x = row_pos[n];
+                    x = row_pos[KEY_ROW(n)];
                 } else if (flags & (F_CHEVRON | F_DIST)) {
                     if (flags & F_DIST) {
                         x = x < X_MID ? X_MID - x : x - X_MID;
                     }
-                    x += row_dist[n];
+                    x += row_dist[KEY_ROW(n)];
                     if (x >= HUE_RANGE) {
                         x -= HUE_RANGE;
                     }

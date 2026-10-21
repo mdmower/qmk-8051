@@ -32,3 +32,29 @@ static __code const uint8_t led_pos[LED_DMA_COMS * LED_DMA_GROUPS] = {
     151, 143, 143, 151, 162, 151, 188, 188, // COM 15
     // clang-format on
 };
+
+/*
+ * Key row of each LED, 0-5 (0: the Esc row), by buffer slot, from tools/led_fx_pos.py --rows: the row of the key's
+ * top edge in the layout (keyboard.json); numpad comma (slot 127) in the row below numpad +, as on ABNT2 boards.
+ * Slots without a key: their group.
+ */
+static __code const uint8_t led_row[LED_DMA_COMS * LED_DMA_GROUPS] = {
+    // clang-format off
+      0,   1,   2,   3,   4,   5,   1,   7, // COM 0
+      0,   1,   2,   3,   4,   5,   1,   7, // COM 1
+      0,   1,   2,   3,   4,   5,   1,   7, // COM 2
+      0,   1,   2,   3,   4,   5,   1,   7, // COM 3
+      0,   1,   2,   3,   4,   5,   2,   7, // COM 4
+      0,   1,   2,   3,   4,   5,   2,   7, // COM 5
+      0,   1,   2,   3,   4,   5,   2,   7, // COM 6
+      0,   1,   2,   3,   4,   5,   3,   7, // COM 7
+      0,   1,   2,   3,   4,   5,   3,   7, // COM 8
+      0,   1,   2,   3,   4,   5,   3,   7, // COM 9
+      0,   1,   2,   3,   4,   5,   2,   7, // COM 10
+      0,   1,   2,   3,   4,   5,   4,   7, // COM 11
+      0,   1,   2,   3,   4,   5,   4,   7, // COM 12
+      0,   1,   2,   3,   4,   5,   5,   7, // COM 13
+      0,   1,   2,   1,   4,   5,   5,   7, // COM 14
+      0,   1,   2,   2,   4,   5,   4,   3, // COM 15
+    // clang-format on
+};

@@ -31,6 +31,9 @@ void led_fx_task(void);
  * its zone, 0-191, by buffer slot (COM * 8 + group); LED_FX_MONO for a single-color LED on the red line;
  * LED_FX_SKIP (with LED_FX_SKIP_ENABLE in config.h) for an LED that the keyboard drives itself, such as a lock
  * indicator: the effects do not write it.
+ * With LED_FX_KEY_ROWS in config.h, it also defines led_row[LED_DMA_COMS * LED_DMA_GROUPS]: the key row (0-5, top
+ * row 0) of each LED, by buffer slot, for the row modes. Without it, a key's row is its LED group, i.e. its matrix
+ * row.
  */
 #define LED_FX_MONO 0xFF
 #define LED_FX_SKIP 0xFE

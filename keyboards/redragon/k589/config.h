@@ -16,6 +16,9 @@
 /* Lighting effects (keyboards/redragon/common/led_fx.h): the key LEDs, one zone; the indicators are skipped
  * (LED_FX_SKIP in led_fx_pos.h). */
 #define LED_FX_SKIP_ENABLE
+/* The numpad (except 1), Page Up and Page Down are not wired in the matrix row of their key row: the row modes
+ * take the key row from led_row[] in led_fx_pos.h. */
+#define LED_FX_KEY_ROWS
 
 /* Disabled for flash space, as on the K580: tap keys (LT, MT, TT, *_T, tap-toggle) and one-shot keys (OSM, OSL)
  * do nothing; MO() still works. */
