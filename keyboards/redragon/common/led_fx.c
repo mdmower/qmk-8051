@@ -147,7 +147,11 @@ static void render_com(uint8_t c) {
 #endif
         if (x == LED_FX_MONO) {
             /* single-colour LED: lit at the zone's brightness whatever the hue */
+#ifdef LED_FX_MONO_HOOK
+            rgb[0] = led_fx_mono_val((c << 3) | n, zs->val);
+#else
             rgb[0] = zs->val;
+#endif
             rgb[1] = 0;
             rgb[2] = 0;
         } else {
@@ -188,6 +192,12 @@ void led_fx_save(__xdata uint8_t *dst) {
         dst[i] = v[i];
     }
 }
+
+#ifdef LED_FX_MONO_HOOK
+void led_fx_refresh(void) {
+    fx_valid = 0;
+}
+#endif
 
 void led_fx_task(void) {
     if (fx_com >= LED_DMA_COMS) {

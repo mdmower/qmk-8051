@@ -75,10 +75,27 @@ The default keymap with VIA ([top-level readme](../../../readme.md#keymaps-defau
 action on each layer. VIA's encoder panel shows the roller's default actions (custom keys) as `CUSTOM(n)`; the key
 panels show their names. About 215 bytes of the EEPROM are left for macros.
 
+## Macro keymap
+
+The default keymap with a macro recorder on G1–G5 and Rec, in place of F13–F18
+([keymaps/macro/keymap.c](keymaps/macro/keymap.c)). Build it with `python3 -I util/ch555_build.py redragon/k580 macro`.
+
+- Record: Rec, then a G key, then the keys of the macro, then Rec. While you choose the G key, Rec is lit and the G
+  keys blink; Rec or Esc cancels. While you record, Rec blinks and only the chosen G key is lit. The keys are sent as
+  you type them.
+- Play: the G key. Playback sends one key press or release every 10 ms. A G key without a macro sends nothing.
+- Clear: Rec, the G key, Rec.
+- A macro holds up to 98 presses and releases (49 keystrokes) of keys, modifiers and media keys (also Fn+F1–F12).
+  The lighting keys, Win Lock, Fn+Esc and the roller are not recorded. A full macro ends the recording.
+- The macros are kept at power-off in QMK's EEPROM, which this keymap keeps in code flash (0xE740–0xEFBF), as the
+  `via` keymap does ([top-level readme](../../../readme.md#before-you-flash)). Every flash erases them. The EEPROM
+  is saved 2 s after a recording ends; the LEDs flicker while it is saved.
+- Outside a recording, Rec is dark and G1–G5 light at the key LEDs' brightness.
+
 ## Flash space
 
-The application region (0x2800–0xEFBF) has about 14 KB free with the `default` keymap and about 1.8 KB below the
-store with the `via` keymap. The features turned off for flash space are listed in [config.h](config.h) and
+The application region (0x2800–0xEFBF) has about 14 KB free with the `default` keymap. Below the store at 0xE740,
+it has about 1.8 KB free with the `via` keymap and about 8.8 KB with the `macro` keymap. The features turned off for flash space are listed in [config.h](config.h) and
 [rules.mk](rules.mk).
 
 ## Hardware

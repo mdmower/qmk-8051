@@ -34,3 +34,11 @@ void led_fx_task(void);
  */
 #define LED_FX_MONO 0xFF
 #define LED_FX_SKIP 0xFE
+
+#ifdef LED_FX_MONO_HOOK
+/* With LED_FX_MONO_HOOK in config.h, defined by the keyboard or keymap: brightness of the single-colour LED in
+ * buffer slot slot (COM * 8 + group), given its zone's brightness val. */
+uint8_t led_fx_mono_val(uint8_t slot, uint8_t val);
+/* Renders all LEDs again, for a change in what led_fx_mono_val() returns. */
+void led_fx_refresh(void);
+#endif

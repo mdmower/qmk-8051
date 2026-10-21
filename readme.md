@@ -32,8 +32,8 @@ describe each keyboard's checks, keymap, lighting keys and hardware.
 - The CH555 has no write protection for the Evision bootloader: one enable bit allows writes to all of code flash.
   Every firmware for these keyboards uses it. The stock firmware and QMK erase the boot marker page, the last page
   of the bootloader's region, to enter the bootloader (QMK: Fn+Esc, `QK_BOOT`, Esc held at plug-in). The K580's
-  stock firmware 1.04 also keeps its settings in code flash, and so does the `via` keymap
-  ([Keymaps](#keymaps-default-and-via)). A fault in one of these writers could damage the bootloader. The
+  stock firmware 1.04 also keeps its settings in code flash, and so do the `via` keymap
+  ([Keymaps](#keymaps-default-and-via)) and the K580's `macro` keymap. A fault in one of these writers could damage the bootloader. The
   keyboard could then no longer be flashed, and no tested way exists to restore the bootloader.
 
 ## Requirements
@@ -67,7 +67,7 @@ firmware, bootloader or QMK.
 |---|---|
 | 0x0000–0x27FF | Evision bootloader (USB `0c45:7687`). `util/evision_flash.py` never writes it. |
 | 0x27C0 | Boot marker `AA 55 33 CC`, in the last page of the bootloader's region. The bootloader starts the application only while the marker is present, and writes it after a successful flash. |
-| 0x2800–0xEFBF | Application: stock firmware or QMK. The bootloader erases and programs this range on every flash. The `via` keymap keeps its store at 0xE740–0xEFBF. |
+| 0x2800–0xEFBF | Application: stock firmware or QMK. The bootloader erases and programs this range on every flash. The `via` keymap (and the K580's `macro` keymap) keeps its store at 0xE740–0xEFBF. |
 | 0xF000–0xF3FF | Data flash. QMK keeps the keyboard's own settings here (lighting; K580: roller mode). Flashing does not erase it. The K580's stock firmware 1.04 does not use it. |
 | 0xF400– | WCH factory ISP bootloader (`4348:55e0`). Not used: flashing through it overwrites the Evision bootloader. |
 
