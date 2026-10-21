@@ -63,9 +63,9 @@ The keyboard stays in the bootloader, also after a replug, until a flash complet
   | Speed (5 steps) | Fn+End | Fn+G5 |
   | On/off | Fn+PgDn | Fn+Rec |
 
-  Modes: static colour, rainbow, reversed rainbow, wave, reversed wave, colour cycle, breathing. The rainbow
+  Modes: static color, rainbow, reversed rainbow, wave, reversed wave, color cycle, breathing. The rainbow
   runs from left to right on the keys and from back to front on the side lights; the wave moves the same way
-  (the reversed modes run the other way). G1–G5, Rec and the media keys have one colour each and light at the
+  (the reversed modes run the other way). G1–G5, Rec and the media keys have one color each and light at the
   zone's brightness whatever the hue. Defaults: wave on the keys, rainbow on the side lights.
 
 ## VIA keymap

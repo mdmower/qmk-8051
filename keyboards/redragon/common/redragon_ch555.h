@@ -13,7 +13,7 @@
  *   LED_INDICATOR_ENABLE_PIN  pin that enables the indicator LEDs, active low; off while the host is suspended
  *   LED_WIN_LOCK_PIN          Win Lock LED, active high
  *   LED_NUM_LOCK_BYTE, LED_CAPS_LOCK_BYTE, LED_SCROLL_LOCK_BYTE, LED_WIN_LOCK_BYTE
- *                             indicator LEDs in the LED matrix: index of the LED's colour byte in led_dma_buf
+ *                             indicator LEDs in the LED matrix: index of the LED's color byte in led_dma_buf
  *                             (LED_DMA_BYTE in led_dma.h), 0xFF while the lock is on; the slot needs LED_FX_SKIP in
  *                             led_fx_pos.h. The lock indicators are set by redragon_led_update().
  *   REDRAGON_KB_SETTINGS      number of bytes in redragon_kb_settings[], saved after the lighting settings

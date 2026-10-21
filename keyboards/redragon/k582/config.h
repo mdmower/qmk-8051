@@ -5,7 +5,7 @@
 /* MCU sleep in USB suspend; the keys wake it (keyboards/redragon/common/led_dma.c) */
 #define CH555_SUSPEND_SLEEP
 
-/* Lock indicators above the numpad: single-colour LEDs in group 7 of COMs 8 and 9 of the LED matrix (stock V0107
+/* Lock indicators above the numpad: single-color LEDs in group 7 of COMs 8 and 9 of the LED matrix (stock V0107
  * @0xdca8), set by keyboards/redragon/common/redragon_ch555.c. */
 #define LED_NUM_LOCK_BYTE LED_DMA_BYTE(8, 7, 2)
 #define LED_CAPS_LOCK_BYTE LED_DMA_BYTE(9, 7, 1)

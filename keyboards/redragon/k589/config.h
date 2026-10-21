@@ -5,7 +5,7 @@
 /* MCU sleep in USB suspend; the keys wake it (keyboards/redragon/common/led_dma.c) */
 #define CH555_SUSPEND_SLEEP
 
-/* Lock indicators above the numpad: single-colour LEDs in group 7 of COMs 8 and 9 of the LED matrix (stock V0107
+/* Lock indicators above the numpad: single-color LEDs in group 7 of COMs 8 and 9 of the LED matrix (stock V0107
  * @0xdca8), set by keyboards/redragon/common/redragon_ch555.c. The K589 has no Win Lock LED; its byte is
  * set as on the K582, as the stock firmware (the same for both) does. */
 #define LED_NUM_LOCK_BYTE LED_DMA_BYTE(8, 7, 2)

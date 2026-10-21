@@ -5,7 +5,7 @@
 /* LED positions of the K551 for the lighting effects (keyboards/redragon/common/led_fx.c, which includes this). */
 
 /*
- * Position of each LED, 0-191, by buffer slot (COM * 8 + group), from tools/led_fx_pos.py: key centre x on the
+ * Position of each LED, 0-191, by buffer slot (COM * 8 + group), from tools/led_fx_pos.py: key center x on the
  * 22.5-unit-wide full-size layout (keyboard.json), so position grows from left to right. The key at matrix
  * position (row, col) has its LED at slot col * 8 + row (stock V0107 tables @0x30a7 and @0x3241).
  * Also: the ISO key left of Z (slot 12) and ISO # (slot 99) at their ISO positions, the ABNT2 key left of Right

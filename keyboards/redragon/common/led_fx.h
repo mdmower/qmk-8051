@@ -28,7 +28,7 @@ void led_fx_task(void);
 
 /*
  * The keyboard's led_fx_pos.h defines led_pos[LED_DMA_COMS * LED_DMA_GROUPS]: the position of each LED along
- * its zone, 0-191, by buffer slot (COM * 8 + group); LED_FX_MONO for a single-colour LED on the red line;
+ * its zone, 0-191, by buffer slot (COM * 8 + group); LED_FX_MONO for a single-color LED on the red line;
  * LED_FX_SKIP (with LED_FX_SKIP_ENABLE in config.h) for an LED that the keyboard drives itself, such as a lock
  * indicator: the effects do not write it.
  */
@@ -36,7 +36,7 @@ void led_fx_task(void);
 #define LED_FX_SKIP 0xFE
 
 #ifdef LED_FX_MONO_HOOK
-/* With LED_FX_MONO_HOOK in config.h, defined by the keyboard or keymap: brightness of the single-colour LED in
+/* With LED_FX_MONO_HOOK in config.h, defined by the keyboard or keymap: brightness of the single-color LED in
  * buffer slot slot (COM * 8 + group), given its zone's brightness val. */
 uint8_t led_fx_mono_val(uint8_t slot, uint8_t val);
 /* Renders all LEDs again, for a change in what led_fx_mono_val() returns. */

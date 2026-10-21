@@ -110,7 +110,7 @@ static bool              extra_pending_set[2] = {false, false};
  ******************************************************************************/
 /* Remote wakeup, if the host enabled it and the bus is suspended: one resume signal per suspend. Until the
  * host makes a transfer (USB_WakeUpSent), later reports, and the retries of a report that found its endpoint
- * busy, wait without signalling again. */
+ * busy, wait without signaling again. */
 static void wake_host(void) {
     if (USB_SleepStatus == 0x03 && !USB_WakeUpSent) USB_WakeUp_PC();
 }

@@ -6,9 +6,9 @@
 
 /*
  * Position of each LED along its zone, 0-191, by buffer slot (COM * 8 + group). F_POS modes add it
- * to the hue (F_REV: subtract it), and F_MOVE modes shift the hue so that the colours move towards
+ * to the hue (F_REV: subtract it), and F_MOVE modes shift the hue so that the colors move towards
  * higher positions.
- * Keys: key centre x on a 22.5-unit-wide board (standard 104-key positions), so position grows from
+ * Keys: key center x on a 22.5-unit-wide board (standard 104-key positions), so position grows from
  * left to right.
  * Side lights: pair index * 24; stock table @0x30c9 pairs COM c with COM 15 - c, one on each side.
  * Pair 0 (COMs 0 and 15) is at the back of the keyboard (the edge away from the user), pair 7 (COMs 7

@@ -31,7 +31,7 @@ volatile UINT8  KB_USB_SetReport = 0x00;										/* LED output report (SET_REPO
 
 volatile UINT8  USB_EnumStatus = 0x00;											/* USB enumeration status */	
 volatile UINT8  USB_SleepStatus = 0x00;											/* USB sleep state */		
-volatile UINT8  USB_WakeUpSent = 0x00;											/* remote wakeup signalled, no host transfer since */
+volatile UINT8  USB_WakeUpSent = 0x00;											/* remote wakeup signaled, no host transfer since */
 
 #ifdef USE_D0_EP1_OUT
 volatile UINT8  ep1_data_wait   = 0x00;											/* endpoint 1 data waiting flag*/
@@ -138,7 +138,7 @@ void USB_Device_Init( void )
 	D0UsbConfig = 0x00;															/* USB configuration flags */
 	USB_EnumStatus = 0x00;														/* USB enumeration status */	
 	USB_SleepStatus = 0x00;														/* USB sleep state */		
-	USB_WakeUpSent = 0x00;														/* remote wakeup signalled, no host transfer since */
+	USB_WakeUpSent = 0x00;														/* remote wakeup signaled, no host transfer since */
 #ifdef USE_D0_EP1_OUT
 	ep1_data_wait   = 0x00;
 #endif
@@ -1016,7 +1016,7 @@ void USB_WakeUp_PC( void )
 {
 	UINT8  save;
 
-	/* USB 2.0 7.1.7.7: resume signalling only after 5 ms of idle bus. bUX_SUSPEND is set after 4-6 ms of idle
+	/* USB 2.0 7.1.7.7: resume signaling only after 5 ms of idle bus. bUX_SUSPEND is set after 4-6 ms of idle
 	 * bus (datasheet, Tusp); with the bit still set 2 ms later, the bus has been idle for at least 6 ms. If the
 	 * host has resumed the bus meanwhile, no signal is needed. */
 	mDelaymS( 2 );

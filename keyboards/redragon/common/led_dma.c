@@ -174,7 +174,7 @@ MCS51_ISR(led_dma_isr, INT_NO_PWM_I2C) {
 void led_dma_init(void) {
     uint16_t i;
 
-    /* Intensity 0xFF (as stock), colours 0; led_fx.c writes the colours */
+    /* Intensity 0xFF (as stock), colors 0; led_fx.c writes the colors */
     for (i = 0; i < sizeof(led_dma_buf); i++) {
         led_dma_buf[i] = (i & 3) ? 0 : 0xFF;
     }
@@ -200,7 +200,7 @@ void led_dma_init(void) {
 #endif
 
     LED_CTRL    = bLED_EN;
-    LED_CYCLE   = bLED_INTEN_CYC1 | bLED_INTEN_CYC0; // 64-clock intensity PWM, 256-step colour PWM, Fsys
+    LED_CYCLE   = bLED_INTEN_CYC1 | bLED_INTEN_CYC0; // 64-clock intensity PWM, 256-step color PWM, Fsys
     LED_FRAME   = bLED_INH_TMR2 | bLED_INH_TMR0;     // inhibition 8 intensity PWM cycles, no repeat
     LED_DMA_H   = (uint16_t)led_dma_buf >> 8;
     LED_DMA_L   = (uint16_t)led_dma_buf & 0xFF;

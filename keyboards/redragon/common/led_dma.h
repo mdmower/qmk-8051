@@ -21,7 +21,7 @@
 #define LED_DMA_COMS MATRIX_COLS
 #define LED_DMA_GROUPS 8
 /* Index in led_dma_buf of the red (1), green (2) or blue (3) byte of the LED in group n of COM c */
-#define LED_DMA_BYTE(c, n, colour) (((c) * LED_DMA_GROUPS + (n)) * 4 + (colour))
+#define LED_DMA_BYTE(c, n, color) (((c) * LED_DMA_GROUPS + (n)) * 4 + (color))
 
 /* At 0x1400, above the USB buffers (0x1000-0x13FF) and outside the linker's xRAM (0x0100-0x0FFF);
  * 256-byte aligned, as the stock buffer at 0x0200 is. */

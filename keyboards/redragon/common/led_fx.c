@@ -4,7 +4,7 @@
 #include "led_dma.h"
 
 /*
- * Colours are HSV. Hue runs 0-191 around the colour wheel (6 sectors of 32); the hue setting has 24
+ * Colors are HSV. Hue runs 0-191 around the color wheel (6 sectors of 32); the hue setting has 24
  * steps of 8, so red, yellow, green, cyan, blue and magenta are every 4th step. Saturation 0 is
  * white at any hue.
  */
@@ -146,7 +146,7 @@ static void render_com(uint8_t c) {
         }
 #endif
         if (x == LED_FX_MONO) {
-            /* single-colour LED: lit at the zone's brightness whatever the hue */
+            /* single-color LED: lit at the zone's brightness whatever the hue */
 #ifdef LED_FX_MONO_HOOK
             rgb[0] = led_fx_mono_val((c << 3) | n, zs->val);
 #else

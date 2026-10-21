@@ -274,7 +274,7 @@ def close_node(node):
 
 def _io(node, start, timeout):
     """Run the overlapped call start(overlapped). Return the byte count, or None if it did not complete within
-    timeout seconds (it is then cancelled)."""
+    timeout seconds (it is then canceled)."""
     ov = OVERLAPPED(hEvent=node.event)
     if not start(ctypes.byref(ov)):
         err = ctypes.get_last_error()

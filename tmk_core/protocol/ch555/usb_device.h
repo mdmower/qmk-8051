@@ -102,7 +102,7 @@ extern volatile UINT8  D0UsbConfig;												/* USB configuration flags */
 
 extern volatile UINT8  USB_EnumStatus;											/* USB enumeration status */	
 extern volatile UINT8  USB_SleepStatus;											/* USB sleep state */	
-extern volatile UINT8  USB_WakeUpSent;											/* remote wakeup signalled, no host transfer since */
+extern volatile UINT8  USB_WakeUpSent;											/* remote wakeup signaled, no host transfer since */
 
 extern volatile UINT8  KB_USB_SetReport;
 extern volatile UINT8  Report_Value;											/* HID protocol of interface 0: 0 boot, 1 report */

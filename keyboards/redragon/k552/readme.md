@@ -63,10 +63,10 @@ The keyboard stays in the bootloader, also after a replug, until a flash complet
   | Speed (5 steps) | Fn+End |
   | On/off | Fn+PgDn |
 
-  Modes: static colour, rainbow, reversed rainbow, wave, reversed wave, colour cycle, breathing. Default: wave.
+  Modes: static color, rainbow, reversed rainbow, wave, reversed wave, color cycle, breathing. Default: wave.
 
-The other lighting legends on the keycaps (Ins–PgDn 1–6, −/= speed, arrows brightness, direction and colour) are
-not used, as on the K580: Fn+Ins–PgDn set everything. Not implemented either: per-key colour editing (Fn+\`) and
+The other lighting legends on the keycaps (Ins–PgDn 1–6, −/= speed, arrows brightness, direction and color) are
+not used, as on the K580: Fn+Ins–PgDn set everything. Not implemented either: per-key color editing (Fn+\`) and
 factory reset (Fn+PrtSc).
 
 ## VIA keymap
