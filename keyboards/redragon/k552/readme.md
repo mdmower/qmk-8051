@@ -88,7 +88,7 @@ save happens. The controls and modes are listed below.
 
 ## Flash space
 
-The application region (0x2800–0xEFBF) has about 23.8 KB free with the `default` keymap, and about 12.9 KB below the
+The application region (0x2800–0xEFBF) has about 23.8 KB free with the `default` keymap, and about 13.0 KB below the
 store with the `via` keymap. The features turned off for flash space are listed in [config.h](config.h) and
 [rules.mk](rules.mk).
 

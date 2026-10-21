@@ -86,6 +86,10 @@ save happens. The controls and modes are listed below.
 | 13 | Reactive | Keys illuminate when pressed and then fade |
 | 14 | Heatmap | Keys illuminate when pressed and the color temperature indicates frequency |
 
+The row modes (8–11) model only the six rows of the main keys. The numpad keys other than 1 fall outside those
+rows: Rainbow rows and Wave rows give them the top row's color, and Chevron and Out-in put them at the middle of
+the keyboard's height.
+
 ## Flash space
 
 The application region (0x2800–0xEFBF) has about 23.7 KB free with the `default` keymap, and about 12.9 KB below the

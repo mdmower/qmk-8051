@@ -153,14 +153,28 @@ Enter the bootloader (Fn+Esc while running QMK), then flash the application imag
 python3 -I util/evision_flash.py flash ${KB}_stock_app.bin --send
 ```
 
-To compare the keyboard's flash with the backup while the stock firmware is running:
+`flash` accepts an image only if it is a stock image the tool already knows, or if it begins with QMK's Esc check.
+The K580's firmware 1.04 saves its settings in the application region, so a backup of your keyboard can differ from
+the known image and be rejected. In that case, add the Esc check to the backup and flash the result:
+
+```
+python3 -I util/evision_oem_image.py stock ${KB}_stock_app.bin ${KB}_stock_esc.bin
+python3 -I util/evision_flash.py flash ${KB}_stock_esc.bin --send
+```
+
+The Esc check runs before the stock firmware starts, so holding Esc while plugging in the keyboard still enters the
+bootloader.
+
+To compare the keyboard's flash with the backup while the stock firmware is running (use `${KB}_stock_esc.bin` in
+place of `${KB}_stock_app.bin` below if you added the Esc check):
 
 ```
 python3 -I util/evision_dump.py --start 0x2800 --end 0xEFC0 --out readback.bin --send
 python3 -I util/evision_flash.py verify readback.bin ${KB}_stock_app.bin
 ```
 
-On the tested K580, restoring firmware 1.04 produced a full 64 KB read-back identical to the original backup.
+On the tested K580, restoring firmware 1.04 produced an application region identical to the backup. The data flash
+(0xF000–0xF3FF) keeps the settings QMK saved there; the stock firmware does not use it.
 
 ## Using the keyboard
 
@@ -211,8 +225,8 @@ To go back to the `default` keymap, flash the `default` image; the flash erases 
   The shipped `default` keymaps use none of these. If you change a keymap to use one, you must turn the feature back
   on, if the flash space allows (each keyboard readme gives the free space).
 - **VIA lists keycodes for features these builds do not contain:** the features above, and others such as mouse keys.
-  Assigned in VIA, these keycodes do nothing, with two exceptions: `LT(layer, key)` sends only its key, and
-  `OSL(layer)` works as `MO(layer)`.
+  Assigned in VIA, these keycodes do nothing, with a few exceptions: `LT(layer, key)` and `MT(mod, key)` send only
+  their key, `OSM(mod)` acts as a plain modifier key, and `TT(layer)` acts as `TG(layer)`.
 - **No `rgb_matrix`:** QMK's `rgb_matrix` does not compile with SDCC, so the keyboards have their own lighting code
   and VIA offers no lighting controls for them.
 - **No Vial:** Vial is not supported; it would need the vial-qmk fork.
@@ -303,7 +317,9 @@ These limits of SDCC and of this port affect keyboard and keymap code:
   arrays). The QMK core is edited in the files that the K580 and K552 builds compile; other features may need the
   same edits.
 - SDCC compiles a copy of every `static inline` function of a header into each file that includes the header, used
-  or not. Use a macro, or define the function once in a `.c` file.
+  or not. The link removes the copies that nothing calls (`MCS51_DCE` in
+  [platforms/mcs51/platform.mk](platforms/mcs51/platform.mk)), but a function called from several files still keeps
+  one copy in each. Use a macro, or define the function once in a `.c` file.
 - SDCC keeps values that do not fit in registers in direct RAM (0x08–0x7F), which the K580 build fills almost
   completely. In VIA builds some files are compiled with fewer optimizations to fit (`MCS51_FEWER_SPILLS_SRC` in
   [platforms/mcs51/platform.mk](platforms/mcs51/platform.mk)).

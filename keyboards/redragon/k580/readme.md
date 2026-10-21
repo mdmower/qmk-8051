@@ -72,7 +72,7 @@ The default keymap with a macro recorder on G1–G5 and Rec, in place of F13–F
 - The macros are kept at power-off in QMK's EEPROM, which this keymap keeps in code flash (0xE740–0xEFBF), as the
   `via` keymap does ([top-level readme](../../../readme.md#before-you-flash)). Every flash erases them. The EEPROM is
   saved 2 s after a recording ends; the LEDs flicker while it is saved.
-- Outside a recording, Rec is dark and G1–G5 light at the key LEDs' brightness.
+- When the recorder is idle, Rec is dark and G1–G5 stay lit at the key LEDs' brightness.
 
 ## Lighting
 
@@ -80,7 +80,8 @@ Key and side lights are controlled independently. Lighting changes are saved 3 s
 survive power loss; the LEDs blink briefly when a save happens.
 
 The G1–G5, Rec and media keys have fixed colors (no RGB), with a brightness that matches the RGB key brightness. In
-the `macro` keymap, G1–G5 and Rec show the macro recorder's state while recording, and Rec is dark otherwise.
+the `macro` keymap, G1–G5 and Rec show the recorder's state while you choose a G key and while recording; Rec
+is dark otherwise.
 
 ### Key lighting
 
@@ -134,7 +135,7 @@ the `macro` keymap, G1–G5 and Rec show the macro recorder's state while record
 ## Flash space
 
 The application region (0x2800–0xEFBF) has about 19.5 KB free with the `default` keymap. Below the store at 0xE740,
-it has about 7.7 KB free with the `via` keymap and about 14.5 KB with the `macro` keymap. The features turned off for
+it has about 7.7 KB free with the `via` keymap and about 14.6 KB with the `macro` keymap. The features turned off for
 flash space are listed in [config.h](config.h) and [rules.mk](rules.mk).
 
 ## Hardware
