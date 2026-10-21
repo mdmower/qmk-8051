@@ -14,8 +14,8 @@ flash through the stock firmware, which the flash erases.
 ## Check the keyboard first
 
 - With the stock firmware, the keyboard enumerates as `320f:5000` (`python3 -I util/evision_flash.py status`). The
-  tested keyboard reports bcdDevice 0x0104 (firmware 1.04). Other Redragon keyboards, the K552RGB-2 among them, report
-  the same ID: check that the keyboard is a K580.
+  tested keyboard reports bcdDevice 0x0104 (firmware 1.04). Other Redragon keyboards report the same ID: check
+  that the keyboard is a K580.
 - Other K580 revisions may use a different MCU; one keyboard database lists the K580 with a Sonix SN32F248B. This
   firmware does not apply to them.
 - The backup prints whether the boot marker `AA 55 33 CC` is at 0x27C0. If it is not, do not flash.
@@ -49,24 +49,6 @@ The keyboard stays in the bootloader, also after a replug, until a flash complet
   power-up.
 - G1–G5 and Rec: F13–F17 and F18, for shortcuts set in the operating system.
 - Num Lock, Caps Lock, Scroll Lock and Win Lock LEDs. They and the key LEDs turn off while the host is suspended.
-- Lighting ([led_fx.c](../common/led_fx.c)): two zones with separate settings, the keys and the side lights. Fn
-  plus the keys below steps a setting; with Shift held it steps back. The settings are saved in the data flash 3 s
-  after the last change and kept at power-off ([flash_store.c](../common/flash_store.c)); the LEDs flicker briefly
-  while they are saved.
-
-  | Setting | Keys | Side lights |
-  |---|---|---|
-  | Mode | Fn+Ins | Fn+G1 |
-  | Hue (24 steps) | Fn+Home | Fn+G2 |
-  | Saturation (5 steps; the lowest is white) | Fn+PgUp | Fn+G3 |
-  | Brightness (8 steps) | Fn+Del | Fn+G4 |
-  | Speed (5 steps) | Fn+End | Fn+G5 |
-  | On/off | Fn+PgDn | Fn+Rec |
-
-  Modes: static color, rainbow, reversed rainbow, wave, reversed wave, color cycle, breathing. The rainbow
-  runs from left to right on the keys and from back to front on the side lights; the wave moves the same way
-  (the reversed modes run the other way). G1–G5, Rec and the media keys have one color each and light at the
-  zone's brightness whatever the hue. Defaults: wave on the keys, rainbow on the side lights.
 
 ## VIA keymap
 
@@ -92,11 +74,68 @@ The default keymap with a macro recorder on G1–G5 and Rec, in place of F13–F
   is saved 2 s after a recording ends; the LEDs flicker while it is saved.
 - Outside a recording, Rec is dark and G1–G5 light at the key LEDs' brightness.
 
+## Lighting
+
+Lighting controls and modes are listed below. Key and side lights are controlled independently. Lighting updates
+are saved 3 seconds after the last change and survive power loss. LEDs blink briefly when settings are saved.
+
+The G1–G5, Rec, and media keys have fixed colors (no RGB). Their brightness matches the RGB key brightness. In the
+`macro` keymap, G1–G5 and Rec show the macro recorder's state while recording, and Rec is dark otherwise.
+
+### Key lighting
+
+| Setting | Next step | Previous step |
+|---|---|---|
+| Mode | Fn+Ins | Fn+Shift+Ins |
+| Color | Fn+Home | Fn+Shift+Home |
+| Saturation | Fn+PgUp | Fn+Shift+PgUp |
+| Brightness | Fn+Del | Fn+Shift+Del |
+| Speed | Fn+End | Fn+Shift+End |
+| On/off | Fn+PgDn | |
+
+| # | Mode | What it does |
+|---|---|---|
+| 1 | Static | One color on all keys |
+| 2 | Rainbow | A static rainbow from left to right |
+| 3 | Reversed rainbow | A static rainbow from right to left |
+| 4 | Wave | A rainbow that moves from left to right |
+| 5 | Reversed wave | A rainbow that moves from right to left |
+| 6 | Color cycle | All keys cycle through colors together |
+| 7 | Breathing | All keys fade in and out together |
+| 8 | Rainbow rows | A static color for each row of keys |
+| 9 | Wave rows | A rainbow of one color per row of keys that moves from top to bottom |
+| 10 | Chevron | A rainbow that moves from left to right in a chevron (>) shape |
+| 11 | Out-in | A rainbow that moves from the left and right edges toward the middle |
+| 12 | Raindrops | One color on all keys; random keys change to a nearby color and keep it |
+| 13 | Reactive | Keys illuminate when pressed and then fade |
+| 14 | Heatmap | Keys illuminate when pressed and the color temperature indicates frequency |
+
+### Side lighting
+
+| Setting | Next step | Previous step |
+|---|---|---|
+| Mode | Fn+G1 | Fn+Shift+G1 |
+| Color | Fn+G2 | Fn+Shift+G2 |
+| Saturation | Fn+G3 | Fn+Shift+G3 |
+| Brightness | Fn+G4 | Fn+Shift+G4 |
+| Speed | Fn+G5 | Fn+Shift+G5 |
+| On/off | Fn+Rec | |
+
+| # | Mode | What it does |
+|---|---|---|
+| 1 | Static | One color for the whole strip |
+| 2 | Rainbow | A static rainbow from back to front |
+| 3 | Reversed rainbow | A static rainbow from front to back |
+| 4 | Wave | A rainbow that moves from back to front |
+| 5 | Reversed wave | A rainbow that moves from front to back |
+| 6 | Color cycle | The whole strip cycles through colors |
+| 7 | Breathing | The whole strip fades in and out |
+
 ## Flash space
 
-The application region (0x2800–0xEFBF) has about 14 KB free with the `default` keymap. Below the store at 0xE740,
-it has about 1.8 KB free with the `via` keymap and about 8.8 KB with the `macro` keymap. The features turned off for flash space are listed in [config.h](config.h) and
-[rules.mk](rules.mk).
+The application region (0x2800–0xEFBF) has about 19.5 KB free with the `default` keymap. Below the store at 0xE740,
+it has about 7.7 KB free with the `via` keymap and about 14.5 KB with the `macro` keymap. The features turned off
+for flash space are listed in [config.h](config.h) and [rules.mk](rules.mk).
 
 ## Hardware
 

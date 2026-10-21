@@ -6,7 +6,7 @@
 
 /*
  * Position of each LED along its zone, 0-191, by buffer slot (COM * 8 + group). F_POS modes add it
- * to the hue (F_REV: subtract it), and F_MOVE modes shift the hue so that the colors move towards
+ * to the hue (F_REV: subtract it), and F_MOVE modes shift the hue so that the colors move toward
  * higher positions.
  * Keys: key center x on a 22.5-unit-wide board (standard 104-key positions), so position grows from
  * left to right.

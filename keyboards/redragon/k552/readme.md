@@ -6,8 +6,7 @@ family. The firmware is flashed through the keyboard's own Evision bootloader, w
 * Keyboard maintainer: [mdmower](https://github.com/mdmower)
 * Hardware supported: Redragon K552RGB-2 with an Evision VS11K28A MCU
 * State: **not run on a keyboard yet.** The key matrix, the LED layout and the indicators come from the stock
-  firmware V0101 (Redragon's updater for the K552RGB-1/-2); the firmware is tested only in a simulator. The LED
-  controller, key matrix and lighting code are shared with the [K580](../k580/), where they are tested.
+  firmware V0101 (Redragon's updater for the K552RGB-1/-2); the firmware is tested only in a simulator.
 
 Backup, flashing, restore, the `via` keymap and the risks of flashing:
 [top-level readme](../../../readme.md#before-you-flash). Make the backup before the first flash: it reads the
@@ -16,8 +15,8 @@ flash through the stock firmware, which the flash erases.
 ## Check the keyboard first
 
 - With the stock firmware, the keyboard enumerates as `320f:5000` (`python3 -I util/evision_flash.py status`). The
-  updater's firmware reports bcdDevice 0x0101 (V0101). Other Redragon keyboards, the K580 among them, report the same
-  ID: check that the keyboard is a K552RGB-2.
+  updater's firmware reports bcdDevice 0x0101 (V0101). Other Redragon keyboards report the same ID: check
+  that the keyboard is a K552RGB-2.
 - The K552RGB-1 has a different MCU (Evision VS11K09A, a Sonix SN32; `0c45:5004`). This firmware does not apply
   to it.
 - The backup prints whether the boot marker `AA 55 33 CC` is at 0x27C0. If it is not, do not flash.
@@ -49,25 +48,6 @@ The keyboard stays in the bootloader, also after a replug, until a flash complet
   search. Fn+Win toggles Win Lock, which blocks the Win key. Win Lock is off after power-up.
 - Caps Lock and Scroll Lock indicators (right of the logo): red and green, lit by the host's lock state also
   while the key LEDs are off.
-- Lighting ([led_fx.c](../common/led_fx.c)): one zone, the key LEDs, set with the same keys as on the K580. Fn
-  plus a key below steps a setting; with Shift held it steps back. The settings are saved in the data flash 3 s
-  after the last change and kept at power-off ([flash_store.c](../common/flash_store.c)); the LEDs flicker briefly
-  while they are saved.
-
-  | Setting | Keys |
-  |---|---|
-  | Mode | Fn+Ins |
-  | Hue (24 steps) | Fn+Home |
-  | Saturation (5 steps; the lowest is white) | Fn+PgUp |
-  | Brightness (8 steps) | Fn+Del |
-  | Speed (5 steps) | Fn+End |
-  | On/off | Fn+PgDn |
-
-  Modes: static color, rainbow, reversed rainbow, wave, reversed wave, color cycle, breathing. Default: wave.
-
-The other lighting legends on the keycaps (Ins–PgDn 1–6, −/= speed, arrows brightness, direction and color) are
-not used, as on the K580: Fn+Ins–PgDn set everything. Not implemented either: per-key color editing (Fn+\`) and
-factory reset (Fn+PrtSc).
 
 ## VIA keymap
 
@@ -75,9 +55,40 @@ The default keymap with VIA ([top-level readme](../../../readme.md#keymaps-defau
 [keymaps/via/redragon_k552_via.json](keymaps/via/redragon_k552_via.json). About 400 bytes of the EEPROM are left
 for macros.
 
+## Lighting
+
+Lighting controls and modes are listed below. Lighting updates are saved 3 seconds after the last change and survive
+power loss. LEDs blink briefly when settings are saved.
+
+| Setting | Next step | Previous step |
+|---|---|---|
+| Mode | Fn+Ins | Fn+Shift+Ins |
+| Color | Fn+Home | Fn+Shift+Home |
+| Saturation | Fn+PgUp | Fn+Shift+PgUp |
+| Brightness | Fn+Del | Fn+Shift+Del |
+| Speed | Fn+End | Fn+Shift+End |
+| On/off | Fn+PgDn | |
+
+| # | Mode | What it does |
+|---|---|---|
+| 1 | Static | One color on all keys |
+| 2 | Rainbow | A static rainbow from left to right |
+| 3 | Reversed rainbow | A static rainbow from right to left |
+| 4 | Wave | A rainbow that moves from left to right |
+| 5 | Reversed wave | A rainbow that moves from right to left |
+| 6 | Color cycle | All keys cycle through colors together |
+| 7 | Breathing | All keys fade in and out together |
+| 8 | Rainbow rows | A static color for each row of keys |
+| 9 | Wave rows | A rainbow of one color per row of keys that moves from top to bottom |
+| 10 | Chevron | A rainbow that moves from left to right in a chevron (>) shape |
+| 11 | Out-in | A rainbow that moves from the left and right edges toward the middle |
+| 12 | Raindrops | One color on all keys; random keys change to a nearby color and keep it |
+| 13 | Reactive | Keys illuminate when pressed and then fade |
+| 14 | Heatmap | Keys illuminate when pressed and the color temperature indicates frequency |
+
 ## Flash space
 
-The application region (0x2800–0xEFBF) has about 17.5 KB free with the `default` keymap and about 6 KB below the
+The application region (0x2800–0xEFBF) has about 23.8 KB free with the `default` keymap and about 12.9 KB below the
 store with the `via` keymap. The features turned off for flash space are listed in [config.h](config.h) and
 [rules.mk](rules.mk).
 
@@ -94,4 +105,4 @@ From the stock firmware V0101 (static analysis):
   lighting effects, between Esc and F1.
 - No GPIO indicators, roller or side lights; nothing on P5 or P7.
 - The stock firmware runs at 48 MHz, which the CH555 datasheet lists for tests only. This firmware runs at
-  32 MHz, as the stock firmware of the K580 and of the K589 (also a VS11K28A) does.
+  32 MHz.
