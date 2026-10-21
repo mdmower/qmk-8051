@@ -26,9 +26,16 @@ Compile (`-c`):
 Link (`--output ELF`):
   1. Weak symbols: a global defined in several objects, where every definition but one is weak, keeps the
      strong one: in each weak object, the definition's label (and the labels of its parameters, `_NAME_PARM_n`)
-     is renamed, the global stays as a reference, and the object is assembled again. Its code stays in the image.
-  2. Link with sdcc (the module with main() first) to ELF's name with .ihx, then convert the .ihx to ELF with
-     objcopy, so that QMK's .hex/.bin rules work.
+     is renamed, the global stays as a reference, and the object is assembled again. Step 2 removes its code
+     (not with --no-dce).
+  2. Unused functions (as GCC's --gc-sections; SDCC links every function of an object): functions that no
+     reachable code or data names are removed from the objects' .asm, with the locals and parameters SDCC lists
+     for them that nothing names any more (`dce` below; --no-dce turns it off, --dce-keep=NAME keeps the C
+     function NAME as SDCC's library would call it). The list is written to ELF's name with .dce.txt. Every
+     object is assembled again from the .asm the link uses, so that each .lst, and the linker's .rst made from
+     it, matches the linked code.
+  3. Link with sdcc (the module with main() first) to ELF's name with .ihx, then convert the .ihx to ELF with
+     objcopy, so that QMK's .hex/.bin rules work. An undefined global stops the link (sdld only warns).
 
 Other GCC options that SDCC does not have (-W, -O, -f, -g, -std, -l, -Wl) are ignored; the platform sets SDCC's
 own options (platform.mk). clang, clang-query and llvm-nm: CLANG, CLANG_QUERY, LLVM_NM.
@@ -87,6 +94,8 @@ class Args:
         self.pp = []  # preprocessor options
         self.cc = []  # code generation options
         self.dep = None  # (file, phony)
+        self.dce = True
+        self.dce_keep = []
         dep_file, dep_phony, dep_mmd = None, False, False
         i = 0
         while i < len(argv):
@@ -114,6 +123,10 @@ class Args:
                 i += 1
             elif a == "-x":
                 i += 1  # C only
+            elif a == "--no-dce":
+                self.dce = False
+            elif a.startswith("--dce-keep="):
+                self.dce_keep.append(a.split("=", 1)[1])
             elif a in VALUE_OPTS:
                 self.cc += [a, nxt]
                 i += 1
@@ -246,6 +259,236 @@ def weaken(asm_in, asm_out, names, tag):
             f.write(line)
 
 
+# Unused functions. A function is the CSEG text from its label (the first label after SDCC's `; function NAME`
+# comment) to the next function's label or the next .area line. It is kept when a kept function or anything
+# outside a function names it (calls, jumps, `mov dptr,#_f`, address tables, the interrupt vectors, GSINIT) or
+# one of the labels in its text. A function whose text does not end in a return or a jump (inline assembly, a
+# table), and code outside functions that does not, keep the function after them, into which they can run.
+# The data labels that SDCC's allocation comments list for a removed function go too, when nothing names them
+# and they only reserve space (.ds) in an area of uninitialized data. A removed function that is still named
+# leaves an undefined global, which stops the link (the assembler takes undefined symbols as external). Functions
+# that only SDCC's library calls are not named in the objects: DCE_KEEP and --dce-keep keep them.
+DCE_KEEP = ("putchar", "getchar", "_sdcc_external_startup")
+FUNC_RE = re.compile(r"^;\s+function (\S+)\s*$")
+AREA_RE = re.compile(r"^\s*\.area\s+(\w+)")
+NAMED_LABEL_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)::?(?=\s|$)")
+EQU_RE = re.compile(r"^\s*[A-Za-z_][A-Za-z0-9_]*\s*=")
+SYM_RE = re.compile(r"(?<![\w$.])(_[A-Za-z0-9_]+)")
+END_RE = re.compile(r"^\s*(ret|reti|ljmp|sjmp|ajmp|jmp)\b")
+ALLOC_HDR_RE = re.compile(r"^;Allocation info for local variables in function '(\w+)'")
+ALLOC_NAME_RE = re.compile(r"^;.*Allocated with name '(_\w+)'")
+DS_RE = re.compile(r"^\s*\.ds\s+\w+\s*$")
+# Uninitialized data. Not XISEG, whose objects the startup code fills from XINIT in the same order.
+DATA_AREAS = {"DSEG", "OSEG", "BSEG", "XSEG", "ISEG", "PSEG"}
+
+
+def code_part(line):
+    return line.split(";", 1)[0]
+
+
+def named_syms(c):
+    """Symbols named by the code part c of a line, without a label it defines."""
+    m = NAMED_LABEL_RE.match(c)
+    if m:
+        c = c[m.end():].lstrip(":")
+    return set(SYM_RE.findall(c))
+
+
+class AsmModule:
+    def __init__(self, obj, lines):
+        self.obj = obj
+        self.lines = lines
+        self.funcs = {}  # label -> [start, end) line range
+        self.owner = {}  # label in a function's text (its own label too) -> function label
+        self.refs = {}  # function label -> symbols its text names
+        self.falls = {}  # function label -> label of the function it can run into
+        self.top = set()  # symbols named outside functions
+        self.alloc = {}  # function label -> data labels SDCC lists for its locals, parameters and spill locations
+        self.globl = set()
+        alloc_by_name, alloc_fn = {}, None
+        area, header, cur, last, top_last = None, None, None, None, None
+        ends, order = {}, []
+        for i, line in enumerate(lines):
+            m = ALLOC_HDR_RE.match(line)
+            if m:
+                alloc_fn = m.group(1)
+                alloc_by_name.setdefault(alloc_fn, set())
+                continue
+            m = ALLOC_NAME_RE.match(line)
+            if m and alloc_fn:
+                alloc_by_name[alloc_fn].add(m.group(1))
+                continue
+            m = FUNC_RE.match(line)
+            if m:
+                header = m.group(1)
+                continue
+            c = code_part(line)
+            if not c.strip():
+                continue
+            m = AREA_RE.match(c)
+            label = NAMED_LABEL_RE.match(c)
+            if m or (label and area == "CSEG" and header is not None):
+                if cur is not None:
+                    self.funcs[cur][1] = i
+                    ends[cur] = last is not None and bool(END_RE.match(last))
+                    if m and not ends[cur]:
+                        die("%s: function %s runs into the end of its CSEG" % (obj, cur))
+                cur = None
+            if m:
+                area, top_last = m.group(1), None
+                order.append(None)
+                continue
+            m = GLOBL_RE.match(c)
+            if m:
+                self.globl.add(m.group(1))
+                continue
+            if label and area == "CSEG" and header is not None:
+                cur, last = label.group(1), None
+                if top_last is not None and not END_RE.match(top_last):
+                    self.top.add(cur)
+                top_last = None
+                self.funcs[cur] = [i, len(lines)]
+                self.owner[cur] = cur
+                self.refs[cur] = set()
+                self.alloc[cur] = alloc_by_name.get(header, set())
+                header = None
+                order.append(cur)
+                continue
+            if EQU_RE.match(c):
+                continue
+            if cur is not None:
+                if label:
+                    self.owner[label.group(1)] = cur
+                rest = c[label.end():].lstrip(":") if label else c
+                if rest.strip():
+                    last = rest
+                self.refs[cur] |= named_syms(c)
+            else:
+                self.top |= named_syms(c)
+                if area == "CSEG":
+                    rest = c[label.end():].lstrip(":") if label else c
+                    if rest.strip():
+                        top_last = rest
+        if cur is not None:
+            ends[cur] = last is not None and bool(END_RE.match(last))
+            if not ends[cur]:
+                die("%s: function %s runs into the end of its CSEG" % (obj, cur))
+        for a, b in zip(order, order[1:]):
+            if a is not None and b is not None and not ends[a]:
+                self.falls[a] = b
+
+
+def dce(mods, keep):
+    """Removes unreachable functions and their unused data from mods, keeping main and the C functions keep;
+    returns {obj: lines} and a report."""
+    glob = {}
+    for m in mods:
+        for label, fn in m.owner.items():
+            if label in m.globl:
+                glob[label] = (m, fn)
+
+    def resolve(m, s):
+        if s in m.owner:
+            return (m, m.owner[s])
+        return glob.get(s)
+
+    live, work = set(), []
+
+    def mark(m, s):
+        r = resolve(m, s)
+        if r and (r[0].obj, r[1]) not in live:
+            live.add((r[0].obj, r[1]))
+            work.append(r)
+
+    for m in mods:
+        for s in m.top:
+            mark(m, s)
+    for name in ("main",) + tuple(keep):
+        if "_" + name in glob:
+            mark(glob["_" + name][0], "_" + name)
+    while work:
+        m, fn = work.pop()
+        for s in m.refs[fn]:
+            mark(m, s)
+        if fn in m.falls:
+            mark(m, m.falls[fn])
+
+    report, killed, dead_alloc = [], {}, {}
+    for m in mods:
+        dead = [fn for fn in m.funcs if (m.obj, fn) not in live]
+        killed[m.obj] = set()
+        dead_alloc[m.obj] = set()
+        if not dead:
+            continue
+        drop = set()
+        for fn in dead:
+            drop.update(range(*m.funcs[fn]))
+            dead_alloc[m.obj] |= m.alloc[fn]
+            report.append("%s: %s" % (m.obj, fn[1:]))
+        for i in drop:
+            killed[m.obj] |= set(SYM_RE.findall(code_part(m.lines[i])))
+        m.lines = [line for i, line in enumerate(m.lines) if i not in drop or EQU_RE.match(code_part(line))]
+
+    # Data of removed functions that nothing names any more (a weak definition's renamed labels too)
+    named = set()
+    for m in mods:
+        for line in m.lines:
+            c = code_part(line)
+            if not GLOBL_RE.match(c):
+                named |= named_syms(c)
+    for m in mods:
+        cands = dead_alloc[m.obj]
+        if not cands:
+            continue
+        out, area, i, L = [], None, 0, m.lines
+        while i < len(L):
+            c = code_part(L[i])
+            a = AREA_RE.match(c)
+            if a:
+                area = a.group(1)
+            label = NAMED_LABEL_RE.match(c)
+            if label and area in DATA_AREAS and label.group(1) not in named and \
+                    (label.group(1) in cands or label.group(1).split("__weak_")[0] in cands) and \
+                    not c[label.end():].lstrip(":").strip():
+                j = i + 1
+                while j < len(L) and (DS_RE.match(code_part(L[j])) or not L[j].strip()):
+                    j += 1
+                if j > i + 1:
+                    killed[m.obj].add(label.group(1))
+                    report.append("%s: %s (data)" % (m.obj, label.group(1)))
+                    i = j
+                    continue
+            out.append(L[i])
+            i += 1
+        m.lines = out
+
+    # .globl lines of symbols that a removed line named (in any module; for a weak definition, its renamed label
+    # stands for the global) and that the module neither defines nor names. Other .globl lines stay (main's
+    # module names the C startup modules of SDCC's library this way).
+    gone = set()
+    for k in killed.values():
+        gone |= k | {s.split("__weak_")[0] for s in k}
+    changed = {}
+    for m in mods:
+        defined, used = set(), set()
+        for line in m.lines:
+            c = code_part(line)
+            label = NAMED_LABEL_RE.match(c)
+            if label:
+                defined.add(label.group(1))
+            if not GLOBL_RE.match(c):
+                used |= named_syms(c)
+        out = []
+        for line in m.lines:
+            g = GLOBL_RE.match(code_part(line))
+            if g and g.group(1) in gone and g.group(1) not in defined and g.group(1) not in used:
+                continue
+            out.append(line)
+        if out != m.lines or killed[m.obj]:
+            changed[m.obj] = out
+    return changed, report
+
+
 def link(args):
     if not args.output:
         die("link needs --output")
@@ -294,23 +537,40 @@ def link(args):
             names = {s} | {p for p in info[o][0] if re.match(re.escape(s) + r"_PARM_\d+$", p)}
             rename.setdefault(o, set()).update(names)
         report.append("%s: %s" % (s[1:], keep))
-    rels = []
+    asm = {}
     for o in objs:
         b = o[:-2]
-        rel = b + ".rel"
-        # The .rel of an earlier link can be a hard link to the object: remove it, so that sdas8051 does not
-        # write the weakened object into the object file.
-        if os.path.exists(rel):
-            os.remove(rel)
+        asm[o] = b + ".asm"
         if o in rename:
-            wasm = b + ".weakened.asm"
-            weaken(b + ".asm", wasm, rename[o], re.sub(r"\W", "_", os.path.basename(b)))
-            run([SDAS, "-plosgffw", rel, wasm])
-        else:
-            os.link(o, rel)
-        rels.append(rel)
+            asm[o] = b + ".weakened.asm"
+            weaken(b + ".asm", asm[o], rename[o], re.sub(r"\W", "_", os.path.basename(b)))
     with open(base + ".weak.txt", "w") as f:
         f.write("".join(r + "\n" for r in report))
+    report = []
+    if args.dce:
+        mods = []
+        for o in objs:
+            with open(asm[o], encoding="utf-8", errors="surrogateescape") as f:
+                mods.append(AsmModule(o, f.readlines()))
+        out_lines, report = dce(mods, DCE_KEEP + tuple(args.dce_keep))
+        for o, lines in out_lines.items():
+            asm[o] = o[:-2] + ".dce.asm"
+            with open(asm[o], "w", encoding="utf-8", errors="surrogateescape") as f:
+                f.writelines(lines)
+    for o in objs:
+        if asm[o] != o[:-2] + ".dce.asm" and os.path.exists(o[:-2] + ".dce.asm"):
+            os.remove(o[:-2] + ".dce.asm")  # of an earlier link
+    with open(base + ".dce.txt", "w") as f:
+        f.write("".join(r + "\n" for r in report))
+    rels = []
+    for o in objs:
+        rel = o[:-2] + ".rel"
+        # The .rel of an earlier link can be a hard link to the object: remove it, so that sdas8051 does not
+        # write into the object file.
+        if os.path.exists(rel):
+            os.remove(rel)
+        run([SDAS, "-plosgffw", rel, asm[o]])
+        rels.append(rel)
 
     # Module with main() first
     main_rel = [r for o, r in zip(objs, rels) if "_main" in info[o][0]]
@@ -321,7 +581,14 @@ def link(args):
     for ext in (".ihx", ".map", ".mem"):
         if os.path.exists(base + ext):
             os.remove(base + ext)
-    run([SDCC] + args.cc + rels + ["-o", ihx])
+    r = subprocess.run([SDCC] + args.cc + rels + ["-o", ihx], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    log = r.stdout.decode(errors="replace")
+    sys.stdout.write(log)
+    if r.returncode != 0:
+        sys.exit(r.returncode)
+    if "Undefined Global" in log:
+        os.remove(ihx)
+        die("undefined global symbols (above)")
     run([OBJCOPY, "-I", "ihex", "-O", "elf32-little", ihx, out])
 
 

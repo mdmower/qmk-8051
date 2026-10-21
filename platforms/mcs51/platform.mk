@@ -36,6 +36,14 @@ CFLAGS += -DF_CPU=$(F_CPU)
 # Definitions that replace GCC built-ins in QMK headers, included before everything else
 CFLAGS += -include $(PLATFORM_COMMON_DIR)/sdcc_compat.h
 
+# Functions that nothing calls are removed at the link (sdcc_cc.py); MCS51_DCE = no keeps them. MCS51_DCE_KEEP:
+# names of C functions that only SDCC's library calls, besides putchar, getchar and _sdcc_external_startup.
+MCS51_DCE ?= yes
+ifeq ($(strip $(MCS51_DCE)), no)
+    LDFLAGS += --no-dce
+endif
+LDFLAGS += $(addprefix --dce-keep=,$(MCS51_DCE_KEEP))
+
 # SDCC puts an interrupt handler into its vector table only if main.c sees its declaration (`__interrupt(n)`).
 # The platform, the protocol and the keyboard (rules.mk) add the headers that declare their handlers.
 MCS51_ISR_HEADERS += $(PLATFORM_COMMON_DIR)/_timer.h
