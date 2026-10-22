@@ -43,6 +43,7 @@ Usage:
   python3 -I util/evision_flash.py status                             # which mode is the board in?
   python3 -I util/evision_flash.py enter [--send]                     # app -> bootloader (commits to a reflash)
   python3 -I util/evision_flash.py flash IMAGE.bin [--poll] [--send]  # bootloader: erase, write, verify, reset
+                                                                      #   (--settings FILE: restore a backup)
   python3 -I util/evision_flash.py verify DUMP.bin IMAGE.bin          # compare a read-back dump to an image
   python3 -I util/evision_flash.py backup-settings OUT.bin [--send]   # QMK: save the code-flash EEPROM to a file
 
@@ -51,6 +52,10 @@ feature is only available when REDRAGON_STORE_COMMANDS is enabled in a keymap. T
 output file is only saved if both match.
   File: 16-byte header ("RDEE", format 1, 0, VID, PID, EEPROM size, store address, layout; 16-bit values
   little-endian), then the EEPROM data.
+
+flash --settings restores a file created by backup-settings. The image is padded to 0xEFBF and the EEPROM data
+plus header is placed in the store's first slot. The firmware only loads the slot if the backup's EEPROM size and
+layout match its own.
 """
 import sys, os, glob, argparse, array, hashlib, select, struct, time, importlib.util
 if sys.platform != "win32":
@@ -404,6 +409,8 @@ def do_flash(a):
     names = " or ".join("%04x:%04x" % i for i in ids)
     img, info = load_image(a.image)
     print_image(info)
+    if a.settings:
+        img, info = add_settings(img, info, a.settings, ids)
     hit = iface1_node(BOOT_VID, BOOT_PID)
     if hit:
         print("device  : %04x:%04x  node %s (interface 1, %s)" % (BOOT_VID, BOOT_PID, hit[0], usb_port(hit[1])))
@@ -550,6 +557,45 @@ def do_backup_settings(a):
     print("wrote  : %s (%d bytes; EEPROM sha256 %s)" % (a.out, SETTINGS_HEADER.size + size,
                                                         hashlib.sha256(first).hexdigest()))
 
+def store_sum(data):
+    """Sum of a slot's data as eeprom_code_flash.c computes it: rotate left by 1, then add, 16 bits."""
+    s = 0
+    for b in data:
+        s = ((s << 1 | s >> 15) + b) & 0xffff
+    return s
+
+def add_settings(img, info, path, ids):
+    """Return (image padded to 0xEFBF with the backup in the store's first slot, info) for flash --settings."""
+    raw = open(path, "rb").read()
+    if len(raw) < SETTINGS_HEADER.size:
+        raise SystemExit("%s is not a settings backup (too short)" % path)
+    magic, fmt, _, vid, pid, size, addr, layout = SETTINGS_HEADER.unpack_from(raw)
+    data = raw[SETTINGS_HEADER.size:]
+    if magic != SETTINGS_MAGIC or fmt != SETTINGS_FORMAT:
+        raise SystemExit("%s is not a settings backup of format %d" % (path, SETTINGS_FORMAT))
+    if (not size or size % PKT or len(data) != size or addr % PKT or addr + 2 * (size + PKT) != ERASE_END):
+        raise SystemExit("%s: inconsistent size %d, store address 0x%04x or data length %d"
+                         % (path, size, addr, len(data)))
+    if (vid, pid) not in ids:
+        raise SystemExit("%s is a backup of %04x:%04x; the flash expects %s"
+                         % (path, vid, pid, " or ".join("%04x:%04x" % i for i in ids)))
+    if info["end"] >= addr:
+        raise SystemExit("the image reaches 0x%04x, into the store at 0x%04x" % (info["end"], addr))
+    header = bytearray(PKT)
+    header[0:6] = b"QE" + (1).to_bytes(2, "little") + store_sum(data).to_bytes(2, "little")
+    header[7:10] = layout.to_bytes(2, "little") + bytes([size // PKT])
+    header[6] = (0xff - sum(header[:PKT - 1])) & 0xff        # byte 6 is still 0 here, so the sum leaves it out
+    header[PKT - 1] = 0xa5
+    full = bytearray(img) + bytes(ERASE_END - APP_BASE - len(img))
+    full[addr - APP_BASE:addr - APP_BASE + size + PKT] = data + header
+    full = bytes(full)
+    info = dict(info, packets=MAX_PACKETS, end=ERASE_END - 1, checksum=sum(full))
+    print("settings: %s: %04x:%04x, EEPROM %d bytes (sha256 %s), layout 0x%04x -> slot at 0x%04x-0x%04x"
+          % (path, vid, pid, size, hashlib.sha256(data).hexdigest()[:16], layout, addr, addr + size + PKT - 1))
+    print("          image padded to 0x%04x: %d x 64 B packets, checksum 0x%06x"
+          % (ERASE_END - 1, MAX_PACKETS, info["checksum"]))
+    return full, info
+
 def usb_id(s):
     """argparse type for --expect: VID:PID in hex."""
     try:
@@ -580,6 +626,9 @@ def main():
                         % POLL_TIMEOUT)
     p.add_argument("--gap", type=gap_seconds, default=0.03,
                    help="seconds between data packets, 0 to 1 (vendor tool ~0.031)")
+    p.add_argument("--settings", metavar="FILE",
+                   help="put a backup-settings file into the image's code-flash EEPROM (pads the image to 0x%04x)"
+                        % (ERASE_END - 1))
     p.add_argument("--expect", type=usb_id,
                    help="VID:PID the flashed firmware enumerates as (default: stock %04x:%04x or QMK %s)"
                         % (APP_VID, APP_PID, " or ".join("%04x:%04x" % i for i in QMK_IDS)))
