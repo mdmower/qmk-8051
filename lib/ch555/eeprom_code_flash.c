@@ -15,12 +15,6 @@
 #    define CH555_EEPROM_SAVE_DELAY 2000
 #endif
 
-/* Layout of the EEPROM contents, kept in each slot's header: a slot written with another value (or another
- * EEPROM_SIZE) is not loaded. A keymap that keeps its own data in the EEPROM sets it in config.h. */
-#ifndef CH555_EEPROM_LAYOUT
-#    define CH555_EEPROM_LAYOUT 0
-#endif
-
 #define STORE_ADDR ((uint16_t)(CH555_EEPROM_CODE_FLASH_ADDR))
 #define STORE_END ((uint16_t)(CH555_EEPROM_CODE_FLASH_END))
 #define DATA_PAGES (EEPROM_SIZE / ROM_PAGE_SIZE)

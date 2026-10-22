@@ -17,6 +17,11 @@
  *                             (LED_DMA_BYTE in led_dma.h), 0xFF while the lock is on; the slot needs LED_FX_SKIP in
  *                             led_fx_pos.h. The lock indicators are set by redragon_led_update().
  *   REDRAGON_KB_SETTINGS      number of bytes in redragon_kb_settings[], saved after the lighting settings
+ *
+ * Optional, in a keymap's config.h:
+ *   REDRAGON_STORE_COMMANDS   raw HID commands that read QMK's EEPROM in code flash (CH555_EEPROM_CODE_FLASH), for
+ *                             util/evision_flash.py backup-settings; not with VIA, which has its own raw HID
+ *                             commands. redragon_ch555.c defines raw_hid_receive().
  */
 
 /* Keycodes from QK_KB_0: Win Lock, then the lighting settings in led_fx.h order (key LEDs, then side lights with

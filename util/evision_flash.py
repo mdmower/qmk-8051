@@ -44,8 +44,15 @@ Usage:
   python3 -I util/evision_flash.py enter [--send]                     # app -> bootloader (commits to a reflash)
   python3 -I util/evision_flash.py flash IMAGE.bin [--poll] [--send]  # bootloader: erase, write, verify, reset
   python3 -I util/evision_flash.py verify DUMP.bin IMAGE.bin          # compare a read-back dump to an image
+  python3 -I util/evision_flash.py backup-settings OUT.bin [--send]   # QMK: save the code-flash EEPROM to a file
+
+backup-settings is used to read QMK's EEPROM (settings and macros, kept in code flash) for later restore. This
+feature is only available when REDRAGON_STORE_COMMANDS is enabled in a keymap. Two reads are performed and the
+output file is only saved if both match.
+  File: 16-byte header ("RDEE", format 1, 0, VID, PID, EEPROM size, store address, layout; 16-bit values
+  little-endian), then the EEPROM data.
 """
-import sys, os, glob, argparse, array, hashlib, time, importlib.util
+import sys, os, glob, argparse, array, hashlib, select, struct, time, importlib.util
 if sys.platform != "win32":
     import fcntl
 
@@ -71,6 +78,12 @@ STATUS_OK = b"\xfa\xfa\xfa\xfa"
 HELLO_TAIL = b"\x00\x11\x22\x33"         # bootloader fingerprint in every GET_FEATURE reply
 ENTER_REPORT = bytes([0x04, 0xee, 0xee]) + bytes(61)   # app: erase marker page 0x27C0 + reset
 POLL_TIMEOUT = 15                        # flash --poll: seconds to wait for the bootloader
+RAW_PAGE = 0xff60                        # QMK raw HID usage page (interface 1)
+RAW_LEN = 32                             # raw HID report, no report ID
+STORE_INFO, STORE_READ = 0x80, 0x81      # store commands (keyboards/redragon/common/redragon_ch555.c)
+STORE_CHUNK = RAW_LEN - 4                # EEPROM bytes per STORE_READ reply
+SETTINGS_MAGIC, SETTINGS_FORMAT = b"RDEE", 1
+SETTINGS_HEADER = struct.Struct("<4sBBHHHHH")   # magic, format, 0, VID, PID, EEPROM size, store address, layout
 # The Esc check of evision_oem_image.py (esc_check()) up to the opcode of its final LJMP to the app; the two
 # target bytes follow. Its branches are relative, so the bytes do not depend on where the check is placed.
 ESC_CHECK = bytes.fromhex(
@@ -275,6 +288,23 @@ def close_node(fd):
 def write_report(fd, data):
     os.write(fd, data)
 
+def read_report(fd, timeout):
+    """One input report (report ID first if the device uses them), or None if none arrives within timeout s."""
+    rl, _, _ = select.select([fd], [], [], timeout)
+    return os.read(fd, PKT) if rl else None
+
+def report_page(devpath):
+    """Usage page at the start of a HID interface's report descriptor (sysfs), or None."""
+    try:
+        d = open(os.path.join(devpath, "report_descriptor"), "rb").read(3)
+    except OSError:
+        return None
+    if d[:1] == b"\x06" and len(d) == 3:
+        return d[1] | d[2] << 8
+    if d[:1] == b"\x05" and len(d) >= 2:
+        return d[1]
+    return None
+
 # --- Windows: the same functions on hid.dll and SetupAPI ------------------------------------------------------
 if sys.platform == "win32":
     _spec = importlib.util.spec_from_file_location(
@@ -282,8 +312,9 @@ if sys.platform == "win32":
     _win = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_win)
     for _name in ("find_nodes", "usb_dir", "usb_port", "usb_attrs", "usb_devices", "wait_usb_at", "wait_access",
-                  "set_feature", "get_feature", "open_node", "close_node", "write_report"):
+                  "set_feature", "get_feature", "open_node", "close_node", "write_report", "read_report"):
         globals()[_name] = getattr(_win, _name)
+    report_page = lambda dev: RAW_PAGE   # find_nodes marks interface 1 of a QMK ID only for its 0xFF60 collection
 
 def expect_ok(fd, cmd, timeout, what):
     """Poll GET_FEATURE until it echoes cmd with status OK. Exit (board stays in bootloader) otherwise."""
@@ -451,6 +482,74 @@ def do_verify(a):
         raise SystemExit("MISMATCH: %d bytes differ, first at 0x%04x" % (len(bad), APP_BASE + bad[0]))
     print("MATCH: 0x%04x-0x%04x identical to %s" % (APP_BASE, ERASE_END - 1, a.image))
 
+def raw_node():
+    """Return (node, USB device dir, (vid, pid)) of the QMK keyboard's raw HID interface. Exit if there is none or
+    several."""
+    hits = [(node, usb_dir(devpath), ids) for ids in QMK_IDS for node, i1, devpath in find_nodes(*ids)
+            if i1 and report_page(devpath) == RAW_PAGE]
+    if len(hits) > 1:
+        raise SystemExit("%d QMK keyboards with raw HID found (%s); refusing. Unplug all but the one to use."
+                         % (len(hits), "; ".join("%s at %s" % (n, usb_port(d)) for n, d, _ in hits)))
+    if not hits:
+        raise SystemExit("no QMK keyboard with a raw HID interface found (mode=%s)" % mode())
+    return hits[0]
+
+def store_command(fd, req):
+    """Send a 32-byte store command; return the 32-byte reply whose bytes 0-3 match (byte 0 0xFF: refused).
+    Other input reports are skipped."""
+    write_report(fd, b"\x00" + req)              # report ID 0: not sent, the device has no report IDs
+    deadline = time.monotonic() + 1.0
+    while time.monotonic() < deadline:
+        r = read_report(fd, max(0, deadline - time.monotonic()))
+        if r is None:
+            break
+        if len(r) == RAW_LEN + 1:                 # Windows: report ID 0 first
+            r = r[1:]
+        if len(r) == RAW_LEN and r[0] == 0xff:
+            return r
+        if len(r) == RAW_LEN and r[0] == req[0] and (req[0] != STORE_READ or r[1:4] == req[1:4]):
+            return r
+    raise SystemExit("no reply to store command 0x%02x within 1 s (only keymaps with REDRAGON_STORE_COMMANDS, e.g. "
+                     "the K580 `macro` keymap, answer the store commands)" % req[0])
+
+def read_store(fd, size):
+    data = bytearray()
+    for off in range(0, size, STORE_CHUNK):
+        n = min(STORE_CHUNK, size - off)
+        r = store_command(fd, bytes([STORE_READ, off & 0xff, off >> 8, n]) + bytes(RAW_LEN - 4))
+        if r[0] != STORE_READ:
+            raise SystemExit("the keyboard refused to read %d bytes at offset %d" % (n, off))
+        data += r[4:4 + n]
+    return bytes(data)
+
+def do_backup_settings(a):
+    node, dev, (vid, pid) = raw_node()
+    print("device : %04x:%04x  node %s (raw HID, %s)" % (vid, pid, node, usb_port(dev)))
+    print("plan   : store info (0x%02x), then the EEPROM in %d-byte reads (0x%02x), twice; nothing is written to "
+          "the keyboard" % (STORE_INFO, STORE_CHUNK, STORE_READ))
+    if not a.send:
+        print("\nDRY-RUN. Nothing sent. Re-run with --send to read."); return
+    fd = open_node(node)
+    try:
+        r = store_command(fd, bytes([STORE_INFO]) + bytes(RAW_LEN - 1))
+        if r[0] != STORE_INFO:
+            raise SystemExit("the firmware does not answer the store commands (only keymaps with REDRAGON_STORE_COMMANDS, "
+                             "e.g. the K580 `macro` keymap, do)")
+        fmt, size, addr, layout = r[1], r[2] | r[3] << 8, r[4] | r[5] << 8, r[6] | r[7] << 8
+        if fmt != 1 or not size or size % PKT or addr % PKT or addr + 2 * (size + PKT) != ERASE_END:
+            raise SystemExit("unexpected store info: %s" % r[:8].hex(" "))
+        print("store  : EEPROM %d bytes, store 0x%04x-0x%04x, layout 0x%04x" % (size, addr, ERASE_END - 1, layout))
+        first = read_store(fd, size)
+        second = read_store(fd, size)
+    finally:
+        close_node(fd)
+    if first != second:
+        raise SystemExit("the two reads differ (the EEPROM changed during the backup); nothing written. Retry.")
+    with open(a.out, "wb") as f:
+        f.write(SETTINGS_HEADER.pack(SETTINGS_MAGIC, SETTINGS_FORMAT, 0, vid, pid, size, addr, layout) + first)
+    print("wrote  : %s (%d bytes; EEPROM sha256 %s)" % (a.out, SETTINGS_HEADER.size + size,
+                                                        hashlib.sha256(first).hexdigest()))
+
 def usb_id(s):
     """argparse type for --expect: VID:PID in hex."""
     try:
@@ -486,6 +585,8 @@ def main():
                         % (APP_VID, APP_PID, " or ".join("%04x:%04x" % i for i in QMK_IDS)))
     p.set_defaults(fn=do_flash)
     p = sub.add_parser("verify"); p.add_argument("dump"); p.add_argument("image"); p.set_defaults(fn=do_verify)
+    p = sub.add_parser("backup-settings"); p.add_argument("out"); p.add_argument("--send", action="store_true")
+    p.set_defaults(fn=do_backup_settings)
     a = ap.parse_args()
     a.fn(a)
 

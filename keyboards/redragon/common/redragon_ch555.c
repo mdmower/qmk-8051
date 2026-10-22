@@ -6,6 +6,14 @@
 #ifdef CH555_EEPROM_CODE_FLASH
 #    include "eeprom_code_flash.h"
 #endif
+#ifdef REDRAGON_STORE_COMMANDS
+#    if !defined(CH555_EEPROM_CODE_FLASH) || !defined(RAW_ENABLE) || defined(VIA_ENABLE)
+#        error "REDRAGON_STORE_COMMANDS needs CH555_EEPROM_CODE_FLASH and RAW_ENABLE, and not VIA_ENABLE"
+#    endif
+#    include "eeprom.h"
+#    include "raw_hid.h"
+#    include "usb_descriptor.h" // RAW_EPSIZE
+#endif
 
 _Static_assert(LED_FX_SAVE_SIZE + REDRAGON_KB_SETTINGS <= FLASH_STORE_SIZE, "saved settings: at most FLASH_STORE_SIZE bytes");
 
@@ -116,6 +124,48 @@ void redragon_led_update(led_t led_state) {
 #    ifdef LED_SCROLL_LOCK_BYTE
     led_dma_buf[LED_SCROLL_LOCK_BYTE] = led_state.scroll_lock ? 0xFF : 0;
 #    endif
+}
+#endif
+
+#ifdef REDRAGON_STORE_COMMANDS
+/*
+ * Raw HID: read-only access to the EEPROM, for a backup (util/evision_flash.py backup-settings).
+ * Replies are 32 bytes, byte 0 the command.
+ * STORE_INFO: reply bytes 1 format (1), 2-3 EEPROM_SIZE, 4-5 the store's code-flash address, 6-7
+ * CH555_EEPROM_LAYOUT (16-bit values little-endian), the rest 0.
+ * STORE_READ, bytes 1-2 offset (little-endian), 3 count (1-28): reply bytes 1-3 as sent, from byte 4 the count
+ * EEPROM bytes at offset (the copy in xRAM, with changes not yet saved), the rest 0.
+ * Any other command or a read outside the EEPROM: reply byte 0 0xFF, the rest 0.
+ */
+#    define STORE_INFO 0x80
+#    define STORE_READ 0x81
+
+void raw_hid_receive(uint8_t *data, uint8_t length) {
+    static uint8_t reply[RAW_EPSIZE];
+    uint8_t        cmd    = data[0];
+    uint16_t       offset = data[1] | (uint16_t)data[2] << 8;
+    uint8_t        count  = data[3];
+
+    (void)length;
+    memset(reply, 0, sizeof(reply));
+    reply[0] = cmd;
+    if (cmd == STORE_INFO) {
+        reply[1] = 1;
+        reply[2] = (uint8_t)(EEPROM_SIZE);
+        reply[3] = (uint8_t)((EEPROM_SIZE) >> 8);
+        reply[4] = (uint8_t)(CH555_EEPROM_CODE_FLASH_ADDR);
+        reply[5] = (uint8_t)((CH555_EEPROM_CODE_FLASH_ADDR) >> 8);
+        reply[6] = (uint8_t)(CH555_EEPROM_LAYOUT);
+        reply[7] = (uint8_t)((CH555_EEPROM_LAYOUT) >> 8);
+    } else if (cmd == STORE_READ && count >= 1 && count <= sizeof(reply) - 4 && offset <= EEPROM_SIZE - count) {
+        reply[1] = (uint8_t)offset;
+        reply[2] = offset >> 8;
+        reply[3] = count;
+        eeprom_read_block(reply + 4, (void *)offset, count);
+    } else {
+        reply[0] = 0xFF;
+    }
+    raw_hid_send(reply, sizeof(reply));
 }
 #endif
 

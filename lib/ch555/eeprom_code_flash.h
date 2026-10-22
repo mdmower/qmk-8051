@@ -21,6 +21,12 @@
  * write enable, right before the command. The build keeps code below the store (CODE_SIZE).
  */
 
+/* Layout of the EEPROM contents, kept in each slot's header: a slot written with another value (or another
+ * EEPROM_SIZE) is not loaded. A keymap that keeps its own data in the EEPROM sets it in config.h. */
+#ifndef CH555_EEPROM_LAYOUT
+#    define CH555_EEPROM_LAYOUT 0
+#endif
+
 /* Runs at most one flash operation of a pending save (2-8 ms, the CPU stops; datasheet 19.5). Called from
  * the main loop (protocol_post_task()). */
 void eeprom_code_flash_task(void);

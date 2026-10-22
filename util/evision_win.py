@@ -6,8 +6,8 @@ HID collections: no driver and no administrator rights are needed.
 
 Windows creates one HID device per top-level collection. On USB interface 1 the tools use the vendor collection of
 the stock firmware (usage page 0xFF1C; the interface also has keyboard, system control, consumer control and mouse
-collections) and the only collection of the OEM bootloader (consumer page, 64-byte feature report without a
-report ID).
+collections), the only collection of the OEM bootloader (consumer page, 64-byte feature report without a
+report ID) and QMK's raw HID collection (usage page 0xFF60, 32-byte reports without a report ID).
 
 A USB device is identified by its location path (e.g. PCIROOT(0)#PCI(1400)#USBROOT(0)#USB(2)#USB(3)). The path is
 the same when a board enumerates again with another USB ID at the same port, as the sysfs name of the port is on
@@ -24,6 +24,7 @@ except ImportError as e:                    # e.g. Smart App Control blocks the 
 
 # The interface-1 collection that the tools use, by USB ID. Other devices: interface 1 if it has one collection.
 IFACE1_PAGE = {(0x320f, 0x5000): 0xff1c, (0x0c45, 0x7687): 0x000c}
+IFACE1_PAGE.update({(0x5244, pid): 0xff60 for pid in (0x0580, 0x0552, 0x0551, 0x0582, 0x0589)})   # QMK raw HID
 CONTROL_TIMEOUT = 5.0                       # seconds; the Linux USB core's timeout for hidraw's control transfers
 
 GENERIC_READ_WRITE = 0xC0000000
