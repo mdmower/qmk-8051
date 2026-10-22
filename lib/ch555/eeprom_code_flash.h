@@ -23,3 +23,6 @@
 /* Runs at most one flash operation of a pending save (2-8 ms, the CPU stops; datasheet 19.5). Called from
  * the main loop (protocol_post_task()). */
 void eeprom_code_flash_task(void);
+/* Clears the EEPROM: the copy reads 0x00, a running save ends, and the header pages of both slots are erased, so
+ * that the next start finds no valid slot, as after a flash. Returns 0 on success. */
+uint8_t eeprom_code_flash_clear(void);

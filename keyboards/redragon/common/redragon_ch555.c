@@ -3,12 +3,18 @@
 #include "redragon_ch555.h"
 #include "led_dma.h"
 #include "flash_store.h"
+#ifdef CH555_EEPROM_CODE_FLASH
+#    include "eeprom_code_flash.h"
+#endif
 
 _Static_assert(LED_FX_SAVE_SIZE + REDRAGON_KB_SETTINGS <= FLASH_STORE_SIZE, "saved settings: at most FLASH_STORE_SIZE bytes");
 
 /* Win Lock: while it is on, LGUI/RGUI presses are blocked and the Win Lock LED (if any) is lit. Releases pass, so a
  * GUI key held when Win Lock turns on is released on the host. */
 static bool win_lock = false;
+
+/* QK_CLEAR_EEPROM was pressed with Ctrl held */
+static bool clear_armed = false;
 
 /* Settings saved in the data flash SAVE_DELAY after the last change: the lighting settings (led_fx.c), then
  * redragon_kb_settings[]. */
@@ -59,6 +65,18 @@ bool redragon_process_record(uint16_t keycode, keyrecord_t *record) {
 #ifdef LED_WIN_LOCK_BYTE
             led_dma_buf[LED_WIN_LOCK_BYTE] = win_lock ? 0xFF : 0;
 #endif
+        }
+        return false;
+    case QK_CLEAR_EEPROM:
+        /* Only with Ctrl held at the press. On release, so that the key is up when the keyboard starts again. */
+        if (record->event.pressed) {
+            clear_armed = (get_mods() & MOD_MASK_CTRL) != 0;
+        } else if (clear_armed) {
+            flash_store_clear();
+#ifdef CH555_EEPROM_CODE_FLASH
+            eeprom_code_flash_clear();
+#endif
+            soft_reset_keyboard();
         }
         return false;
     case KC_LGUI:

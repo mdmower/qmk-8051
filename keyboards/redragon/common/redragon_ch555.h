@@ -51,7 +51,9 @@ extern __xdata uint8_t redragon_kb_settings[REDRAGON_KB_SETTINGS];
 /* From keyboard_post_init_kb: sets up the LED pins and loads the saved settings. Returns the keyboard's saved
  * bytes (REDRAGON_KB_SETTINGS, in code space), or 0 if nothing has been saved. */
 __code const uint8_t *redragon_init(void);
-/* From process_record_kb: Win Lock and the lighting keycodes. Returns false for a key it has handled or blocked. */
+/* From process_record_kb: Win Lock, the lighting keycodes and QK_CLEAR_EEPROM (pressed with Ctrl held, on release:
+ * erases the data flash and, with CH555_EEPROM_CODE_FLASH, QMK's EEPROM, then restarts the keyboard). Returns false for a key it has handled or
+ * blocked. */
 bool redragon_process_record(uint16_t keycode, keyrecord_t *record);
 /* From housekeeping_task_kb: lighting effects and the delayed save. */
 void redragon_task(void);

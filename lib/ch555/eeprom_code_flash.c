@@ -231,6 +231,14 @@ void eeprom_write_block(const void *buf, void *addr, size_t len) {
     }
 }
 
+uint8_t eeprom_code_flash_clear(void) {
+    memset(ee_copy, 0, EEPROM_SIZE);
+    dirty     = false;
+    save_slot = NO_SLOT;
+    newest    = NO_SLOT;
+    return store_erase(DATA_PAGES) | store_erase(SLOT_PAGES + DATA_PAGES);
+}
+
 static void save_stop(bool failed) {
     save_slot = NO_SLOT;
     if (failed) {

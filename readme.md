@@ -215,6 +215,19 @@ The store itself ([lib/ch555/eeprom_code_flash.c](lib/ch555/eeprom_code_flash.c)
 
 To go back to the `default` keymap, flash the `default` image; the flash erases the store.
 
+### Clearing the saved settings
+
+Fn+Ctrl+Backspace clears everything the keyboard stores persistently and then restarts it. Hold Fn and Ctrl, then press
+Backspace; the keyboard clears its settings upon release of Backspace. The keyboard starts with the default lighting and
+keymap. The key is QMK's `EE_CLR`. When assigned to a key in VIA, it clears settings only when Ctrl is held; it does
+nothing without Ctrl.
+
+| Keymap | What is cleared |
+|---|---|
+| `default` | The keyboard's own settings in the data flash: the lighting settings. On the K580, the roller mode and Rec LED setting are also cleared. |
+| `via` | The same as `default`, plus the store at 0xE740–0xEFBF: QMK's settings, the VIA keymap and the macros |
+| K580 `macro` | The same as `default`, plus the store at 0xE740–0xEFBF: QMK's settings and the G1–G5 macros (there is no VIA keymap) |
+
 ## Known limitations
 
 - **`default` keymap:** QMK's settings (eeconfig) are kept in RAM only, using the transient EEPROM driver, so they

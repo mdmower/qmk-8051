@@ -43,10 +43,14 @@ The keyboard stays in the bootloader until a flash completes, even across a repl
 
 - Layer 0: the printed layout. Media keys: previous, play/pause, next. The roller controls volume; a roller toggle
   key switches it to key LED brightness and back. The roller mode is saved like the lighting settings.
-- Layer 1 (Fn): Fn+Esc enters the bootloader (`QK_BOOT`). Fn+F1–F12 send the functions printed on the keycaps: media
-  player, volume down, volume up, mute, stop, previous, play/pause, next, mail, browser home, calculator and search.
-  Fn+Win toggles Win Lock, which blocks the Win key and lights the Win Lock LED; Win Lock is off after power-up.
-  Fn+R turns the Rec LED on and off (see [Lighting](#lighting)).
+- Layer 1 (Fn):
+  - Fn+Esc enters the bootloader (`QK_BOOT`).
+  - Fn+F1–F12 send the functions printed on the keycaps: media player, volume down, volume up, mute, stop, previous,
+    play/pause, next, mail, browser home, calculator and search.
+  - Fn+Win toggles Win Lock, which blocks the Win key and lights the Win Lock LED; Win Lock is off after power-up.
+  - Fn+R turns the Rec LED on and off (see [Lighting](#lighting)).
+  - Fn+Ctrl+Backspace clears the saved settings and then restarts the keyboard (see
+    [Clearing the saved settings](../../../readme.md#clearing-the-saved-settings)).
 - G1–G5 and Rec send F13–F17 and F18, for shortcuts set in the operating system.
 - Num Lock, Caps Lock, Scroll Lock and Win Lock LEDs. They and the key LEDs turn off while the host is suspended.
 
@@ -72,7 +76,8 @@ The default keymap with a macro recorder on G1–G5 and Rec, in place of F13–F
   The lighting keys, Win Lock, Fn+Esc and the roller are not recorded. A full macro ends the recording.
 - The macros are kept at power-off in QMK's EEPROM, which this keymap keeps in code flash (0xE740–0xEFBF), as the
   `via` keymap does ([top-level readme](../../../readme.md#before-you-flash)). Every flash erases them. The EEPROM is
-  saved 2 s after a recording ends; the LEDs flicker while it is saved.
+  saved 2 s after a recording ends; the LEDs flicker while it is saved. Fn+Ctrl+Backspace clears them along with the
+  other saved settings.
 - When the recorder is idle, Rec is dark and G1–G5 stay lit at the key LEDs' brightness.
 
 ## Lighting

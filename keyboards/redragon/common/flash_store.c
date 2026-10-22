@@ -101,3 +101,12 @@ bool flash_store_save(__xdata const uint8_t *src, uint8_t len) {
     }
     return false;
 }
+
+void flash_store_clear(void) {
+    uint8_t i;
+
+    for (i = 0; i < RECS; i += RECS_PER_PAGE) {
+        data_flash_erase((uint16_t)REC(i));
+    }
+    newest = NONE;
+}

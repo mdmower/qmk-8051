@@ -25,3 +25,6 @@ __code const uint8_t *flash_store_find(void);
 /* Saves len bytes (up to FLASH_STORE_SIZE; the rest of the record is 0) as a new record. If the
  * read-back differs, tries once more at the start of the next page. Returns false if both failed. */
 bool flash_store_save(__xdata const uint8_t *src, uint8_t len);
+
+/* Erases the data flash, so that the next start finds no record. */
+void flash_store_clear(void);

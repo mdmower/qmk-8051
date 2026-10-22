@@ -43,9 +43,13 @@ The keyboard stays in the bootloader until a flash completes, even across a repl
 ## Default keymap
 
 - Layer 0: the printed ANSI layout (QMK layout `tkl_ansi`).
-- Layer 1 (Fn): Fn+Esc enters the bootloader (`QK_BOOT`). Fn+F1–F12 send the functions printed on the keycaps: media
-  player, volume down, volume up, mute, stop, previous, play/pause, next, mail, browser home, calculator and search.
-  Fn+Win toggles Win Lock, which blocks the Win key; Win Lock is off after power-up.
+- Layer 1 (Fn):
+  - Fn+Esc enters the bootloader (`QK_BOOT`).
+  - Fn+F1–F12 send the functions printed on the keycaps: media player, volume down, volume up, mute, stop, previous,
+    play/pause, next, mail, browser home, calculator and search.
+  - Fn+Win toggles Win Lock, which blocks the Win key; Win Lock is off after power-up.
+  - Fn+Ctrl+Backspace clears the saved settings and then restarts the keyboard (see
+    [Clearing the saved settings](../../../readme.md#clearing-the-saved-settings)).
 - Caps Lock and Scroll Lock indicators (right of the logo): red and green, lit by the host's lock state even while
   the key LEDs are off.
 

@@ -14,12 +14,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     /* Fn layer: Fn+Esc = bootloader, Fn+F1-F12 = the functions printed on the keycaps (media player, volume
      * down/up, mute, stop, previous, play/pause, next, mail, browser home, calculator, search), Fn+Win = Win Lock.
-     * Key LEDs, as on the K580 (Shift steps back): Ins mode, Home hue, PgUp saturation, Del brightness, End speed,
-     * PgDn on/off. */
+     * Fn+Ctrl+Backspace = clear the saved settings and restart. Key LEDs, as on the K580 (Shift steps back): Ins
+     * mode, Home hue, PgUp saturation, Del brightness, End speed, PgDn on/off. */
     [1] = LAYOUT_fullsize_ansi(
         QK_BOOT,           KC_MSEL, KC_VOLD, KC_VOLU, KC_MUTE, KC_MSTP, KC_MPRV, KC_MPLY, KC_MNXT, KC_MAIL, KC_WHOM, KC_CALC, KC_WSCH,    _______,  _______, _______,
 
-        _______, _______,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    RD_KMODE, RD_KHUE, RD_KSAT,    _______, _______, _______, _______,
+        _______, _______,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, EE_CLR,     RD_KMODE, RD_KHUE, RD_KSAT,    _______, _______, _______, _______,
         _______, _______,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,    RD_KVAL,  RD_KSPD, RD_KTOG,    _______, _______, _______, _______,
         _______, _______,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,          _______,                                  _______, _______, _______,
         _______,           _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,          _______,              _______,              _______, _______, _______, _______,
