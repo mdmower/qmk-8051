@@ -57,7 +57,7 @@ The keyboard stays in the bootloader until a flash completes, even across a repl
 ## VIA keymap
 
 The default keymap running under VIA ([top-level readme](../../../readme.md#keymaps-default-and-via)). VIA definition:
-[keymaps/via/redragon_k551_via.json](keymaps/via/redragon_k551_via.json). About 310 bytes of the EEPROM are left for
+[keymaps/via/redragon_k551_via.json](keymaps/via/redragon_k551_via.json). About 1330 bytes of the EEPROM are left for
 macros.
 
 ## Lighting
@@ -93,7 +93,7 @@ save happens. The controls and modes are listed below.
 
 ## Flash space
 
-The application region (0x2800–0xEFBF) has about 23.5 KB free with the `default` keymap, and about 12.7 KB below the
+The application region (0x2800–0xEFBF) has about 23.4 KB free with the `default` keymap, and about 10.5 KB below the
 store with the `via` keymap. The features turned off for flash space are listed in [config.h](config.h) and
 [rules.mk](rules.mk).
 

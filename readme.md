@@ -185,8 +185,8 @@ Each keyboard ships a `default` and a `via` keymap with the same layout, Fn laye
 | | `default` | `via` |
 |---|---|---|
 | Keymap changes | In the source; build and flash again | Live, in [VIA](https://usevia.app): 3 layers, macros |
-| Kept at power-off | The keyboard's own settings (data flash) | The same, plus QMK's settings, the keymap and the macros (code flash, 0xE740–0xEFBF) |
-| Code flash written by the firmware | The boot marker page, to enter the bootloader | The same, plus the store at 0xE740–0xEFBF, 2 s after each change |
+| Kept at power-off | The keyboard's own settings (data flash) | The same, plus QMK's settings, the keymap and the macros (code flash, 0xDF40–0xEFBF) |
+| Code flash written by the firmware | The boot marker page, to enter the bootloader | The same, plus the store at 0xDF40–0xEFBF, 2 s after each change |
 
 To use VIA:
 
@@ -199,7 +199,7 @@ To use VIA:
 
 The store itself ([lib/ch555/eeprom_code_flash.c](lib/ch555/eeprom_code_flash.c)) behaves as follows:
 
-- QMK's EEPROM is 1 KB. It holds QMK's settings, the three layers, the encoders (the K580's roller) and the macros
+- QMK's EEPROM is 2 KB. It holds QMK's settings, the three layers, the encoders (the K580's roller) and the macros
   (each keyboard readme gives the size). Layers 0 and 1 start as the default keymap; layer 2 starts as transparent
   keys.
 - A change is saved 2 s after the last edit. The store keeps two copies: a save erases and rewrites the older copy
@@ -225,8 +225,8 @@ nothing without Ctrl.
 | Keymap | What is cleared |
 |---|---|
 | `default` | The keyboard's own settings in the data flash: the lighting settings. On the K580, the roller mode and Rec LED setting are also cleared. |
-| `via` | The same as `default`, plus the store at 0xE740–0xEFBF: QMK's settings, the VIA keymap and the macros |
-| K580 `macro` | The same as `default`, plus the store at 0xE740–0xEFBF: QMK's settings and the G1–G5 macros (there is no VIA keymap) |
+| `via` | The same as `default`, plus the store at 0xDF40–0xEFBF: QMK's settings, the VIA keymap and the macros |
+| K580 `macro` | The same as `default`, plus the store at 0xDF40–0xEFBF: QMK's settings and the G1–G5 macros (there is no VIA keymap) |
 
 ## Known limitations
 
@@ -254,7 +254,7 @@ nothing without Ctrl.
 |---|---|
 | 0x0000–0x27FF | Evision bootloader (USB `0c45:7687`). `util/evision_flash.py` never writes it. |
 | 0x27C0 | Boot marker `AA 55 33 CC`, in the last page of the bootloader's region. The bootloader starts the application only while the marker is present, and writes it after a successful flash. |
-| 0x2800–0xEFBF | Application: stock firmware or QMK. The bootloader erases and programs this range on every flash. The `via` keymap (and the K580's `macro` keymap) keeps its store at 0xE740–0xEFBF. |
+| 0x2800–0xEFBF | Application: stock firmware or QMK. The bootloader erases and programs this range on every flash. The `via` keymap (and the K580's `macro` keymap) keeps its store at 0xDF40–0xEFBF. |
 | 0xF000–0xF3FF | Data flash. QMK keeps the keyboard's own settings here (lighting; K580: roller mode). Flashing does not erase it. The K580's stock firmware 1.04 does not use it. |
 | 0xF400– | WCH factory ISP bootloader (`4348:55e0`). Not used: flashing through it overwrites the Evision bootloader. |
 
