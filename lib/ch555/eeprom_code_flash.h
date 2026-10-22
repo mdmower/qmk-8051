@@ -12,7 +12,8 @@
  * slot that does not hold the newest copy, programs the data, compares it with the copy, and programs
  * the header last: a power loss during a save leaves the previous slot as the newest valid one. At
  * startup the valid slot with the higher sequence number is loaded; without one, the EEPROM reads 0x00
- * and QMK writes its defaults. A flash image written by the bootloader erases the store.
+ * and QMK writes its defaults. A slot whose header names another CH555_EEPROM_LAYOUT (config.h, default 0)
+ * or EEPROM_SIZE is not valid. A flash image written by the bootloader erases the store.
  *
  * Code-flash writes need bCODE_WE, which enables writes to all of code flash, the bootloader included.
  * Only eeprom_code_flash.c sets it, for one erase or program of one store page; the page number is

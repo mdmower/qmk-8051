@@ -15,6 +15,12 @@
 #    define CH555_EEPROM_SAVE_DELAY 2000
 #endif
 
+/* Layout of the EEPROM contents, kept in each slot's header: a slot written with another value (or another
+ * EEPROM_SIZE) is not loaded. A keymap that keeps its own data in the EEPROM sets it in config.h. */
+#ifndef CH555_EEPROM_LAYOUT
+#    define CH555_EEPROM_LAYOUT 0
+#endif
+
 #define STORE_ADDR ((uint16_t)(CH555_EEPROM_CODE_FLASH_ADDR))
 #define STORE_END ((uint16_t)(CH555_EEPROM_CODE_FLASH_END))
 #define DATA_PAGES (EEPROM_SIZE / ROM_PAGE_SIZE)
@@ -49,7 +55,10 @@ static __xdata __at(CH555_EEPROM_CODE_FLASH_XRAM + EEPROM_SIZE) uint8_t header_b
 #define H_SEQ_HI 3
 #define H_SUM_LO 4
 #define H_SUM_HI 5
-#define H_CHECK 6 // 0xFF minus the sum of bytes 0-62 except this one (bytes 7-62 are 0)
+#define H_CHECK 6 // 0xFF minus the sum of bytes 0-62 except this one (bytes 10-62 are 0)
+#define H_LAYOUT_LO 7
+#define H_LAYOUT_HI 8
+#define H_DATA_PAGES 9
 #define H_VALID (ROM_PAGE_SIZE - 1)
 
 #define NO_SLOT 0xFF
@@ -166,10 +175,13 @@ static uint8_t header_check(const uint8_t *h) {
     return 0xFF - sum;
 }
 
-/* A slot is valid with a complete header whose sum matches its data. */
+/* A slot is valid with a complete header of this layout whose sum matches its data. */
 static bool slot_valid(uint8_t slot, uint16_t *seq) {
     __code const uint8_t *h = slot_page(slot, DATA_PAGES);
     if (h[H_VALID] != HEADER_VALID || h[H_MAGIC0] != HEADER_MAGIC0 || h[H_MAGIC1] != HEADER_MAGIC1 || h[H_CHECK] != header_check(h)) {
+        return false;
+    }
+    if (h[H_LAYOUT_LO] != (uint8_t)(CH555_EEPROM_LAYOUT) || h[H_LAYOUT_HI] != (uint8_t)((CH555_EEPROM_LAYOUT) >> 8) || h[H_DATA_PAGES] != DATA_PAGES) {
         return false;
     }
     if (data_sum(slot) != (h[H_SUM_LO] | (uint16_t)h[H_SUM_HI] << 8)) {
@@ -285,14 +297,17 @@ void eeprom_code_flash_task(void) {
         uint16_t seq = newest_seq + 1;
         uint16_t sum = data_sum(save_slot);
         memset(header_buf, 0, ROM_PAGE_SIZE);
-        header_buf[H_MAGIC0] = HEADER_MAGIC0;
-        header_buf[H_MAGIC1] = HEADER_MAGIC1;
-        header_buf[H_SEQ_LO] = seq & 0xFF;
-        header_buf[H_SEQ_HI] = seq >> 8;
-        header_buf[H_SUM_LO] = sum & 0xFF;
-        header_buf[H_SUM_HI] = sum >> 8;
-        header_buf[H_CHECK]  = header_check(header_buf);
-        header_buf[H_VALID]  = HEADER_VALID;
+        header_buf[H_MAGIC0]     = HEADER_MAGIC0;
+        header_buf[H_MAGIC1]     = HEADER_MAGIC1;
+        header_buf[H_SEQ_LO]     = seq & 0xFF;
+        header_buf[H_SEQ_HI]     = seq >> 8;
+        header_buf[H_SUM_LO]     = sum & 0xFF;
+        header_buf[H_SUM_HI]     = sum >> 8;
+        header_buf[H_LAYOUT_LO]  = (uint8_t)(CH555_EEPROM_LAYOUT);
+        header_buf[H_LAYOUT_HI]  = (uint8_t)((CH555_EEPROM_LAYOUT) >> 8);
+        header_buf[H_DATA_PAGES] = DATA_PAGES;
+        header_buf[H_CHECK]      = header_check(header_buf);
+        header_buf[H_VALID]      = HEADER_VALID;
         if (store_program(save_slot * SLOT_PAGES + DATA_PAGES, header_buf) != 0 || !page_matches(save_slot, DATA_PAGES, header_buf)) {
             save_stop(true);
             return;

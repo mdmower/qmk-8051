@@ -29,6 +29,7 @@ enum macro_keycodes {
 #define MACRO_SLOT_SIZE ((EEPROM_SIZE - EECONFIG_SIZE) / MACRO_COUNT)
 #define MACRO_EVENTS ((MACRO_SLOT_SIZE - 1) / 2)
 _Static_assert(MACRO_EVENTS >= 1 && MACRO_EVENTS <= 255, "macro slots: 1-255 events");
+_Static_assert((CH555_EEPROM_LAYOUT & 0xFF) == EECONFIG_SIZE, "CH555_EEPROM_LAYOUT (config.h): low byte = EECONFIG_SIZE");
 #define MACRO_DELAY 10  // ms between the events of a playback
 #define MACRO_BLINK 250 // ms per half period of the blinking LEDs
 #define MACRO_LED_VAL 144
