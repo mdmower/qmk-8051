@@ -75,10 +75,27 @@ The default keymap with a macro recorder on G1–G5 and Rec, in place of F13–F
 - A macro holds up to 200 presses and releases (100 keystrokes) of keys, modifiers and media keys (including
   Fn+F1–F12). The lighting keys, Win Lock, Fn+Esc and the roller are not recorded. A full macro ends the recording.
 - The macros are kept at power-off in QMK's EEPROM, which this keymap keeps in code flash (0xDF40–0xEFBF), as the
-  `via` keymap does ([top-level readme](../../../readme.md#before-you-flash)). Every flash erases them. The EEPROM is
-  saved 2 s after a recording ends; the LEDs flicker while it is saved. Fn+Ctrl+Backspace clears them along with the
-  other saved settings.
+  `via` keymap does ([top-level readme](../../../readme.md#before-you-flash)). Every flash erases them unless you
+  restore them from a backup ([below](#keeping-the-macros-across-a-flash)). The EEPROM is saved 2 s after a recording
+  ends; the LEDs flicker while it is saved. Fn+Ctrl+Backspace clears them along with the other saved settings.
 - When the recorder is idle, Rec is dark and G1–G5 stay lit at the key LEDs' brightness.
+
+### Keeping the macros across a flash
+
+Before flashing a new image, back up the EEPROM from your current `macro` keymap:
+
+```
+python3 -I util/evision_flash.py backup-settings k580_macros.bin --send
+```
+
+The output file is only written if two reads of the EEPROM match.
+
+So long as the new firmware uses the same store layout, you can specify the backup file with the `--settings`
+argument when flashing a new `macro` keymap image:
+
+```
+python3 -I util/evision_flash.py flash redragon_k580_macro.bin --settings k580_macros.bin --expect 5244:0580 --send
+```
 
 ## Lighting
 
