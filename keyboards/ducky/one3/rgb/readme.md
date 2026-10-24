@@ -13,7 +13,7 @@ Make example for this keyboard (after setting up your build environment):
 Flashing example for this keyboard, with the board in its bootloader (USB `0416:3f00`) and
 [nu-isp-cli](https://crates.io/crates/nu-isp-cli) installed:
 
-    nu-isp-cli 0416:3f00 flash ducky_one3_rgb_default.bin
+    make ducky/one3/rgb:default:flash
 
 See the [build environment setup](https://docs.qmk.fm/#/getting_started_build_tools) and the [make instructions](https://docs.qmk.fm/#/getting_started_make_guide) for more information. Brand new to QMK? Start with our [Complete Newbs Guide](https://docs.qmk.fm/#/newbs).
 
@@ -35,7 +35,7 @@ The four switches on the underside are read live and keep their stock functions:
 |---|---|---|
 | 1 | Fn + Left Win toggles the Win-key lock | Win-key lock disabled |
 | 2 | NKRO | 6-key rollover |
-| 3 | unused (stock: USB vendor ID) | unused |
+| 3 | unused (stock: USB ID 3233:1311) | unused (stock: a VID:PID set from the keyboard) |
 | 4 | Right Win is Win | Right Win sends Menu |
 
 ## Fn layer (default keymap)

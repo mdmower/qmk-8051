@@ -12,3 +12,6 @@ EEPROM_DRIVER = wear_leveling
 WEAR_LEVELING_DRIVER = custom
 
 SRC += mbi5042.c fmc.c dip.c
+
+# `qmk flash` with the board in its bootloader (QK_BOOT or D+L); needs nu-isp-cli and access to 0416:3f00
+PROGRAM_CMD = nu-isp-cli 0416:3f00 flash $(BUILD_DIR)/$(TARGET).bin

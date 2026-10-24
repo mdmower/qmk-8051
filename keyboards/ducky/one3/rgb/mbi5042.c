@@ -18,7 +18,10 @@ static volatile uint32_t *const led_row[8] = {
 };
 static const pin_t led_row_pin[8] = {C6, C5, D7, D15, D14, D13, D12, F2};
 
-// fb.px[row][channel][chip]; chip 0 is shifted last (nearest the MCU)
+// Full-scale 16-bit MBI5042 PWM word; stock's top brightness level (defaults routine 0x9614)
+#define PWM_MAX 0xFFFF
+
+// fb.px[row][channel][chip]; chip 0 is shifted last (nearest the MCU). Chips 0, 1, 2 drive red, green, blue.
 // fb: shown by the TMR1 ISR. back: RGB Matrix draws here, and mbi_flush() publishes finished frames into fb.
 // Drawing straight into fb let the ISR show half-drawn frames (e.g. Solid Color's cyan before an indicator
 // hook repaints a key red: flicker). The word view lets the flush copy fast without aliasing tricks.
@@ -129,15 +132,15 @@ static void mbi_init(void) {
 }
 
 static inline uint16_t pwm(uint8_t v) {
-    return (uint32_t)v * v * DUCKY_PWM_MAX / (255u * 255u);
+    return (uint32_t)v * v * PWM_MAX / (255u * 255u);
 }
 
 static void mbi_set_color(int index, uint8_t r, uint8_t g, uint8_t b) {
-    uint8_t   hw     = led_hw[index];
-    uint16_t *px     = back.px[hw >> 4][hw & 15];
-    px[DUCKY_CHIP_R] = pwm(r);
-    px[DUCKY_CHIP_G] = pwm(g);
-    px[DUCKY_CHIP_B] = pwm(b);
+    uint8_t   hw = led_hw[index];
+    uint16_t *px = back.px[hw >> 4][hw & 15];
+    px[0]        = pwm(r);
+    px[1]        = pwm(g);
+    px[2]        = pwm(b);
 }
 
 static void mbi_set_color_all(uint8_t r, uint8_t g, uint8_t b) {
@@ -172,7 +175,7 @@ const rgb_matrix_driver_t rgb_matrix_driver = {
 static bool asleep; // host suspended: indicators dark too (RGB matrix sleeps via RGB_MATRIX_SLEEP)
 
 static void indicator(uint8_t ch, bool on) {
-    uint16_t v      = on && !asleep ? DUCKY_PWM_MAX : 0;
+    uint16_t v      = on && !asleep ? PWM_MAX : 0;
     fb.px[7][ch][0] = fb.px[7][ch][1] = fb.px[7][ch][2] = v;
 }
 
