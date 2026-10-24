@@ -7,6 +7,9 @@
 #define NUC126SG4AE
 #define BOARD_NAME "Ducky One 3 RGB (NUC1261SG4AE)"
 
+/* No HXT crystal on this board. */
+#define NUC126_HSECLK 0U
+
 #if !defined(_FROM_ASM_)
 void boardInit(void);
 #endif
