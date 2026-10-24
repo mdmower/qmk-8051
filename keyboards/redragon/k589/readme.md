@@ -1,112 +1,114 @@
 # Redragon K589RGB
 
-QMK for the Redragon K589 Shrapnel RGB (low profile), board K589RGB, with an Evision VS11K28A MCU, an 8051 in the
-WCH CH555 family. Firmware is flashed through the keyboard's own Evision bootloader, which is left in place.
+Some revisions of the Redragon K589RGB (K589 Shrapnel RGB, low profile) use an Evision VS11K28A MCU, an 8051 microcontroller in the WCH CH555 family. QMK is flashed through the stock bootloader, which is left in place.
 
-* Keyboard Maintainer: [mdmower](https://github.com/mdmower)
-* Hardware Supported: Redragon K589RGB with an Evision VS11K28A MCU
-* State: **not run on a keyboard yet.** The key matrix, LED layout and indicators come from the stock firmware V0107,
-  the updater in Redragon's K589RGB download, and the firmware has been tested only in a simulator. The updater's
-  name lists other boards, but not the K589's board (8409).
+- Maintainer: [mdmower](https://github.com/mdmower)
+- Status: Untested
 
-Backup, flashing, restore, the `via` keymap and the risks of flashing are all covered in the
-[top-level readme](../../../readme.md#before-you-flash). Make the backup before your first flash: it reads the flash
-through the stock firmware, which flashing erases.
+Procedures for backing up the stock firmware, building and flashing QMK, and restoring the stock firmware (if needed) are as described in the [top-level readme](../../../readme.md#getting-started).
 
-## Check the keyboard first
+## Keyboard verification
 
-- With the stock firmware, the keyboard enumerates as `320f:5000`. You can confirm this with
-  `python3 -I util/evision_flash.py status`. The updater's firmware reports bcdDevice 0x0107 (V0107). Other Redragon
-  keyboards report the same ID, so also check that yours is a K589RGB.
-- If the keyboard reports a bcdDevice other than 0x0107, it is running a different firmware from V0107, which this
-  keyboard definition is based on, and its matrix or LEDs may differ.
+- This fork of QMK only supports the Evision VS11K28A revision of the Redragon K589. Other revisions of the K589 may exist with a Sonix MCU; those revisions are not supported by this fork. Make sure your K589RGB has USB VID:PID `320f:5000` before continuing:
+    ```sh
+    python -I util/evision_flash.py status
+    ```
 - The backup prints whether the boot marker `AA 55 33 CC` is at 0x27C0. If it is not, do not flash.
 
-## Build and flash
+## Quick start
 
+See the [top-level readme](../../../readme.md#getting-started) for complete instructions. The short version is:
+
+```sh
+# Build default image
+python -I util/ch555_build.py redragon/k589
+
+# Reboot from stock to bootloader
+python -I util/evision_flash.py enter --send
+
+# Flash QMK
+python -I util/evision_flash.py flash redragon_k589_default.bin --expect 5244:0589 --send
 ```
-python3 -I util/ch555_build.py redragon/k589      # or: qmk compile -kb redragon/k589 -km default
-python3 -I util/evision_flash.py enter --send     # from the stock firmware; from QMK: Fn+Esc
-python3 -I util/evision_flash.py flash redragon_k589_default.bin --expect 5244:0589 --send
-```
 
-## Entering the bootloader
+## Getting to the bootloader
 
-You can enter the Evision bootloader (`0c45:7687`) in any of these ways:
+You can reach the Evision bootloader (USB VID:PID `0c45:7687`) by:
 
-* Press Fn+Esc (`QK_BOOT` on layer 1).
-* Hold Esc while plugging in the keyboard. This check runs before QMK starts, so it works even when a QMK build does
-  not start.
-* With the stock firmware, run `python3 -I util/evision_flash.py enter --send`.
+- Pressing Fn+Esc while QMK is running
+- Holding Esc while plugging in the keyboard
+- Running `python -I util/evision_flash.py enter --send` while the stock firmware is running
 
-The keyboard stays in the bootloader until a flash completes, even across a replug.
+The keyboard remains at the bootloader until a flash completes, even if you replug the USB cable.
 
 ## Default keymap
 
-- Layer 0: the printed ANSI layout (QMK layout `fullsize_ansi`).
+- Layer 0: Matches the printed ANSI layout on stock keycaps (QMK layout `fullsize_ansi`).
 - Layer 1 (Fn):
-  - Fn+Esc enters the bootloader (`QK_BOOT`).
-  - Fn+F1–F12 send the functions printed on the keycaps: media player, volume down, volume up, mute, stop, previous,
-    play/pause, next, mail, browser home, calculator and search.
-  - Fn+Win toggles Win Lock, which blocks the Win key; Win Lock is off after power-up.
-  - Fn+Ctrl+Backspace clears the saved settings and then restarts the keyboard (see
-    [Clearing the saved settings](../../../readme.md#clearing-the-saved-settings)).
-- Indicators above the numpad: Num Lock, Caps Lock and Scroll Lock, lit by the host's lock state even while the key
-  LEDs are off. The K589 has no Win Lock LED.
+    - Fn+Esc enters the bootloader (`QK_BOOT`).
+    - Fn+F1–F12 match the functions printed on the keycaps: Fn+F1→media player, Fn+F2→volume down, Fn+F3→volume up, Fn+F4→mute, Fn+F5→stop, Fn+F6→previous, Fn+F7→play/pause, Fn+F8→next, Fn+F9→mail, Fn+F10→browser home, Fn+F11→calculator, and Fn+F12→search.
+    - Fn+Win toggles Win Lock, which blocks the Win key.
+    - Fn+Ctrl+Backspace clears saved settings and then restarts the keyboard, see [Clearing saved settings](../../../readme.md#clearing-saved-settings).
+- Num Lock, Caps Lock, and Scroll Lock LEDs above the numpad. They light even while the key LEDs are off. All LEDs turn off while the host is suspended. The K589 has no Win Lock LED.
 
-## VIA keymap
+## VIA keymap (`via`)
 
-The default keymap running under VIA ([top-level readme](../../../readme.md#keymaps-default-and-via)). VIA definition:
-[keymaps/via/redragon_k589_via.json](keymaps/via/redragon_k589_via.json). About 1330 bytes of the EEPROM are left for
-macros.
+The VIA keymap uses the same layers as the default keymap. About 1330 bytes of the EEPROM are available for macros. The LEDs blink briefly when settings are saved.
+
+VIA definition: [keymaps/via/redragon_k589_via.json](keymaps/via/redragon_k589_via.json).
+
+**VIA settings are stored in code flash. They are overwritten (reset) whenever you flash a new image. Be sure to save your customizations using VIA's save/load feature before flashing a new image!**
 
 ## Lighting
 
-Lighting changes are saved 3 seconds after the last change and survive power loss; the LEDs blink briefly when a
-save happens. The controls and modes are listed below.
+Lighting changes are saved 3 seconds after the last change and are stored in a dedicated data flash region that survives (is not erased) when flashing new images.
 
-| Setting | Next step | Previous step |
-|---|---|---|
-| Mode | Fn+Ins | Fn+Shift+Ins |
-| Color | Fn+Home | Fn+Shift+Home |
-| Saturation | Fn+PgUp | Fn+Shift+PgUp |
-| Brightness | Fn+Del | Fn+Shift+Del |
-| Speed | Fn+End | Fn+Shift+End |
-| On/off | Fn+PgDn | |
+| Setting    | Next step | Previous step |
+| ---------- | --------- | ------------- |
+| Mode       | Fn+Ins    | Fn+Shift+Ins  |
+| Color      | Fn+Home   | Fn+Shift+Home |
+| Saturation | Fn+PgUp   | Fn+Shift+PgUp |
+| Brightness | Fn+Del    | Fn+Shift+Del  |
+| Speed      | Fn+End    | Fn+Shift+End  |
+| On/off     | Fn+PgDn   |               |
 
-| # | Mode | What it does |
-|---|---|---|
-| 1 | Static | One color on all keys |
-| 2 | Rainbow | A static rainbow from left to right |
-| 3 | Reversed rainbow | A static rainbow from right to left |
-| 4 | Wave | A rainbow that moves from left to right |
-| 5 | Reversed wave | A rainbow that moves from right to left |
-| 6 | Color cycle | All keys cycle through colors together |
-| 7 | Breathing | All keys fade in and out together |
-| 8 | Rainbow rows | A static color for each row of keys |
-| 9 | Wave rows | A rainbow of one color per row of keys that moves from top to bottom |
-| 10 | Chevron | A rainbow that moves from left to right in a chevron (>) shape |
-| 11 | Out-in | A rainbow that moves from the left and right edges toward the middle |
-| 12 | Raindrops | One color on all keys; random keys change to a nearby color and keep it |
-| 13 | Reactive | Keys illuminate when pressed and then fade |
-| 14 | Heatmap | Keys illuminate when pressed and the color temperature indicates frequency |
+| #   | Mode             | What it does                                                               |
+| --- | ---------------- | -------------------------------------------------------------------------- |
+| 1   | Static           | One color on all keys                                                      |
+| 2   | Rainbow          | A static rainbow from left to right                                        |
+| 3   | Reversed rainbow | A static rainbow from right to left                                        |
+| 4   | Wave             | A rainbow that moves from left to right                                    |
+| 5   | Reversed wave    | A rainbow that moves from right to left                                    |
+| 6   | Color cycle      | All keys cycle through colors together                                     |
+| 7   | Breathing        | All keys fade in and out together                                          |
+| 8   | Rainbow rows     | A static color for each row of keys                                        |
+| 9   | Wave rows        | A rainbow of one color per row of keys that moves from top to bottom       |
+| 10  | Chevron          | A rainbow that moves from left to right in a chevron (>) shape             |
+| 11  | Out-in           | A rainbow that moves from the left and right edges toward the middle       |
+| 12  | Raindrops        | One color on all keys; random keys change to a nearby color and keep it    |
+| 13  | Reactive         | Keys illuminate when pressed and then fade                                 |
+| 14  | Heatmap          | Keys illuminate when pressed and the color temperature indicates frequency |
 
 ## Flash space
 
-The application region (0x2800–0xEFBF) has about 23.4 KB free with the `default` keymap, and about 10.5 KB below the
-store with the `via` keymap. The features turned off for flash space are listed in [config.h](config.h) and
-[rules.mk](rules.mk).
+Remaining free space in the application region (0x2800–0xEFBF) for each keymap:
+
+- `default`: 23.4 KB
+- `via`: 10.5 KB before the code flash store
+
+The code flash store starts at 0xDF40 in the `via` keymap. Features that have been turned off to save space are listed in [config.h](config.h) and [rules.mk](rules.mk).
 
 ## Hardware
 
-From the stock firmware V0107 (static analysis):
+From static analysis of the stock firmware V0107:
 
-- Key matrix: 7 rows × 16 columns. Rows P4.0–P4.6; columns P0.0–P0.7, P3.0–P3.7. The numpad is in row 6, except
-  numpad 1 at (4, 15). The stock key table also has ISO, ABNT2 and JIS positions (left of Z (4, 1), ISO # (3, 12),
-  ABNT2 /? (4, 12), numpad comma (7, 15), JIS keys in rows 5 and 7); only the ANSI layout is defined here.
-- LEDs: the CH555 LED controller, with red, green and blue rows on P4, P2 and P1 and common lines on P0 and P3,
-  shared with the key matrix. LED row n on common line c is the LED of the key in matrix row n, column c. LED row 7
-  is Num Lock (common line 8, green) plus Caps Lock, Win Lock and Scroll Lock (common line 9: red, green and blue).
-  The K589 has no Win Lock LED; the firmware sets it anyway.
-- No GPIO indicators, roller or side lights; nothing on P5 or P7.
-- The stock firmware runs at 32 MHz, as this firmware does.
+- Key matrix: 7 rows × 16 columns. Rows P4.0–P4.6; columns P0.0–P0.7, P3.0–P3.7.
+    - The numpad is in row 6, except numpad 1 at (4, 15).
+    - The stock key table also has ISO, ABNT2, and JIS positions (left of Z (4, 1), ISO # (3, 12), ABNT2 /? (4, 12), numpad comma (7, 15), JIS keys in rows 5 and 7); only the ANSI layout is defined here.
+- LEDs: the CH555 LED controller.
+    - Red, green, and blue rows on P4, P2, and P1; common lines on P0 and P3, shared with the key matrix.
+    - LED row n on common line c is the LED of the key in matrix row n, column c.
+    - LED row 7 is Num Lock (common line 8, green) plus Caps Lock, Win Lock, and Scroll Lock (common line 9: red, green, and blue).
+    - The K589 has no Win Lock LED; the firmware sets it anyway.
+    - The keys are read in the LED controller's interrupt, on each common line ([led_dma.c](../common/led_dma.c)).
+- No GPIO indicators, roller, or side lights; nothing on P5 or P7.
+- The stock firmware runs at 32 MHz.
