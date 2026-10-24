@@ -186,7 +186,26 @@ bool led_update_kb(led_t s) {
     return res;
 }
 
+// USB suspend, as stock does: stop the refresh and GCLK, drive the chain inputs and rows low, LED power off.
+static void mbi_off(void) {
+    TIMER1->CTL &= ~TIMER_CTL_CNTEN_Msk;
+    TIMER1->INTSTS = TIMER_INTSTS_TIF_Msk;
+    NVIC_ClearPendingIRQ(TMR1_IRQn);
+    PWM0->POEN &= ~0x2ul;
+    SDI = 0;
+    for (int i = 0; i < 8; i++)
+        *led_row[i] = 0;
+    LED_PWR = 1;
+}
+
+static void mbi_on(void) {
+    PWM0->POEN |= 0x2;
+    TIMER1->CTL |= TIMER_CTL_CNTEN_Msk;
+    LED_PWR = 0;
+}
+
 void suspend_power_down_kb(void) {
+    if (!asleep) mbi_off();
     asleep = true;
     for (uint8_t ch = 4; ch < 8; ch++)
         indicator(ch, false);
@@ -194,6 +213,7 @@ void suspend_power_down_kb(void) {
 }
 
 void suspend_wakeup_init_kb(void) {
+    if (asleep) mbi_on();
     asleep = false;
     led_update_kb(host_keyboard_led_state());
     suspend_wakeup_init_user();
