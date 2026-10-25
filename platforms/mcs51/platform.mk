@@ -26,8 +26,23 @@ ifneq ($(strip $(MCS51_CODE_LOC)),)
     MCUFLAGS += --code-loc $(MCS51_CODE_LOC)
 endif
 
-# The MCU's GPIO, clock, delays, chip ID, reset and print output (mcs51_mcu.h)
-include $(MCS51_MCU_PATH)/mcs51_mcu.mk
+# MCU support: vendors/$(MCU_FAMILY)/$(MCU_SERIES).mk, or $(MCU_FAMILY).mk when one file serves the family. It
+# compiles the MCU's GPIO, clock, delay, chip ID and reset code (the interface is mcs51_mcu.h).
+ifneq ("$(wildcard $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/$(MCU_SERIES).mk)","")
+    include $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/$(MCU_SERIES).mk
+else ifneq ("$(wildcard $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/$(MCU_FAMILY).mk)","")
+    include $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/$(MCU_FAMILY).mk
+else
+    $(call CATASTROPHIC_ERROR,Unsupported MCU,No vendors/$(MCU_FAMILY)/$(MCU_SERIES).mk or $(MCU_FAMILY).mk in $(PLATFORM_COMMON_DIR))
+endif
+
+# config.h files of the MCU series and family, included after the keyboard's and the keymap's config.h
+ifneq ("$(wildcard $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/$(MCU_SERIES)/config.h)","")
+    CONFIG_H += $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/$(MCU_SERIES)/config.h
+endif
+ifneq ("$(wildcard $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/config.h)","")
+    CONFIG_H += $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/config.h
+endif
 
 # warning  85: unreferenced function argument
 # warning 115: unsupported pragma

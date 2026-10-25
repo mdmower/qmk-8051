@@ -26,7 +26,7 @@
  * Redragon K580 stock firmware does for its "04 EE EE" command. The bootloader rewrites
  * the marker after a successful flash. Nothing else below 0x2800 is written.
  *
- * mcu_reset() (the MCU library) starts the CPU at 0x0000, the Evision OEM bootloader.
+ * mcu_reset() (platforms/mcs51/vendors) starts the CPU at 0x0000, the Evision OEM bootloader.
  * That bootloader has no timeout: the board stays in it, across replugs, until a flash
  * completes. If the erase fails, the reset starts the app again.
  */

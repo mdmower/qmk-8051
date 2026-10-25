@@ -45,8 +45,6 @@ void CfgFsys(void);                                           //CH555 clock sele
 void mDelayuS(UINT16 n);                                      //delay in us
 void mDelaymS(UINT16 n);                                      //delay in ms
 
-void mcu_reset(void);                                         //software reset
-
 #ifdef UART0_PRINTF
 void mInitSTDIO(void);                                        //UART0 init, Timer1 as the baud rate generator
 void CH555UART0Alter(void);                                   //UART0 pins mapped to P0.2/P0.3
