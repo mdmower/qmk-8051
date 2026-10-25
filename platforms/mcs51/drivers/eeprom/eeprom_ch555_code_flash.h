@@ -16,7 +16,7 @@
  * or EEPROM_SIZE is not valid. A flash image written by the bootloader erases the store.
  *
  * Code-flash writes need bCODE_WE, which enables writes to all of code flash, the bootloader included.
- * Only eeprom_code_flash.c sets it, for one erase or program of one store page; the page number is
+ * Only eeprom_ch555_code_flash.c sets it, for one erase or program of one store page; the page number is
  * checked against the store size, and the address in ROM_ADDR against the store bounds again after
  * write enable, right before the command. The build keeps code below the store (CODE_SIZE).
  */

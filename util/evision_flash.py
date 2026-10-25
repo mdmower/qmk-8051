@@ -558,7 +558,7 @@ def do_backup_settings(a):
                                                         hashlib.sha256(first).hexdigest()))
 
 def store_sum(data):
-    """Sum of a slot's data as eeprom_code_flash.c computes it: rotate left by 1, then add, 16 bits."""
+    """Sum of a slot's data as eeprom_ch555_code_flash.c computes it: rotate left by 1, then add, 16 bits."""
     s = 0
     for b in data:
         s = ((s << 1 | s >> 15) + b) & 0xffff

@@ -4,7 +4,7 @@
 #include "led_dma.h"
 #include "flash_store.h"
 #ifdef CH555_EEPROM_CODE_FLASH
-#    include "eeprom_code_flash.h"
+#    include "eeprom_ch555_code_flash.h"
 #endif
 #ifdef REDRAGON_STORE_COMMANDS
 #    if !defined(CH555_EEPROM_CODE_FLASH) || !defined(RAW_ENABLE) || defined(VIA_ENABLE)

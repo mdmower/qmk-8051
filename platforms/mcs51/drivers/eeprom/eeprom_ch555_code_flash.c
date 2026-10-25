@@ -4,9 +4,10 @@
 #include "ch555.h"
 #include "eeprom_driver.h"
 #include "timer.h"
-#include "eeprom_code_flash.h"
+#include "eeprom_ch555_code_flash.h"
 
-/* Set by ch555.mk: the store occupies [CH555_EEPROM_CODE_FLASH_ADDR, CH555_EEPROM_CODE_FLASH_END). */
+/* Set by platforms/mcs51/vendors/WCH/CH555.mk: the store occupies
+ * [CH555_EEPROM_CODE_FLASH_ADDR, CH555_EEPROM_CODE_FLASH_END). */
 #if !defined(EEPROM_SIZE) || !defined(CH555_EEPROM_CODE_FLASH_ADDR) || !defined(CH555_EEPROM_CODE_FLASH_END) || !defined(CH555_EEPROM_CODE_FLASH_XRAM)
 #    error "EEPROM_SIZE, CH555_EEPROM_CODE_FLASH_ADDR, _END and _XRAM come from platforms/mcs51/vendors/WCH/CH555.mk"
 #endif

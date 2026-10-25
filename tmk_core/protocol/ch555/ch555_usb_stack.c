@@ -29,7 +29,7 @@
 #include "report.h"
 #include "host.h"
 #ifdef CH555_EEPROM_CODE_FLASH
-#    include "eeprom_code_flash.h"
+#    include "eeprom_ch555_code_flash.h"
 #endif
 #include "host_driver.h"
 #include "keyboard.h"
