@@ -21,15 +21,9 @@
 // Follow AVR port naming convention, P0 ~ PA, P1 ~ PB, ...
 #define PORT_SHIFTER 3
 
-// CH555: P6 (P6.0/P6.1 are the USB D-/D+ pins) is not implemented in platforms/mcs51/vendors/WCH/gpio.c.
-#if defined(QMK_MCU_CH555)
-#    define PORT0 0x0
-#    define PORT1 0x1
-#    define PORT2 0x2
-#    define PORT3 0x3
-#    define PORT4 0x4
-#    define PORT5 0x5
-#    define PORT7 0x7
+/* Include the vendor specific port list */
+#if __has_include_next("_pin_defs.h")
+#    include_next "_pin_defs.h"
 #else
 #    error "No port list for this MCU"
 #endif
