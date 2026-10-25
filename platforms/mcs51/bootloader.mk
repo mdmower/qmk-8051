@@ -1,4 +1,4 @@
-# Bootloaders of MCS-51 (CH555) keyboards; set BOOTLOADER in rules.mk or "bootloader" in keyboard.json.
+# Bootloaders of MCS-51 keyboards; set BOOTLOADER in rules.mk or "bootloader" in keyboard.json.
 #
 # ch55xbl:      the WCH factory bootloader (USB 4348:55e0) at 0xF400. The image starts at 0x0000.
 #               bootloader_jump() calls it.
@@ -9,6 +9,8 @@
 #               0x2800, the interrupt table and a check of the Esc key, row 0 on P4.0 and column 0 on P0.0).
 #               bootloader_jump() erases the boot marker and resets.
 # custom:       platforms/mcs51/bootloaders/custom.c, for a keyboard that supplies bootloader_jump().
+#
+# ch55xbl and evision-oem are bootloaders of the CH555 (MCU = ch555).
 
 ifeq ($(strip $(BOOTLOADER)), custom)
     OPT_DEFS += -DBOOTLOADER_CUSTOM
@@ -16,11 +18,17 @@ ifeq ($(strip $(BOOTLOADER)), custom)
 endif
 
 ifeq ($(strip $(BOOTLOADER)), ch55xbl)
+    ifneq ($(strip $(MCU)), ch555)
+        $(call CATASTROPHIC_ERROR,Invalid BOOTLOADER,Bootloader ch55xbl needs MCU = ch555.)
+    endif
     OPT_DEFS += -DBOOTLOADER_CH55XBL
     BOOTLOADER_TYPE = ch55xbl
 endif
 
 ifeq ($(strip $(BOOTLOADER)), evision-oem)
+    ifneq ($(strip $(MCU)), ch555)
+        $(call CATASTROPHIC_ERROR,Invalid BOOTLOADER,Bootloader evision-oem needs MCU = ch555.)
+    endif
     OPT_DEFS += -DBOOTLOADER_EVISION_OEM
     BOOTLOADER_TYPE = evision_oem
     MCS51_CODE_LOC = 0x3027

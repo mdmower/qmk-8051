@@ -36,19 +36,3 @@ void bootloader_jump(void) {
     while (1)
         ;
 }
-
-/*
- * mcu_reset()
- * -----------
- * Performs a software reset of the CH555 by writing the magic sequence
- * into SAFE_MOD to enter safe mode, then setting the bSW_RESET bit in
- * GLOBAL_CFG. Execution does not return.
- */
-void mcu_reset(void) {
-    EA       = 0;    /* disable all interrupts first */
-    SAFE_MOD = 0x55; /* enter safe mode step 1 */
-    SAFE_MOD = 0xAA; /* enter safe mode step 2 */
-    GLOBAL_CFG |= bSW_RESET; /* trigger software reset - does not return */
-    while (1)
-        ; /* should never reach here */
-}

@@ -8,7 +8,7 @@
 
 /* Set by ch555.mk: the store occupies [CH555_EEPROM_CODE_FLASH_ADDR, CH555_EEPROM_CODE_FLASH_END). */
 #if !defined(EEPROM_SIZE) || !defined(CH555_EEPROM_CODE_FLASH_ADDR) || !defined(CH555_EEPROM_CODE_FLASH_END) || !defined(CH555_EEPROM_CODE_FLASH_XRAM)
-#    error "EEPROM_SIZE, CH555_EEPROM_CODE_FLASH_ADDR, _END and _XRAM come from tmk_core/protocol/ch555/ch555.mk"
+#    error "EEPROM_SIZE, CH555_EEPROM_CODE_FLASH_ADDR, _END and _XRAM come from lib/ch555/mcs51_mcu.mk"
 #endif
 
 #ifndef CH555_EEPROM_SAVE_DELAY

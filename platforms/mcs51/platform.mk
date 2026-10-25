@@ -26,6 +26,9 @@ ifneq ($(strip $(MCS51_CODE_LOC)),)
     MCUFLAGS += --code-loc $(MCS51_CODE_LOC)
 endif
 
+# The MCU's GPIO, clock, delays, chip ID, reset and print output (mcs51_mcu.h)
+include $(MCS51_MCU_PATH)/mcs51_mcu.mk
+
 # warning  85: unreferenced function argument
 # warning 115: unsupported pragma
 # warning 190: empty translation unit

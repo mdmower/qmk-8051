@@ -1,0 +1,22 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+#pragma once
+
+/*
+ * The CH555 part of the MCS-51 platform. The platform (platforms/mcs51) includes this header, not ch555.h or
+ * hal.h. Each MCU has a header of this name in its directory (MCS51_MCU_PATH, platforms/mcs51/mcu_selection.mk)
+ * that provides:
+ *   - the standard 8051 SFRs and bits (TMOD, TH0, TL0, TR0, ET0, EA) and INT_NO_TMR0;
+ *   - MCS51_TIMER0_INIT(): selects the Timer0 clock; MCS51_TIMER0_HZ: the Timer0 count rate;
+ *   - mcs51_delay_us(n), mcs51_delay_ms(n): waits of at least n us or n ms, n up to 65535.
+ * The directory's mcs51_mcu.mk compiles the MCU's gpio.c (platforms/mcs51/gpio.h), get_hardware_id(),
+ * mcu_reset() and putchar() (print output).
+ */
+
+#include "hal.h"
+
+/* Timer0 at Fsys/12 (bT0_CLK = 0): 2000 counts per ms at 24 MHz, 2666.67 at 32 MHz */
+#define MCS51_TIMER0_INIT() (T2MOD &= ~bT0_CLK)
+#define MCS51_TIMER0_HZ (F_CPU / 12)
+
+#define mcs51_delay_us(n) mDelayuS(n)
+#define mcs51_delay_ms(n) mDelaymS(n)

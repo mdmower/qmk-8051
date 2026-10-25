@@ -15,11 +15,11 @@
  */
 #pragma once
 
-#include "hal.h"
+#include "mcs51_mcu.h"
 
 /* at least ms milliseconds or us microseconds, up to 65535 */
-#define wait_ms(ms) mDelaymS(ms)
-#define wait_us(us) mDelayuS(us)
+#define wait_ms(ms) mcs51_delay_ms(ms)
+#define wait_us(us) mcs51_delay_us(us)
 #define wait_cpuclock(n)                    \
     do {                                    \
         for (uint16_t i = n; i > 0; i--) {  \
@@ -28,7 +28,7 @@
     } while (0)
 #define CPU_CLOCK F_CPU
 
-/* Delay before a pin is read after a change (quantum/matrix_common.c). The CH55x value is not known: two
+/* Delay before a pin is read after a change (quantum/matrix_common.c). The MCS-51 value is not known: two
  * passes of wait_cpuclock(), as AVR waits two clocks. */
 #ifndef GPIO_INPUT_PIN_DELAY
 #    define GPIO_INPUT_PIN_DELAY 2

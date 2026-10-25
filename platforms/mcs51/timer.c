@@ -23,14 +23,13 @@ volatile uint32_t timer_count;
 
 /** \brief timer initialization */
 void timer_init(void) {
-    // Set Timer0 clock = F_CPU/12
-    T2MOD &= ~bT0_CLK;
+    MCS51_TIMER0_INIT();
 
     // Set Timer 0 mode 1 - 16bit no auto reload 
     TMOD = TMOD & 0xf0 | 0x01; //keep 4 MSB, set 4 LSB to value 1
 
-    // Counts per 1 ms tick at F_CPU/12: 2000 at 24 MHz; 2666 at 32 MHz (2666.67 truncated, tick 0.025% short)
-    setTimer0Mode1Val(F_CPU/12/1000);
+    // Counts per 1 ms tick, truncated (2666 for 2666.67 on a CH555 at 32 MHz: tick 0.025% short)
+    setTimer0Mode1Val(MCS51_TIMER0_HZ/1000);
 
     // Let timer0 run:
     TR0 = 1;
@@ -74,7 +73,7 @@ inline uint32_t timer_read32(void) {
 #pragma save
 #pragma nooverlay
 MCS51_ISR(Timer0_ISR, INT_NO_TMR0) {
-    setTimer0Mode1Val(F_CPU/12/1000);
+    setTimer0Mode1Val(MCS51_TIMER0_HZ/1000);
     timer_count++;
 }
 #pragma restore

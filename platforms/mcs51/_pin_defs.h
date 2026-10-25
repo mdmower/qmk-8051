@@ -30,6 +30,8 @@
 #    define PORT4 0x4
 #    define PORT5 0x5
 #    define PORT7 0x7
+#else
+#    error "No port list for this MCU"
 #endif
 
 extern __code const uint8_t pin_to_pinmask[];

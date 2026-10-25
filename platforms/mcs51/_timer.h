@@ -16,7 +16,7 @@
 #pragma once
 
 #include "atomic_util.h"
-#include "hal.h" 
+#include "mcs51_mcu.h"
 
 // The platform is 8-bit, so prefer 16-bit timers to reduce code size
 #define FAST_TIMER_T_SIZE 16

@@ -1,5 +1,7 @@
 ifneq (,$(filter $(MCU),ch555))
   PROTOCOL = CH555
+  # The MCU part of the platform: mcs51_mcu.h and mcs51_mcu.mk (platform.mk)
+  MCS51_MCU_PATH = $(LIB_PATH)/ch555
 
   # LUFA's architecture macro (tmk_core/protocol/ch555/ch555.mk), for the LUFA headers that the USB descriptors use
   ARCH = MCS51

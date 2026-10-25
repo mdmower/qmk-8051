@@ -2,7 +2,7 @@
 #pragma once
 
 /*
- * MCS51_ISR(name, num) { ... } defines the handler of interrupt num (INT_NO_* in ch555.h). The declaration
+ * MCS51_ISR(name, num) { ... } defines the handler of interrupt num (INT_NO_* in the MCU header, mcs51_mcu.h). The declaration
  * that main.c sees stays `void name(void) __interrupt(num);`, so that SDCC puts the handler in its vector table.
  *
  * Without the Evision OEM bootloader (BOOTLOADER_EVISION_OEM) the image starts at 0x0000 and the vectors jump
