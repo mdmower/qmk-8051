@@ -15,6 +15,8 @@
  */
 
 #include "platform_deps.h"
+#include "mcs51_mcu.h"
 
-/* The clock is set in protocol_setup() (CfgFsys(), ch555_usb_stack.c), as LUFA sets the AVR clock prescaler there. */
-void platform_setup(void) {}
+void platform_setup(void) {
+    mcs51_clock_init();
+}

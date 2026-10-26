@@ -40,7 +40,7 @@
 
 #include "usb_descriptor.h"
 #include "ch555_usb_stack.h"
-#include "hal.h"        // CfgFsys()
+#include "hal.h"        // mInitSTDIO()
 #include "usb_device.h" // USB device and endpoint registers, endpoint buffers
 #include "usb_device_state.h"
 
@@ -410,7 +410,6 @@ void send_digitizer(report_digitizer_t *report) {
  * main
  ******************************************************************************/
 static void setup_mcu(void) {
-    CfgFsys();
 #ifndef NO_PRINT
     mInitSTDIO();
 #endif
