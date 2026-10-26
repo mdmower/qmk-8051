@@ -1,3 +1,2 @@
-# QMK's EEPROM (settings and the G1-G5 macros) in code flash below 0xEFC0
-# (platforms/mcs51/drivers/eeprom/eeprom_ch555_code_flash.h)
+# QMK's EEPROM (the settings and the G1-G5 macros) in code flash; the keyboard's default is transient
 EEPROM_DRIVER = vendor

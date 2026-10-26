@@ -17,5 +17,5 @@
 
 #include <stdio.h>
 
-// SDCC's printf() writes through putchar() (the MCU's UART, mcs51_mcu.h)
+// SDCC's printf() writes through putchar(), the MCU's UART (mcs51_mcu.h)
 #define print_printf printf

@@ -1,16 +1,10 @@
 # Bootloaders of MCS-51 keyboards; set BOOTLOADER in rules.mk or "bootloader" in keyboard.json.
 #
-# ch55xbl:      the WCH factory bootloader (USB 4348:55e0) at 0xF400. The image starts at 0x0000.
-#               bootloader_jump() calls it.
-# evision-oem:  the Evision OEM bootloader (USB 0c45:7687) of the Redragon K580 and other boards with an Evision
-#               VS11K33A. It occupies 0x0000-0x27FF and starts the app at 0x2800 while its boot marker
-#               (AA 55 33 CC at 0x27C0) is present; it forwards every interrupt to a table at 0x3000. The app is
-#               linked at 0x3027, and util/evision_oem_image.py makes the image based at 0x2800 (the LJMP at
-#               0x2800, the interrupt table and a check of the Esc key, row 0 on P4.0 and column 0 on P0.0).
-#               bootloader_jump() erases the boot marker and resets.
-# custom:       platforms/mcs51/bootloaders/custom.c, for a keyboard that supplies bootloader_jump().
+# Current options for the CH555 (MCU = ch555):
+#     ch55xbl      WCH factory bootloader (USB 4348:55e0) in ROM at 0xF400; the image starts at 0x0000
+#     evision-oem  Evision OEM bootloader (USB 0c45:7687) at 0x0000-0x27FF; the image starts at 0x2800
 #
-# ch55xbl and evision-oem are bootloaders of the CH555 (MCU = ch555).
+# BOOTLOADER = custom: the keyboard supplies bootloader_jump() (bootloaders/custom.c).
 
 ifeq ($(strip $(BOOTLOADER)), custom)
     OPT_DEFS += -DBOOTLOADER_CUSTOM

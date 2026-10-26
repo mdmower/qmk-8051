@@ -16,8 +16,8 @@
 #include "usb_util.h"
 #include "usb_device.h"
 
-/* QMK calls usb_disconnect() and usb_connected_state() only for split keyboards (quantum/split_common), which have
- * no transport driver on MCS51. */
+/* QMK calls usb_disconnect() and usb_connected_state() only for split keyboards, which have no transport driver
+ * on MCS51. */
 void usb_disconnect(void) {}
 
 /* Configured: SET_CONFIGURATION with a nonzero value (ChibiOS: USB_ACTIVE) */

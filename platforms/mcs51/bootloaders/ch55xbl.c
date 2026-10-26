@@ -19,11 +19,8 @@
 #include "ch555.h"
 
 /*
- * bootloader_jump()
- * -----------------
- * Disables USB and all interrupts, waits for the host to detect the
- * disconnect, then jumps to the WCH factory bootloader at BOOT_LOAD_ADDR
- * (0xF400 on the CH555).
+ * Disables USB and all interrupts, waits for the host to detect the disconnect, then jumps to the WCH factory
+ * bootloader at BOOT_LOAD_ADDR (0xF400 on the CH555).
  */
 void bootloader_jump(void) {
     USB_CTRL = 0;

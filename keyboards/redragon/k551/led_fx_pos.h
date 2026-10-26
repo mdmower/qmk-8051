@@ -2,15 +2,15 @@
 
 #pragma once
 
-/* LED positions of the K551 for the lighting effects (keyboards/redragon/common/led_fx.c, which includes this). */
+/* LED positions of the K551 for the lighting effects (led_fx.c includes this file). */
 
 /*
- * Position of each LED, 0-191, by buffer slot (COM * 8 + group), from tools/led_fx_pos.py: key center x on the
+ * Position of each LED, 0-191, by buffer slot (COM * 8 + group): key center x on the
  * 22.5-unit-wide full-size layout (keyboard.json), so position grows from left to right. The key at matrix
  * position (row, col) has its LED at slot col * 8 + row (stock V0107 tables @0x30a7 and @0x3241).
  * Also: the ISO key left of Z (slot 12) and ISO # (slot 99) at their ISO positions, the ABNT2 key left of Right
  * Shift (slot 100) and numpad comma (slot 127) at their ABNT2 positions. LED_FX_SKIP: the lock indicators (slots
- * 0x47 and 0x4F), driven by keyboards/redragon/common/redragon_ch555.c.
+ * 0x47 and 0x4F), driven by redragon_ch555.c.
  */
 static __code const uint8_t led_pos[LED_DMA_COMS * LED_DMA_GROUPS] = {
     // clang-format off
@@ -34,7 +34,7 @@ static __code const uint8_t led_pos[LED_DMA_COMS * LED_DMA_GROUPS] = {
 };
 
 /*
- * Key row of each LED, 0-5 (0: the Esc row), by buffer slot, from tools/led_fx_pos.py --rows: the row of the key's
+ * Key row of each LED, 0-5 (0: the Esc row), by buffer slot: the row of the key's
  * top edge in the layout (keyboard.json); numpad comma (slot 127) in the row below numpad +, as on ABNT2 boards.
  * Slots without a key: their group.
  */

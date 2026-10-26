@@ -129,7 +129,7 @@ void redragon_led_update(led_t led_state) {
 
 #ifdef REDRAGON_STORE_COMMANDS
 /*
- * Raw HID: read-only access to the EEPROM, for a backup (util/evision_flash.py backup-settings).
+ * Raw HID: read-only access to the EEPROM, for a backup (the backup-settings command of evision_flash.py).
  * Replies are 32 bytes, byte 0 the command.
  * STORE_INFO: reply bytes 1 format (1), 2-3 EEPROM_SIZE, 4-5 the store's code-flash address, 6-7
  * CH555_EEPROM_LAYOUT (16-bit values little-endian), the rest 0.

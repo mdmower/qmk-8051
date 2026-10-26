@@ -2,11 +2,10 @@
 ##############################################################################
 # MCS-51 (8051) with SDCC.
 #
-# $(CC) is sdcc_cc.py, a GCC-style driver for SDCC: QMK's compile and link rules (builddefs/common_rules.mk) call
-# it as they call GCC. It resolves weak symbols at the link (clang lists them) and stops at constructs that SDCC
-# compiles to wrong code (clang-query); the QMK core is edited where SDCC does not take its C. The link writes
-# $(TARGET).ihx and converts it to $(TARGET).elf, from which the .hex and .bin rules make the firmware. Needs
-# clang, clang-query and llvm-nm besides SDCC.
+# $(CC) is sdcc_cc.py: a driver that accepts GCC's options and runs SDCC, so that QMK's compile and link rules
+# work unchanged. It resolves weak symbols at the link, removes unused functions there and stops the build at
+# constructs that SDCC compiles incorrectly; it needs clang, clang-query and llvm-nm besides SDCC. The link
+# writes $(TARGET).ihx and converts it to $(TARGET).elf, from which the .hex and .bin rules make the firmware.
 
 # Compiler settings
 #
@@ -82,7 +81,8 @@ $(foreach f,$(MCS51_FEWER_SPILLS_SRC),$(eval $(INTERMEDIATE_OUTPUT)/$(f:.c=.o): 
 
 bin: $(BUILD_DIR)/$(TARGET).bin
 
-# Evision OEM bootloader: the flash image based at 0x2800 (bootloader.mk)
+# Evision OEM bootloader: evision_oem_image.py makes the flash image, based at 0x2800, from the app linked at
+# 0x3027: the LJMP at 0x2800, the interrupt table at 0x3000 and the check of the Esc key at power-up.
 ifeq ($(strip $(BOOTLOADER)), evision-oem)
 $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
 	@$(SILENT) || printf "$(MSG_BIN) $@" | $(AWK_CMD)

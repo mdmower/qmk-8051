@@ -6,10 +6,10 @@
 #include "timer.h"
 #include "eeprom_ch555_code_flash.h"
 
-/* Set by platforms/mcs51/vendors/WCH/CH555.mk: the store occupies
- * [CH555_EEPROM_CODE_FLASH_ADDR, CH555_EEPROM_CODE_FLASH_END). */
+/* The MCU's build rules set the store's bounds: it occupies [CH555_EEPROM_CODE_FLASH_ADDR,
+ * CH555_EEPROM_CODE_FLASH_END). */
 #if !defined(EEPROM_SIZE) || !defined(CH555_EEPROM_CODE_FLASH_ADDR) || !defined(CH555_EEPROM_CODE_FLASH_END) || !defined(CH555_EEPROM_CODE_FLASH_XRAM)
-#    error "EEPROM_SIZE, CH555_EEPROM_CODE_FLASH_ADDR, _END and _XRAM come from platforms/mcs51/vendors/WCH/CH555.mk"
+#    error "EEPROM_SIZE, CH555_EEPROM_CODE_FLASH_ADDR, CH555_EEPROM_CODE_FLASH_END and CH555_EEPROM_CODE_FLASH_XRAM are not defined"
 #endif
 
 #ifndef CH555_EEPROM_SAVE_DELAY

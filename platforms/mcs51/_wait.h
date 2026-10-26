@@ -28,7 +28,7 @@
     } while (0)
 #define CPU_CLOCK F_CPU
 
-/* Delay before a pin is read after a change (quantum/matrix_common.c). The MCS-51 value is not known: two
+/* Delay before a pin is read after a change (the matrix scan). The MCS-51 value is not known: two
  * passes of wait_cpuclock(), as AVR waits two clocks. */
 #ifndef GPIO_INPUT_PIN_DELAY
 #    define GPIO_INPUT_PIN_DELAY 2

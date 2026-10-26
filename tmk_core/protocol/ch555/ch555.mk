@@ -10,7 +10,7 @@ VPATH += $(TMK_PATH)/$(CH555_DIR)
 # LUFA's descriptor definitions, as for ChibiOS
 VPATH += $(TMK_PATH)/protocol/chibios/lufa_utils
 
-# The USB interrupt handler (platform.mk)
+# The USB interrupt handler's declaration, for SDCC's vector table
 MCS51_ISR_HEADERS += $(TMK_PATH)/$(CH555_DIR)/usb_device.h
 
 # CH555 library compile-time options and predefined tokens

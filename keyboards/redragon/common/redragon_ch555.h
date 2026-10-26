@@ -20,7 +20,7 @@
  *
  * Optional, in a keymap's config.h:
  *   REDRAGON_STORE_COMMANDS   raw HID commands that read QMK's EEPROM in code flash (EEPROM_CH555_CODE_FLASH), for
- *                             util/evision_flash.py backup-settings; not with VIA, which has its own raw HID
+ *                             the backup-settings command of evision_flash.py; not with VIA, which has its own raw HID
  *                             commands. redragon_ch555.c defines raw_hid_receive().
  */
 

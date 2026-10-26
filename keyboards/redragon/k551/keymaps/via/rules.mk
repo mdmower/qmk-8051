@@ -1,4 +1,3 @@
 VIA_ENABLE = yes
-# QMK's EEPROM (settings, VIA, keymap and macros) in code flash below 0xEFC0
-# (platforms/mcs51/drivers/eeprom/eeprom_ch555_code_flash.h)
+# QMK's EEPROM (the settings, the keymap and the macros) in code flash; the keyboard's default is transient
 EEPROM_DRIVER = vendor

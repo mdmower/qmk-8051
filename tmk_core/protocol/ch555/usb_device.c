@@ -423,7 +423,7 @@ USB_DevIntNext:
 						switch( D0SetupReqCode ) 
 						{  
 							case USB_GET_DESCRIPTOR:            
-								// Get usb descriptor (tmk_core/protocol/usb_descriptor.c); none: STALL
+								// Get usb descriptor (usb_descriptor.c); none: STALL
 								{
 									const void *addr;
 									len = get_usb_descriptor( ( (UINT16)pD0_SETUP_REQ->wValueH << 8 ) | pD0_SETUP_REQ->wValueL,

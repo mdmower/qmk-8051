@@ -19,16 +19,11 @@
 #include "ch555.h"
 
 /*
- * bootloader_jump()
- * -----------------
- * Evision OEM bootloader (0c45:7687, app at 0x2800): it starts the app only while the
- * marker AA 55 33 CC at 0x27C0 is present. Erase that 64-byte page and reset, as the
- * Redragon K580 stock firmware does for its "04 EE EE" command. The bootloader rewrites
- * the marker after a successful flash. Nothing else below 0x2800 is written.
- *
- * mcu_reset() (platforms/mcs51/vendors) starts the CPU at 0x0000, the Evision OEM bootloader.
- * That bootloader has no timeout: the board stays in it, across replugs, until a flash
- * completes. If the erase fails, the reset starts the app again.
+ * The Evision OEM bootloader (0c45:7687, app at 0x2800) starts the app only while the marker AA 55 33 CC at
+ * 0x27C0 is present. This erases that 64-byte page and resets, as the Redragon K580 stock firmware does for its
+ * "04 EE EE" command; the bootloader writes the marker again after a successful flash. Nothing else below 0x2800
+ * is written. mcu_reset() starts the CPU at 0x0000, the bootloader, which has no timeout: the board stays in it,
+ * across replugs, until a flash completes. If the erase fails, the reset starts the app again.
  */
 void bootloader_jump(void) {
     USB_CTRL = 0;

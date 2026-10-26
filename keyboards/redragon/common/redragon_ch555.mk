@@ -5,7 +5,7 @@
 # and matrix.c takes them from there (matrix_pins.custom_lite in keyboard.json).
 VPATH += keyboards/redragon/common
 SRC += led_dma.c led_fx.c matrix.c
-# The LED interrupt handler (platforms/mcs51/platform.mk)
+# The LED interrupt handler's declaration, for SDCC's vector table
 MCS51_ISR_HEADERS += led_dma.h
 # Keyboard settings store: lighting and keyboard settings in the data flash
 SRC += flash_store.c
@@ -18,8 +18,8 @@ CH555_EEPROM_CODE_FLASH_XRAM ?= 0x16C0
 SRC += redragon_ch555.c
 
 # USB serial number, optional: qmk compile ... -e SERIAL_NUMBER=<serial>. Without it, the serial number is the
-# chip ID (SERIAL_NUMBER_USE_HARDWARE_ID in tmk_core/protocol/ch555/ch555.mk). Letters, digits and . _ : - only
-# (the value passes through the shell), at most 126 characters.
+# chip ID (SERIAL_NUMBER_USE_HARDWARE_ID). Letters, digits and . _ : - only (the value passes through the shell),
+# at most 126 characters.
 ifneq ($(strip $(SERIAL_NUMBER)),)
     OPT_DEFS += -DSERIAL_NUMBER=\"$(strip $(SERIAL_NUMBER))\"
 endif

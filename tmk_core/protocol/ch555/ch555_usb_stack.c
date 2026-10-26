@@ -279,14 +279,14 @@ bool read_EP4(void *report, size_t size) {
  ******************************************************************************/
 #ifdef RAW_ENABLE
 
-/* Called through the host driver (raw_hid_send() in quantum/raw_hid.c): reentrant, so that SDCC passes the
+/* Called through the host driver (raw_hid_send()): reentrant, so that SDCC passes the
  * arguments on the stack. */
 static void send_raw_hid(uint8_t *data, uint8_t length) __reentrant {
     if (length != RAW_EPSIZE) return;
     send_report(RAW_IN_EPNUM, data, RAW_EPSIZE);
 }
 
-/* Called from the main loop (quantum/main.c) */
+/* Called from the main loop */
 void raw_hid_task(void) {
     uint8_t data[RAW_EPSIZE];
     bool    data_read = false;

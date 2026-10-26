@@ -2,7 +2,7 @@
 
 #pragma once
 
-/* LED positions of the K580 for the lighting effects (keyboards/redragon/common/led_fx.c, which includes this). */
+/* LED positions of the K580 for the lighting effects (led_fx.c includes this file). */
 
 /*
  * Position of each LED along its zone, 0-191, by buffer slot (COM * 8 + group). F_POS modes add it

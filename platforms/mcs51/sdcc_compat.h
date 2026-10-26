@@ -7,7 +7,7 @@
  */
 #pragma once
 
-/* quantum/util.h: without __builtin_choose_expr(), no check that the argument is an array */
+/* util.h: without __builtin_choose_expr(), no check that the argument is an array */
 #define ARRAY_SIZE(array) (sizeof((array)) / sizeof((array)[0]))
 
 /* wchar_t of 16 bits, as GCC's -fshort-wchar (QMK's USB string descriptors); USBSTR() gives char16_t literals
@@ -21,7 +21,7 @@ typedef unsigned int wchar_t;
 #    define __attribute__(x)
 #endif
 
-/* quantum/eeconfig.h, quantum/nvm/nvm_eeconfig.h: SDCC gives error 141 for a repeated typedef of a union tag
+/* eeconfig.h, nvm_eeconfig.h: SDCC gives error 141 for a repeated typedef of a union tag
  * (https://sourceforge.net/p/sdcc/bugs/4159/) but accepts a forward typedef followed by the defining one. Under SDCC
  * the two headers leave out their forward typedefs and use these, which come before every definition. */
 typedef union debug_config_t      debug_config_t;
