@@ -1,6 +1,6 @@
 # QMK for CH555-family 8051 keyboards
 
-This is a fork of [QMK](https://github.com/qmk/qmk_firmware) for keyboards using 8051 microcontrollers. Currently, a handful of Redragon keyboards using Evision MCUs from the WCH CH555 family are supported. Additional 8051 keyboards could potentially be supported but the amount of overlap in reusable platform code (if different than CH555), not to mention backup and flash scripts, is uncertain.
+This is a fork of [QMK](https://github.com/qmk/qmk_firmware) for keyboards using 8051 microcontrollers. Currently, a handful of Redragon keyboards using Evision MCUs from the WCH CH555 family are supported. Additional 8051 keyboards could potentially be supported but the amount of overlap in reusable platform code (if different than CH555), not to mention backup and flash scripts, is uncertain. The [platform documentation](docs/platformdev_mcs51.md#adding-an-mcu) lists what a port to another MCU involves.
 
 _This is an unofficial QMK fork. Use at your own risk. You assume all risk for damages that may occur, including but not limited to loss of data, damages to hardware, or loss of business profits._
 
@@ -225,7 +225,7 @@ The USB serial number is the microcontroller chip ID unless you set one at build
 
 #### Build with the QMK toolchain
 
-The toolchain is SDCC 4.6.0, clang with clang-query and llvm-nm, binutils, and the QMK CLI. SDCC 4.6.0 is required. The build stops at constructs SDCC 4.6.0 compiles incorrectly, see [platforms/mcs51/sdcc_check.query](platforms/mcs51/sdcc_check.query). Corresponding tickets are listed in [SDCC bug reports and feature requests](#sdcc-bug-reports-and-feature-requests).
+The toolchain is SDCC 4.6.0, clang with clang-query and llvm-nm, binutils, and the QMK CLI. SDCC 4.6.0 is required. The build stops at constructs that SDCC 4.6.0 compiles incorrectly. The [platform documentation](docs/platformdev_mcs51.md#writing-code-for-sdcc) lists them, along with the corresponding SDCC tickets.
 
 ```
 # System packages
@@ -250,33 +250,13 @@ qmk compile -kb redragon/k580 -km default
 qmk compile -kb redragon/k580 -km default -e SERIAL_NUMBER=RDK580RGB00000000000
 ```
 
-### Toolchain limits
+### Platform documentation
 
-The following limits of SDCC and of this port affect keyboard and keymap code:
+[docs/platformdev_mcs51.md](docs/platformdev_mcs51.md) describes the MCS-51 platform for developers: the compiler driver and its build options, the limits of SDCC that affect keyboard and keymap code, the SDCC bugs that have workarounds in this tree, the source layout, and what a port to another 8051 MCU involves.
 
-- `$(CC)` is [platforms/mcs51/sdcc_cc.py](platforms/mcs51/sdcc_cc.py), a GCC-style driver for SDCC. It uses clang to find weak definitions, which SDCC does not have, and resolves them at link time.
-- SDCC 4.6.0 incorrectly compiles some C, sometimes without outputting warnings. The driver stops the build at these constructs ([platforms/mcs51/sdcc_check.query](platforms/mcs51/sdcc_check.query)).
-- SDCC rejects some GNU C that GCC accepts (case ranges, casts to union types, empty initializers, and variable-length arrays). QMK core source is edited in these cases, usually guarded by `#ifdef __SDCC`, or without if an upstream pull request exists.
-- SDCC compiles a copy of every `static inline` function of a header into each file that includes the header, whether used or not. At link time, copies that nothing calls are removed. This is enabled by build flag `MCS51_DCE` in [platforms/mcs51/platform.mk](platforms/mcs51/platform.mk).
-- SDCC keeps values that do not fit in registers in direct RAM (0x08–0x7F). In VIA builds some files are compiled with fewer optimizations to fit, see build flag `MCS51_FEWER_SPILLS_SRC` in [platforms/mcs51/platform.mk](platforms/mcs51/platform.mk).
-- Pins are named `PORT<port>_<pin>` (for example `PORT0_1`). `keyboard.json` uses `"processor": "ch555"` and `"bootloader": "evision-oem"` (an Evision OEM bootloader at 0x0000–0x27FF) or `"ch55xbl"` (the WCH factory ISP bootloader; untested).
-- SDCC puts an interrupt handler into its vector table only if `main.c` sees its declaration. Add headers to `MCS51_ISR_HEADERS += <header>` in `rules.mk`.
-- Redragon keyboards with the same LED controller can take advantage of [keyboards/redragon/common/redragon_ch555.mk](keyboards/redragon/common/redragon_ch555.mk); the K552 is the smaller example.
+### Adding a Redragon keyboard
 
-### SDCC bug reports and feature requests
-
-The following bugs and feature requests have workarounds applied to QMK, most of them guarded by `#ifdef __SDCC` or handled in the compiler driver (weak symbols, and the checks of [platforms/mcs51/sdcc_check.query](platforms/mcs51/sdcc_check.query)):
-
-- [Feature Request 595: Weak linkage](https://sourceforge.net/p/sdcc/feature-requests/595/)
-- [Feature Request 1038: Compile case ranges as ranges instead of one case per value](https://sourceforge.net/p/sdcc/feature-requests/1038/)
-- [Bug 1900: calling inline function](https://sourceforge.net/p/sdcc/bugs/1900/)
-- [Bug 3857: Ternary operator in struct assignment using a function call fails](https://sourceforge.net/p/sdcc/bugs/3857/) (checked by the driver; no site in the build)
-- [Bug 3886: Compiler don't create constant for compound literal](https://sourceforge.net/p/sdcc/bugs/3886/) (fixed after 4.6.0, in r16747)
-- [Bug 3979: error 147: excess elements in struct initializer](https://sourceforge.net/p/sdcc/bugs/3979/) (designated initializers into an anonymous struct: [comment 5099](https://sourceforge.net/p/sdcc/bugs/3979/#5099))
-- [Bug 4044: Initializer loses const qualifier](https://sourceforge.net/p/sdcc/bugs/4044/) (fixed after 4.6.0, in r16763)
-- [Bug 4157: Struct returned from a function call is not copied to the caller](https://sourceforge.net/p/sdcc/bugs/4157/)
-- [Bug 4158: mcs51: second return of the same struct variable gives wrong values (large model)](https://sourceforge.net/p/sdcc/bugs/4158/)
-- [Bug 4159: Repeated typedef of a struct or union tag gives error 141](https://sourceforge.net/p/sdcc/bugs/4159/)
+The `rules.mk` of a Redragon keyboard with the same LED controller can include [keyboards/redragon/common/redragon_ch555.mk](keyboards/redragon/common/redragon_ch555.mk) at the top. The K552 is the smaller example to start from.
 
 ### History and credits
 

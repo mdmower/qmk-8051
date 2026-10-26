@@ -282,7 +282,8 @@
                             { "text": "Proton C", "link": "/platformdev_proton_c" },
                             { "text": "WeAct Blackpill F4x1", "link": "/platformdev_blackpill_f4x1" }
                         ]
-                    }
+                    },
+                    { "text": "MCS-51 (8051)", "link": "/platformdev_mcs51" }
                 ]
             },
 
