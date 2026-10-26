@@ -19,7 +19,7 @@
  *   REDRAGON_KB_SETTINGS      number of bytes in redragon_kb_settings[], saved after the lighting settings
  *
  * Optional, in a keymap's config.h:
- *   REDRAGON_STORE_COMMANDS   raw HID commands that read QMK's EEPROM in code flash (CH555_EEPROM_CODE_FLASH), for
+ *   REDRAGON_STORE_COMMANDS   raw HID commands that read QMK's EEPROM in code flash (EEPROM_CH555_CODE_FLASH), for
  *                             util/evision_flash.py backup-settings; not with VIA, which has its own raw HID
  *                             commands. redragon_ch555.c defines raw_hid_receive().
  */
@@ -57,7 +57,7 @@ extern __xdata uint8_t redragon_kb_settings[REDRAGON_KB_SETTINGS];
  * bytes (REDRAGON_KB_SETTINGS, in code space), or 0 if nothing has been saved. */
 __code const uint8_t *redragon_init(void);
 /* From process_record_kb: Win Lock, the lighting keycodes and QK_CLEAR_EEPROM (pressed with Ctrl held, on release:
- * erases the data flash and, with CH555_EEPROM_CODE_FLASH, QMK's EEPROM, then restarts the keyboard). Returns false for a key it has handled or
+ * erases the data flash and, with EEPROM_CH555_CODE_FLASH, QMK's EEPROM, then restarts the keyboard). Returns false for a key it has handled or
  * blocked. */
 bool redragon_process_record(uint16_t keycode, keyrecord_t *record);
 /* From housekeeping_task_kb: lighting effects and the delayed save. */

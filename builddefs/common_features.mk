@@ -256,6 +256,16 @@ ifneq ($(strip $(EEPROM_DRIVER)),none)
           OPT_DEFS += -DEEPROM_DRIVER -DEEPROM_TRANSIENT
           SRC += eeprom_driver.c eeprom_transient.c
         endif
+      else ifeq ($(PLATFORM),MCS51)
+        ifneq ($(filter $(MCU_SERIES),CH555),)
+          # CH555 EEPROM implementation, backed by MCU code flash
+          OPT_DEFS += -DEEPROM_DRIVER -DEEPROM_CH555_CODE_FLASH
+          SRC += eeprom_driver.c eeprom_ch555_code_flash.c
+        else
+          # Fall back to transient, i.e. non-persistent
+          OPT_DEFS += -DEEPROM_DRIVER -DEEPROM_TRANSIENT
+          SRC += eeprom_driver.c eeprom_transient.c
+        endif
       else ifeq ($(PLATFORM),TEST)
         # Test harness "EEPROM"
         OPT_DEFS += -DEEPROM_TEST_HARNESS

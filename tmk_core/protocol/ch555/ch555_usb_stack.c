@@ -28,7 +28,7 @@
 
 #include "report.h"
 #include "host.h"
-#ifdef CH555_EEPROM_CODE_FLASH
+#ifdef EEPROM_CH555_CODE_FLASH
 #    include "eeprom_ch555_code_flash.h"
 #endif
 #include "host_driver.h"
@@ -503,7 +503,7 @@ void protocol_post_task(void) {
     send_pending_shared_report();
 #endif
 
-#ifdef CH555_EEPROM_CODE_FLASH
+#ifdef EEPROM_CH555_CODE_FLASH
     eeprom_code_flash_task();
 #endif
 }

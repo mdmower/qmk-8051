@@ -3,12 +3,12 @@
 #include "redragon_ch555.h"
 #include "led_dma.h"
 #include "flash_store.h"
-#ifdef CH555_EEPROM_CODE_FLASH
+#ifdef EEPROM_CH555_CODE_FLASH
 #    include "eeprom_ch555_code_flash.h"
 #endif
 #ifdef REDRAGON_STORE_COMMANDS
-#    if !defined(CH555_EEPROM_CODE_FLASH) || !defined(RAW_ENABLE) || defined(VIA_ENABLE)
-#        error "REDRAGON_STORE_COMMANDS needs CH555_EEPROM_CODE_FLASH and RAW_ENABLE, and not VIA_ENABLE"
+#    if !defined(EEPROM_CH555_CODE_FLASH) || !defined(RAW_ENABLE) || defined(VIA_ENABLE)
+#        error "REDRAGON_STORE_COMMANDS needs EEPROM_CH555_CODE_FLASH and RAW_ENABLE, and not VIA_ENABLE"
 #    endif
 #    include "eeprom.h"
 #    include "raw_hid.h"
@@ -81,7 +81,7 @@ bool redragon_process_record(uint16_t keycode, keyrecord_t *record) {
             clear_armed = (get_mods() & MOD_MASK_CTRL) != 0;
         } else if (clear_armed) {
             flash_store_clear();
-#ifdef CH555_EEPROM_CODE_FLASH
+#ifdef EEPROM_CH555_CODE_FLASH
             eeprom_code_flash_clear();
 #endif
             soft_reset_keyboard();

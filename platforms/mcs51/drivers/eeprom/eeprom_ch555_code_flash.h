@@ -3,8 +3,7 @@
 #pragma once
 
 /*
- * QMK's EEPROM in CH555 code flash (CH555_EEPROM_CODE_FLASH = yes in rules.mk, which selects
- * EEPROM_DRIVER = custom; platforms/mcs51/vendors/WCH/CH555.mk).
+ * QMK's EEPROM in CH555 code flash (EEPROM_DRIVER = vendor).
  *
  * The EEPROM is a copy of EEPROM_SIZE bytes in xRAM. Reads and writes use the copy; the copy is saved to
  * code flash CH555_EEPROM_SAVE_DELAY ms after the last write. The flash store at the top of the app's

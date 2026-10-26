@@ -7,11 +7,11 @@ VPATH += keyboards/redragon/common
 SRC += led_dma.c led_fx.c matrix.c
 # The LED interrupt handler (platforms/mcs51/platform.mk)
 MCS51_ISR_HEADERS += led_dma.h
-# Lighting settings saved in the data flash (flash_store.c)
+# Keyboard settings store: lighting and keyboard settings in the data flash
 SRC += flash_store.c
 CH555_DATA_FLASH_ENABLE = yes
-# QMK's EEPROM in code flash, for the keymaps that turn it on (platforms/mcs51/vendors/WCH/CH555.mk): 2 KB, its xRAM
-# copy at 0x16C0-0x1EFF, above the LED buffer (0x1400-0x165F with 18 COMs) and flash_store.c's buffer (0x1680)
+# QMK's EEPROM in code flash, for the keymaps with EEPROM_DRIVER = vendor: 2 KB, its xRAM copy at 0x16C0-0x1EFF,
+# above the LED buffer (0x1400-0x165F with 18 COMs) and the keyboard settings store's buffer (0x1680)
 CH555_EEPROM_SIZE ?= 2048
 CH555_EEPROM_CODE_FLASH_XRAM ?= 0x16C0
 # Win Lock, lighting keycodes and the settings save (redragon_ch555.h)
