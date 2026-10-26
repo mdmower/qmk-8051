@@ -162,8 +162,8 @@ The G1–G5, Rec, and media keys have fixed colors (no RGB) with a brightness th
 Remaining free space in the application region (0x2800–0xEFBF) for each keymap:
 
 - `default`: 19.2 KB
-- `via`: 5.3 KB before the code flash store
-- `macro`: 12.2 KB before the code flash store
+- `via`: 4.5 KB before the code flash store
+- `macro`: 11.7 KB before the code flash store
 
 The code flash store starts at 0xDF40 in the `via` and `macro` keymaps. Features that have been turned off to save space are listed in [config.h](config.h) and [rules.mk](rules.mk).
 

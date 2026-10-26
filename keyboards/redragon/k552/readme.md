@@ -93,7 +93,7 @@ Lighting changes are saved 3 seconds after the last change and are stored in a d
 Remaining free space in the application region (0x2800–0xEFBF) for each keymap:
 
 - `default`: 23.7 KB
-- `via`: 10.7 KB before the code flash store
+- `via`: 10.2 KB before the code flash store
 
 The code flash store starts at 0xDF40 in the `via` keymap. Features that have been turned off to save space are listed in [config.h](config.h) and [rules.mk](rules.mk).
 

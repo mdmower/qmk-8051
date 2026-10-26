@@ -163,7 +163,7 @@ python -I util/evision_dump.py --start 0x2800 --end 0xEFC0 --out readback.bin --
 python -I util/evision_flash.py verify readback.bin ${KB}_stock_app.bin
 ```
 
-_Tip: The data flash region (0xF000–0xF3FF) is unused by stock and is not erased when stock is restored. QMK stores some settings there (e.g. lighting). You can optionally clear that region with commands described in your keyboard's readme._
+_Tip: The data flash region (0xF000–0xF3FF) is unused by stock and is not erased when stock is restored. QMK stores some settings there (e.g. lighting). To clear it, press Fn+Ctrl+Backspace (see [Clearing saved settings](#clearing-saved-settings)) before you restore the stock firmware._
 
 ## Using the keyboard
 
