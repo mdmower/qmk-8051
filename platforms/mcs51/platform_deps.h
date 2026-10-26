@@ -13,9 +13,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef PLATFORM_DEPS_H
-#define PLATFORM_DEPS_H
+#pragma once
 
-
-
-#endif // PLATFORM_DEPS_H
+#include "mcs51_mcu.h"

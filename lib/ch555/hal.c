@@ -10,7 +10,6 @@
 * Attention: This software (modified or not) and binary are used for 
 * microcontroller manufactured by Nanjing Qinheng Microelectronics.
 ********************************************************************************/
-#include "config.h" // NO_PRINT
 #include "hal.h"
 
 /*******************************************************************************
@@ -140,7 +139,7 @@ void mDelaymS(UINT16 n)
 	}
 }                                         
 
-#ifndef NO_PRINT /* the UART is the print output; ch555_usb_stack.c calls mInitSTDIO() only without NO_PRINT */
+#ifndef NO_PRINT /* the UART is the print output; platform_setup() calls mInitSTDIO() unless NO_PRINT is defined */
 #ifdef UART0_PRINTF
 /*******************************************************************************
 * Function Name  : CH555UART0Alter

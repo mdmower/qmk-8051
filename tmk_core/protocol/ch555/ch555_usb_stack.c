@@ -40,7 +40,6 @@
 
 #include "usb_descriptor.h"
 #include "ch555_usb_stack.h"
-#include "hal.h"        // mInitSTDIO()
 #include "usb_device.h" // USB device and endpoint registers, endpoint buffers
 #include "usb_device_state.h"
 
@@ -409,18 +408,11 @@ void send_digitizer(report_digitizer_t *report) {
 /*******************************************************************************
  * main
  ******************************************************************************/
-static void setup_mcu(void) {
-#ifndef NO_PRINT
-    mInitSTDIO();
-#endif
-}
-
 static void setup_usb(void) {
     USB_Device_Init();
 }
 
 void protocol_setup(void) {
-    setup_mcu();
     usb_device_state_init();
 }
 

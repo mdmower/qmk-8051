@@ -15,8 +15,10 @@
  */
 
 #include "platform_deps.h"
-#include "mcs51_mcu.h"
 
 void platform_setup(void) {
     mcs51_clock_init();
+#ifndef NO_PRINT
+    mcs51_print_init();
+#endif
 }
