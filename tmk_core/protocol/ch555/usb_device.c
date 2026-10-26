@@ -50,10 +50,10 @@ volatile UINT8  ep4_data_wait   = 0x00;											/* endpoint 4 data waiting fla
 volatile UINT8  ep4_rx_len;														/* endpoint 4: length of the waiting packet */
 #endif
 
-#if !defined(SERIAL_NUMBER) && defined(SERIAL_NUMBER_USE_HARDWARE_ID)
+#if !defined(SERIAL_NUMBER) && (defined(SERIAL_NUMBER_USE_HARDWARE_ID) && SERIAL_NUMBER_USE_HARDWARE_ID == TRUE)
 /* String descriptor 3 (serial number), in xdata: the chip ID as SERIAL_NUMBER_LENGTH hex digits
- * (tmk_core/protocol/usb_descriptor.c, ch555.mk). Built in USB_Device_Init(), not in the USB interrupt: reading
- * the chip ID writes the flash-ROM address registers, which a data flash write in the main loop also uses. */
+ * (usb_descriptor.c). Built in USB_Device_Init(), not in the USB interrupt: reading the chip ID writes the
+ * flash-ROM address registers, which a data flash write in the main loop also uses. */
 void set_serial_number_descriptor(void);
 #endif
 
@@ -152,7 +152,7 @@ void USB_Device_Init( void )
 	ep4_data_wait   = 0x00;
 #endif
 	KB_USB_SetReport = 0x00;													/* Usb keyboard set report value */
-#if !defined(SERIAL_NUMBER) && defined(SERIAL_NUMBER_USE_HARDWARE_ID)
+#if !defined(SERIAL_NUMBER) && (defined(SERIAL_NUMBER_USE_HARDWARE_ID) && SERIAL_NUMBER_USE_HARDWARE_ID == TRUE)
 	set_serial_number_descriptor();
 #endif
 

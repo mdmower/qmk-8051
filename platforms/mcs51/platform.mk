@@ -36,13 +36,15 @@ else
     $(call CATASTROPHIC_ERROR,Unsupported MCU,No vendors/$(MCU_FAMILY)/$(MCU_SERIES).mk or $(MCU_FAMILY).mk in $(PLATFORM_COMMON_DIR))
 endif
 
-# config.h files of the MCU series and family, included after the keyboard's and the keymap's config.h
+# config.h files of the MCU series, the MCU family and the platform, included after the keyboard's and the keymap's
+# config.h
 ifneq ("$(wildcard $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/$(MCU_SERIES)/config.h)","")
     CONFIG_H += $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/$(MCU_SERIES)/config.h
 endif
 ifneq ("$(wildcard $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/config.h)","")
     CONFIG_H += $(PLATFORM_COMMON_DIR)/vendors/$(MCU_FAMILY)/config.h
 endif
+CONFIG_H += $(PLATFORM_COMMON_DIR)/config.h
 
 # warning  85: unreferenced function argument
 # warning 115: unsupported pragma

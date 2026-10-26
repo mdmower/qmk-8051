@@ -17,14 +17,6 @@ MCS51_ISR_HEADERS += $(TMK_PATH)/$(CH555_DIR)/usb_device.h
 CH555_OPTS += -DFIXED_CONTROL_ENDPOINT_SIZE=64
 CH555_OPTS += -DFIXED_NUM_CONFIGURATIONS=1
 
-# USB serial number from the chip ID (get_hardware_id()) when SERIAL_NUMBER is not set;
-# SERIAL_NUMBER_USE_HARDWARE_ID = no in a keyboard's rules.mk leaves the device without a serial number.
-# usb_descriptor.c gives the device descriptor a serial number index with SERIAL_NUMBER_USE_HARDWARE_ID == TRUE.
-SERIAL_NUMBER_USE_HARDWARE_ID ?= yes
-ifeq ($(strip $(SERIAL_NUMBER_USE_HARDWARE_ID)), yes)
-    CH555_OPTS += -DSERIAL_NUMBER_USE_HARDWARE_ID=TRUE
-endif
-
 OPT_DEFS += -DARCH=ARCH_$(ARCH)
 OPT_DEFS += $(CH555_OPTS)
 
