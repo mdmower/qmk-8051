@@ -4,9 +4,6 @@ ifneq (,$(filter $(MCU),ch555))
   MCU_FAMILY = WCH
   MCU_SERIES = CH555
 
-  # LUFA's architecture macro (tmk_core/protocol/ch555/ch555.mk), for the LUFA headers that the USB descriptors use
-  ARCH = MCS51
-
   # Internal RAM: 256 bytes, the upper 128 only through @Ri (SDCC puts the stack and __idata there).
   IRAM_SIZE = 0x0100
   # xRAM is 0x0000-0x1FFF, but the USB buffers are fixed at 0x1000-0x13FF (pUSB_BUF_DEV0 .. pUSB_BUF_HUB in
