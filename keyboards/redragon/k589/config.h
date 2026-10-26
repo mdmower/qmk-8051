@@ -6,8 +6,8 @@
 #define CH555_SUSPEND_SLEEP
 
 /* Lock indicators above the numpad: single-color LEDs in group 7 of COMs 8 and 9 of the LED matrix (stock V0107
- * @0xdca8), set by redragon_ch555.c. The K589 has no Win Lock LED; its byte is
- * set as on the K582, as the stock firmware (the same for both) does. */
+ * @0xdca8), set by redragon_ch555.c. The K589 has no Win Lock LED; the stock firmware still writes the Win Lock
+ * state to the green byte of COM 9, group 7, and so does this firmware. */
 #define LED_NUM_LOCK_BYTE LED_DMA_BYTE(8, 7, 2)
 #define LED_CAPS_LOCK_BYTE LED_DMA_BYTE(9, 7, 1)
 #define LED_SCROLL_LOCK_BYTE LED_DMA_BYTE(9, 7, 3)
@@ -20,7 +20,7 @@
  * take the key row from led_row[] in led_fx_pos.h. */
 #define LED_FX_KEY_ROWS
 
-/* Disabled for flash space, as on the K580: tap keys (LT, MT, TT, *_T, tap-toggle) and one-shot keys (OSM, OSL)
+/* Disabled for flash space: tap keys (LT, MT, TT, *_T, tap-toggle) and one-shot keys (OSM, OSL)
  * do nothing; MO() still works. */
 #define NO_ACTION_TAPPING
 #define NO_ACTION_ONESHOT

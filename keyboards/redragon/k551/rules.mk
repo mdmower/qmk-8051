@@ -7,7 +7,7 @@ F_CPU = 32000000
 # No EEPROM: QMK's settings (eeconfig) are kept in RAM until the keyboard loses power.
 EEPROM_DRIVER = transient
 
-# Disabled for flash space, as on the K580. Remove a line to use the feature again.
+# Disabled for flash space. Remove a line to use the feature again.
 # - Grave Escape (QK_GESC), Magic keycodes, Space Cadet and send_string() (macros, QK_MAKE)
 GRAVE_ESC_ENABLE = no
 MAGIC_ENABLE = no
