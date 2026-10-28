@@ -1003,7 +1003,7 @@ def mcs51_processor_rules(info_data, rules):
     info_data['processor_type'] = 'mcs51'
     info_data['platform'] = 'MCS51'
     info_data['platform_key'] = 'mcs51'
-    info_data['protocol'] = 'CH555'
+    info_data['protocol'] = {'ch555': 'CH555', 'sh68f90a': 'SH68F90'}[info_data['processor']]
 
     return info_data
 

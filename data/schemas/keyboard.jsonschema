@@ -114,6 +114,7 @@
                 "atmega328",
                 "attiny85",
                 "ch555",
+                "sh68f90a",
                 "unknown"
             ]
         },
@@ -263,6 +264,7 @@
                 "qmk-dfu",
                 "qmk-hid",
                 "rp2040",
+                "sinowealth-isp",
                 "stm32-dfu",
                 "stm32duino",
                 "tinyuf2",
