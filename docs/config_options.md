@@ -94,6 +94,8 @@ This is a C header file that is one of the first things included, and will persi
   * sets the maximum power (in mA) over USB for the device (default: 500)
 * `#define USB_POLLING_INTERVAL_MS 10`
   * sets the USB polling rate in milliseconds for the keyboard, mouse, and shared (NKRO/media keys) interfaces
+* `#define NKRO_REPORT_BITS 30`
+  * sets the number of bytes in the NKRO report's key bitmap; each byte holds 8 keyboard usages, starting at 0x00 (default: 30)
 * `#define USB_SUSPEND_WAKEUP_DELAY 0`
   * sets the number of milliseconds to pause after sending a wakeup packet.
     Disabled by default, you might want to set this to 200 (or higher) if the

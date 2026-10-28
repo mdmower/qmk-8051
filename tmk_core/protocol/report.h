@@ -139,7 +139,9 @@ enum desktop_usages {
 
 // clang-format on
 
-#define NKRO_REPORT_BITS 30
+#ifndef NKRO_REPORT_BITS
+#    define NKRO_REPORT_BITS 30
+#endif
 
 #ifdef KEYBOARD_SHARED_EP
 #    define KEYBOARD_REPORT_SIZE 9
