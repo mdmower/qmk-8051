@@ -285,7 +285,7 @@ static void render_column(uint8_t c) {
     }
 }
 
-void led_fx_load(__code const uint8_t *p) {
+void led_fx_load(const uint8_t *p) {
     __xdata uint8_t *v = &settings[0][0];
     uint8_t          i;
 

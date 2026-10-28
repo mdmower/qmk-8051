@@ -19,8 +19,8 @@ enum { LED_FX_MODE, LED_FX_HUE, LED_FX_SAT, LED_FX_VAL, LED_FX_SPEED, LED_FX_ON,
 
 /* Saved form of the settings: LED_FX_SAVE_SIZE bytes, zone 0 first, each in the order above. */
 #define LED_FX_SAVE_SIZE (LED_FX_ZONES * LED_FX_SETTINGS)
-/* Sets the settings from their saved form (in code space); a value out of range keeps its default. */
-void led_fx_load(__code const uint8_t *p);
+/* Sets the settings from their saved form; a value out of range keeps its default. */
+void led_fx_load(const uint8_t *p);
 /* Writes the saved form of the settings to dst. */
 void led_fx_save(__xdata uint8_t *dst);
 /* Next step of a setting (previous step with reverse); LED_FX_ON toggles. */

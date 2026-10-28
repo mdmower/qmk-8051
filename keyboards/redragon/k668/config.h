@@ -7,6 +7,8 @@
 #define LED_FX_COLUMNS MATRIX_ROWS
 #define LED_FX_ROWS 7
 #define LED_FX_ZONES 2
+/* The lighting settings are saved in the keyboard's EEPROM data block: LED_FX_SAVE_SIZE bytes (led_fx.h). */
+#define EECONFIG_KB_DATA_SIZE 12
 
 /* Win Lock LED, active low */
 #define LED_WIN_LOCK_PIN PORT4_7

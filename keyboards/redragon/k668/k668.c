@@ -3,6 +3,22 @@
 #include "k668.h"
 #include "led_pwm.h"
 
+_Static_assert(EECONFIG_KB_DATA_SIZE == LED_FX_SAVE_SIZE, "EECONFIG_KB_DATA_SIZE: LED_FX_SAVE_SIZE bytes");
+
+/* Writes the lighting settings to the EEPROM data block. */
+static void save_settings(void) {
+    __xdata uint8_t buf[LED_FX_SAVE_SIZE];
+
+    led_fx_save(buf);
+    eeconfig_update_kb_datablock(buf, 0, sizeof(buf));
+}
+
+/* Called at startup, before keyboard_post_init_kb(), when the EEPROM has no valid eeconfig or data block: the
+ * lighting settings are still the defaults of led_fx.c. */
+void eeconfig_init_kb_datablock(void) {
+    save_settings();
+}
+
 /* Esc held at power-up starts the bootloader, before USB starts. Esc is on the strobe P6.0 and the input P7.0. */
 void keyboard_pre_init_kb(void) {
     gpio_set_pin_input_high(PORT7_0);
@@ -20,6 +36,15 @@ void keyboard_pre_init_kb(void) {
     keyboard_pre_init_user();
 }
 
+void keyboard_post_init_kb(void) {
+    __xdata uint8_t buf[LED_FX_SAVE_SIZE];
+
+    eeconfig_read_kb_datablock(buf, 0, sizeof(buf));
+    led_fx_load(buf);
+
+    keyboard_post_init_user();
+}
+
 /* Key presses for the lighting effects: the LED of the key at matrix row r, column c is in row c of LED column r.
  * Events from outside the matrix have no LED. */
 bool pre_process_record_kb(uint16_t keycode, keyrecord_t *record) {
@@ -29,7 +54,7 @@ bool pre_process_record_kb(uint16_t keycode, keyrecord_t *record) {
     return pre_process_record_user(keycode, record);
 }
 
-/* The lighting keycodes; the settings are not saved. */
+/* The lighting keycodes; each change is written to the EEPROM data block. */
 bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     if (!process_record_user(keycode, record)) {
         return false;
@@ -37,6 +62,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     if (keycode >= RD_KMODE && keycode <= RD_STOG) {
         if (record->event.pressed) {
             led_fx_adjust(keycode - RD_KMODE, get_mods() & MOD_MASK_SHIFT);
+            save_settings();
         }
         return false;
     }
