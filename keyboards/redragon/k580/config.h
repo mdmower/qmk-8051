@@ -23,6 +23,9 @@
 #define NO_ACTION_TAPPING
 #define NO_ACTION_ONESHOT
 
+/* LEDs for the lighting effects: one column per matrix column (COM), 8 LEDs (groups) per column */
+#define LED_FX_COLUMNS MATRIX_COLS
+#define LED_FX_ROWS 8
 /* Lighting effects (led_fx.h): key LEDs and side lights; the Rec LED through
  * led_fx_mono_val() (k580.c) */
 #define LED_FX_ZONES 2

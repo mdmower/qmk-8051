@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "led_fx.h"
-#include "led_dma.h"
+#include "timer.h"
 
 /*
  * Colors are HSV. Hue runs 0-191 around the color wheel (6 sectors of 32); the hue setting has 24
@@ -53,11 +53,12 @@ static __code const uint8_t setting_steps[LED_FX_ZONES * LED_FX_SETTINGS] = {
 };
 static __code const uint8_t sat_table[5]        = {0, 96, 160, 208, 255};
 static __code const uint8_t val_table[8]        = {8, 16, 32, 64, 96, 144, 200, 255};
-/* Phase advance per pass, in 1/256. One pass per LED frame of 16896 clocks per COM: 12.7 ms with 18 COMs at
- * 24 MHz. FX_ADVANCE scales the advance for that frame to LED_DMA_COMS and F_CPU, so that one cycle takes 26,
- * 13, 6.5, 3.2 or 1.6 s. */
-#define FX_ADVANCE(a24) ((uint16_t)((a24) * 24UL * LED_DMA_COMS / (18UL * (F_CPU / 1000000UL))))
-static __code const uint16_t speed_table[5]     = {FX_ADVANCE(32), FX_ADVANCE(64), FX_ADVANCE(128), FX_ADVANCE(256), FX_ADVANCE(512)};
+/* Phase advance in 1/131072 of a cycle per ms: one cycle takes 26, 13, 6.5, 3.3 or 1.6 s */
+static __code const uint8_t  speed_table[5]     = {5, 10, 20, 40, 80};
+/* Time between the starts of two passes of an animated effect, in ms */
+#define FX_INTERVAL 16
+/* Longest time a pass advances the phase by, in ms, so that the advance fits 16 bits */
+#define FX_MAX_ELAPSED 250
 
 /* led_pos[]: the keyboard's LED positions (led_fx.h) */
 #include "led_fx_pos.h"
@@ -82,19 +83,20 @@ typedef struct {
 } zone_t;
 static __xdata zone_t zone[LED_FX_ZONES];
 
-/* Per key LED, by buffer slot (COM * 8 + group): brightness (reactive), heat (heatmap) or hue offset (raindrops).
- * Cleared when the key LEDs' mode changes. */
-static __xdata uint8_t key_level[LED_DMA_COMS * LED_DMA_GROUPS];
-/* led_dma_keys[] at the last pass, to find new presses */
-static __xdata uint8_t key_prev[LED_DMA_COMS];
+_Static_assert(LED_FX_ROWS <= 8, "LED_FX_ROWS: at most 8");
+_Static_assert(LED_FX_COLUMNS * LED_FX_ROWS <= 256, "LED slots: at most 256");
+
+/* Per key LED, by slot: brightness (reactive), heat (heatmap) or hue offset (raindrops). Cleared when the key LEDs'
+ * mode changes. */
+static __xdata uint8_t key_level[LED_FX_COLUMNS * LED_FX_ROWS];
 #define HEAT_STEP 32 // heat added per key press
 
 /* By key row (KEY_ROW): position for F_ROWS (3 * y), and distance from the middle of the 6 key rows for
  * F_CHEVRON and F_DIST, with y = 12 position units per row (a key is about 8.5 units wide). X_MID: the middle of
  * led_pos. */
-static __code const uint8_t row_pos[LED_DMA_GROUPS]  = {0, 36, 72, 108, 144, 180, 0, 0};
-static __code const uint8_t row_dist[LED_DMA_GROUPS] = {30, 18, 6, 6, 18, 30, 0, 0};
-/* Key row of group n of the COM being rendered: led_row[] with LED_FX_KEY_ROWS, else the group */
+static __code const uint8_t row_pos[8]  = {0, 36, 72, 108, 144, 180, 0, 0};
+static __code const uint8_t row_dist[8] = {30, 18, 6, 6, 18, 30, 0, 0};
+/* Key row of row n of the column being rendered: led_row[] with LED_FX_KEY_ROWS, else n */
 #ifdef LED_FX_KEY_ROWS
 #    define KEY_ROW(n) (rows[n])
 #else
@@ -105,10 +107,10 @@ static __code const uint8_t row_dist[LED_DMA_GROUPS] = {30, 18, 6, 6, 18, 30, 0,
 /* 16-bit linear congruential generator, for raindrops */
 static __xdata uint16_t rnd;
 
-static __xdata uint8_t fx_com = LED_DMA_COMS; // next COM to render; LED_DMA_COMS: no pass running
-static __xdata uint8_t fx_frames;             // led_dma_frames at the start of the last pass
-static __bit           fx_valid;              // the last pass used the current settings
-static __bit           fx_animated;           // a zone changes with time
+static __xdata uint8_t  fx_column = LED_FX_COLUMNS; // next column to render; LED_FX_COLUMNS: no pass running
+static __xdata uint16_t fx_time;                    // timer_read() at the start of the last pass
+static __bit            fx_valid;                   // the last pass used the current settings
+static __bit            fx_animated;                // a zone changes with time
 
 /* a * b / 255, rounded down; b = 255 gives a */
 #define SCALE8(a, b) ((uint8_t)(((uint16_t)(uint8_t)(a) * (uint8_t)(b) + (uint8_t)(a)) >> 8))
@@ -149,20 +151,25 @@ static uint8_t rand8(void) {
     return rnd >> 8;
 }
 
-/* Sets zone[] from the settings; the phase advances once per pass. */
+/* Sets zone[] from the settings; the phase advances by the time since the last pass. */
 static void start_pass(void) {
-    __xdata uint8_t  *set = settings[0];
-    __xdata uint16_t *ph  = phase;
-    __xdata zone_t   *zs  = zone;
+    __xdata uint8_t  *set     = settings[0];
+    __xdata uint16_t *ph      = phase;
+    __xdata zone_t   *zs      = zone;
+    uint16_t          elapsed = timer_elapsed(fx_time);
     uint8_t           z;
 
+    fx_time += elapsed;
+    if (elapsed > FX_MAX_ELAPSED) {
+        elapsed = FX_MAX_ELAPSED;
+    }
     fx_animated = 0;
     for (z = 0; z < LED_FX_ZONES; z++, set += LED_FX_SETTINGS, ph++, zs++) {
         uint8_t flags = mode_flags[set[LED_FX_MODE]];
         uint8_t p     = *ph >> 8;
         uint8_t v     = 0;
 
-        *ph += speed_table[set[LED_FX_SPEED]];
+        *ph += (elapsed * speed_table[set[LED_FX_SPEED]]) >> 1;
         zs->step = (uint8_t)(*ph >> 8) - p;
         p        = *ph >> 8;
         hsv_h    = set[LED_FX_HUE] << 3;
@@ -197,25 +204,22 @@ static void start_pass(void) {
     }
 }
 
-/* Writes red, green, blue of the 8 LEDs of COM c (with 2 zones, group 7 = side lights, zone 1) */
-static void render_com(uint8_t c) {
-    __xdata uint8_t      *p   = led_dma_buf + ((uint16_t)c << 5);
-    __code const uint8_t *pos = led_pos + (c << 3);
+/* Sets the colors of the LEDs of column c (with 2 zones, the last row = side lights, zone 1) */
+static void render_column(uint8_t c) {
+    uint8_t               slot = c * LED_FX_ROWS;
+    __code const uint8_t *pos  = led_pos + slot;
 #ifdef LED_FX_KEY_ROWS
-    __code const uint8_t *rows = led_row + (c << 3);
+    __code const uint8_t *rows = led_row + slot;
 #endif
-    __xdata zone_t       *zs  = zone;
-    __xdata uint8_t      *kp  = key_level + (c << 3);
-    uint8_t               keys    = led_dma_keys[c];
-    uint8_t               pressed = keys & ~key_prev[c]; // bit n: key (n, c) pressed since the last pass
+    __xdata zone_t       *zs   = zone;
+    __xdata uint8_t      *kp   = key_level + slot;
     uint8_t               n;
 
-    key_prev[c] = keys;
-    for (n = 0; n < LED_DMA_GROUPS; n++, p += 4, kp++, pressed >>= 1) {
+    for (n = 0; n < LED_FX_ROWS; n++, slot++, kp++) {
         uint8_t x = *pos++;
 
 #if LED_FX_ZONES > 1
-        if (n == LED_DMA_GROUPS - 1) {
+        if (n == LED_FX_ROWS - 1) {
             zs++;
         }
 #endif
@@ -227,7 +231,7 @@ static void render_com(uint8_t c) {
         if (x == LED_FX_MONO) {
             /* single-color LED: lit at the zone's brightness whatever the hue */
 #ifdef LED_FX_MONO_HOOK
-            rgb[0] = led_fx_mono_val((c << 3) | n, zs->val);
+            rgb[0] = led_fx_mono_val(slot, zs->val);
 #else
             rgb[0] = zs->val;
 #endif
@@ -248,19 +252,13 @@ static void render_com(uint8_t c) {
                     uint8_t d = zs->step, b;
 
                     if (zs->mode == MODE_REACTIVE) {
-                        /* lit at a press, fades out */
-                        if (pressed & 1) {
-                            k = 0xFF;
-                        }
+                        /* lit at a press (led_fx_key_pressed), fades out */
                         b = k;
                         d <<= 2;
                     } else {
                         /* heatmap: dark at heat 0, blue at 85, then toward red at 255 */
-                        uint8_t h;
-                        if ((pressed & 1) && (k += HEAT_STEP) < HEAT_STEP) {
-                            k = 0xFF;
-                        }
-                        h     = k > 85 ? k - 85 : 0;
+                        uint8_t h = k > 85 ? k - 85 : 0;
+
                         hsv_h = 128 - (h >> 1) - (h >> 2);
                         b     = k < 85 ? k * 3 : 0xFF;
                     }
@@ -283,9 +281,7 @@ static void render_com(uint8_t c) {
             }
             hsv_to_rgb();
         }
-        p[1] = rgb[0];
-        p[2] = rgb[1];
-        p[3] = rgb[2];
+        led_fx_set_color(slot, rgb[0], rgb[1], rgb[2]);
     }
 }
 
@@ -317,16 +313,28 @@ void led_fx_refresh(void) {
 #endif
 
 void led_fx_task(void) {
-    if (fx_com >= LED_DMA_COMS) {
-        if (fx_valid && (!fx_animated || led_dma_frames == fx_frames)) {
+    if (fx_column >= LED_FX_COLUMNS) {
+        if (fx_valid && (!fx_animated || timer_elapsed(fx_time) < FX_INTERVAL)) {
             return;
         }
-        fx_frames = led_dma_frames;
         fx_valid  = 1;
-        fx_com    = 0;
+        fx_column = 0;
         start_pass();
     }
-    render_com(fx_com++);
+    render_column(fx_column++);
+}
+
+void led_fx_key_pressed(uint8_t slot) {
+    __xdata uint8_t *k = key_level + slot;
+
+    if (slot >= sizeof(key_level)) {
+        return;
+    }
+    if (settings[0][LED_FX_MODE] == MODE_REACTIVE) {
+        *k = 0xFF;
+    } else if (settings[0][LED_FX_MODE] == MODE_HEATMAP) {
+        *k = *k < 0xFF - HEAT_STEP ? *k + HEAT_STEP : 0xFF;
+    }
 }
 
 void led_fx_adjust(uint8_t action, bool reverse) {

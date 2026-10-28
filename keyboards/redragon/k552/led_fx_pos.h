@@ -5,7 +5,7 @@
 /* LED positions of the K552 for the lighting effects (led_fx.c includes this file). */
 
 /*
- * Position of each LED, 0-191, by buffer slot (COM * 8 + group): key center x on the
+ * Position of each LED, 0-191, by slot (COM * 8 + group): key center x on the
  * 18.25-unit-wide TKL layout (keyboard.json), so position grows from left to right. The key at matrix position
  * (row, col) has its LED at slot col * 8 + row (stock V0101 tables @0x3027 and @0x31a9).
  * Also: slot 0x57 (COM 10, group 7), the small LED right of Esc (stock effect grid @0x30a7), at x 1.25; the ISO
@@ -13,7 +13,7 @@
  * at its ABNT2 position. LED_FX_SKIP: the Caps Lock (0x4F) and Scroll Lock (0x47) indicators, driven by
  * redragon_ch555.c.
  */
-static __code const uint8_t led_pos[LED_DMA_COMS * LED_DMA_GROUPS] = {
+static __code const uint8_t led_pos[LED_FX_COLUMNS * LED_FX_ROWS] = {
     // clang-format off
       5,   5,   8,   9,  12,   7,   0,   0, // COM 0
      26,  16,  21,  24,  18,  20,   0,   0, // COM 1

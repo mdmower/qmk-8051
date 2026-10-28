@@ -55,6 +55,15 @@ __code const uint8_t *redragon_init(void) {
     return p + LED_FX_SAVE_SIZE;
 }
 
+/* Key presses for the lighting effects: the LED of key (row, column) is group row of COM column. Encoder events
+ * have row numbers above the matrix and no LED. */
+bool pre_process_record_kb(uint16_t keycode, keyrecord_t *record) {
+    if (record->event.pressed && record->event.key.row < MATRIX_ROWS) {
+        led_fx_key_pressed(record->event.key.col * LED_DMA_GROUPS + record->event.key.row);
+    }
+    return pre_process_record_user(keycode, record);
+}
+
 bool redragon_process_record(uint16_t keycode, keyrecord_t *record) {
     if (keycode >= RD_KMODE && keycode < RD_KB_SAFE_RANGE) {
         if (record->event.pressed) {

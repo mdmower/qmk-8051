@@ -33,7 +33,7 @@ _Static_assert((CH555_EEPROM_LAYOUT & 0xFF) == EECONFIG_SIZE, "CH555_EEPROM_LAYO
 #define MACRO_DELAY 10  // ms between the events of a playback
 #define MACRO_BLINK 250 // ms per half period of the blinking LEDs
 #define MACRO_LED_VAL 144
-/* LED buffer slots (COM * 8 + group) of G1 and Rec: matrix row 6, columns 6 and 11; G2-G5 between them */
+/* LED slots (COM * 8 + group) of G1 and Rec: matrix row 6, columns 6 and 11; G2-G5 between them */
 #define MACRO_LED_G1 (6 * 8 + 6)
 #define MACRO_LED_REC (11 * 8 + 6)
 

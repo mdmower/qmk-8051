@@ -12,6 +12,9 @@
 #define LED_SCROLL_LOCK_BYTE LED_DMA_BYTE(9, 7, 3)
 #define LED_WIN_LOCK_BYTE LED_DMA_BYTE(9, 7, 2)
 
+/* LEDs for the lighting effects: one column per matrix column (COM), 8 LEDs (groups) per column */
+#define LED_FX_COLUMNS MATRIX_COLS
+#define LED_FX_ROWS 8
 /* Lighting effects (led_fx.h): the key LEDs, one zone; the indicators are skipped
  * (LED_FX_SKIP in led_fx_pos.h). */
 #define LED_FX_SKIP_ENABLE

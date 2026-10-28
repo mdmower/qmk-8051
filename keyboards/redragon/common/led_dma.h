@@ -30,11 +30,9 @@ extern __xdata __at(LED_DMA_BUF_ADDR) uint8_t led_dma_buf[LED_DMA_COMS * LED_DMA
 
 /* Key rows read on each COM: bit n set = key (n, COM) pressed. */
 extern volatile __xdata uint8_t led_dma_keys[LED_DMA_COMS];
-/* Set after the last COM of a frame has been read. */
+/* Set after the last COM of a frame has been read (16896 clocks per COM: 9.5 ms at 32 MHz with 18 COMs, 8.4 ms
+ * with 16). */
 extern volatile __bit led_dma_frame;
-/* Frame counter, +1 after the last COM of each frame (16896 clocks per COM: 9.5 ms at 32 MHz with 18 COMs,
- * 8.4 ms with 16). */
-extern volatile __data uint8_t led_dma_frames;
 
 void led_dma_init(void);
 void led_dma_output(bool on);

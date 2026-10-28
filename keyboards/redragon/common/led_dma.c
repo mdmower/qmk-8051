@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "led_dma.h"
+#include "led_fx.h"
 #include "mcs51_isr.h"
 #include "usb_device.h"
 
@@ -18,7 +19,6 @@ static __code const uint8_t com_select[LED_DMA_COMS] = {
 __xdata __at(LED_DMA_BUF_ADDR) uint8_t led_dma_buf[LED_DMA_COMS * LED_DMA_GROUPS * 4];
 volatile __xdata uint8_t led_dma_keys[LED_DMA_COMS];
 volatile __bit           led_dma_frame;
-volatile __data uint8_t  led_dma_frames;
 static volatile __data uint8_t led_com;
 /* LED data for the COMs while the LEDs are off: all zero */
 static __xdata __at(LED_DMA_BUF_ADDR + sizeof(led_dma_buf)) uint8_t led_dma_off[LED_DMA_GROUPS * 4];
@@ -164,7 +164,6 @@ MCS51_ISR(led_dma_isr, INT_NO_PWM_I2C) {
     led_dma_keys[com] = ~rows;
     if (com == LED_DMA_COMS - 1) {
         led_dma_frame = 1;
-        led_dma_frames++;
     }
     led_com = com + 1;
 }
@@ -229,6 +228,15 @@ void led_dma_output(bool on) {
         while (led_com == com) {
         }
     }
+}
+
+/* Slot c * 8 + n is the LED in group n of COM c. */
+void led_fx_set_color(uint8_t slot, uint8_t r, uint8_t g, uint8_t b) {
+    __xdata uint8_t *p = led_dma_buf + ((uint16_t)slot << 2);
+
+    p[1] = r;
+    p[2] = g;
+    p[3] = b;
 }
 
 /* Before the MCU sleeps in USB suspend (stock 1.04 @0x7955): controller off, P4 to key input with

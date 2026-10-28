@@ -5,7 +5,7 @@
 /* LED positions of the K580 for the lighting effects (led_fx.c includes this file). */
 
 /*
- * Position of each LED along its zone, 0-191, by buffer slot (COM * 8 + group). F_POS modes add it
+ * Position of each LED along its zone, 0-191, by slot (COM * 8 + group). F_POS modes add it
  * to the hue (F_REV: subtract it), and F_MOVE modes shift the hue so that the colors move toward
  * higher positions.
  * Keys: key center x on a 22.5-unit-wide board (standard 104-key positions), so position grows from
@@ -15,7 +15,7 @@
  * and 8) at the front, so position grows from back to front.
  * LED_FX_MONO: one LED on the red line, white for G1-G5, red for Rec and the media keys.
  */
-static __code const uint8_t led_pos[LED_DMA_COMS * LED_DMA_GROUPS] = {
+static __code const uint8_t led_pos[LED_FX_COLUMNS * LED_FX_ROWS] = {
     // clang-format off
       4,   4,   6,   7,  10,   5,   0,   0, // COM 0
      21,  13,  17,  19,   0,  16,   0,  24, // COM 1

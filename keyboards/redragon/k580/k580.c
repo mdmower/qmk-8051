@@ -8,7 +8,7 @@ __xdata uint8_t redragon_kb_settings[REDRAGON_KB_SETTINGS];
 #define roller_light redragon_kb_settings[0]
 #define rec_light redragon_kb_settings[1]
 
-/* LED buffer slot (COM * 8 + group) of Rec: matrix row 6, column 11 */
+/* LED slot (COM * 8 + group) of Rec: matrix row 6, column 11 */
 #define REC_LED_SLOT (11 * 8 + 6)
 
 /* Rec is dark unless K580_RECL has turned it on; a keymap can define its own (keymaps/macro). */

@@ -5,14 +5,14 @@
 /* LED positions of the K589 for the lighting effects (led_fx.c includes this file). */
 
 /*
- * Position of each LED, 0-191, by buffer slot (COM * 8 + group): key center x on the
+ * Position of each LED, 0-191, by slot (COM * 8 + group): key center x on the
  * 22.5-unit-wide full-size layout (keyboard.json), so position grows from left to right. The key at matrix
  * position (row, col) has its LED at slot col * 8 + row (stock V0107 tables @0x30a7 and @0x3241).
  * Also: the ISO key left of Z (slot 12) and ISO # (slot 99) at their ISO positions, the ABNT2 key left of Right
  * Shift (slot 100) and numpad comma (slot 127) at their ABNT2 positions. LED_FX_SKIP: the lock indicators (slots
  * 0x47 and 0x4F), driven by redragon_ch555.c.
  */
-static __code const uint8_t led_pos[LED_DMA_COMS * LED_DMA_GROUPS] = {
+static __code const uint8_t led_pos[LED_FX_COLUMNS * LED_FX_ROWS] = {
     // clang-format off
       4,   4,   6,   7,  10,   5, 162,   0, // COM 0
      21,  13,  17,  19,  15,  16, 171,   0, // COM 1
@@ -34,11 +34,11 @@ static __code const uint8_t led_pos[LED_DMA_COMS * LED_DMA_GROUPS] = {
 };
 
 /*
- * Key row of each LED, 0-5 (0: the Esc row), by buffer slot: the row of the key's
+ * Key row of each LED, 0-5 (0: the Esc row), by slot: the row of the key's
  * top edge in the layout (keyboard.json); numpad comma (slot 127) in the row below numpad +, as on ABNT2 boards.
  * Slots without a key: their group.
  */
-static __code const uint8_t led_row[LED_DMA_COMS * LED_DMA_GROUPS] = {
+static __code const uint8_t led_row[LED_FX_COLUMNS * LED_FX_ROWS] = {
     // clang-format off
       0,   1,   2,   3,   4,   5,   1,   7, // COM 0
       0,   1,   2,   3,   4,   5,   1,   7, // COM 1
