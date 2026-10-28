@@ -171,7 +171,7 @@ To port the platform to another 8051 MCU, add the following. The CH555 is the on
     The vendor's own register header and support code go in `lib/<mcu>/` if they are third-party code; a register header written from the datasheet goes in the vendor directory.
 
 3. **EEPROM.** A driver for the MCU's flash in `platforms/mcs51/drivers/eeprom/` and an entry for its `MCU_SERIES` in `common_features.mk`. Without one, `EEPROM_DRIVER = vendor` results in the transient driver.
-4. **USB.** A protocol in `tmk_core/protocol/<name>/`. Share code with the CH555 stack only after a second stack exists and it is clear which code the two have in common.
+4. **USB.** A protocol in `tmk_core/protocol/<name>/`, and a block for it in `tmk_core/protocol/usb_descriptor.h` that sets the endpoint numbers if the USB controller's endpoints do not fit QMK's default numbering (the CH555 and the SH68F90A have one). Share code with the CH555 stack only after a second stack exists and it is clear which code the two have in common.
 5. **Bootloader.** An entry in `platforms/mcs51/bootloader.mk`, a `bootloaders/<name>.c` with `bootloader_jump()`, and an image rule in `platform.mk` if the bootloader accepts a different image format than the linked binary.
 6. **QMK CLI and schema.** The processor in `MCS51_PROCESSORS` and its default bootloader in `lib/python/qmk/constants.py`, and the processor and bootloader names in `data/schemas/keyboard.jsonschema`. `mcs51_processor_rules()` in `lib/python/qmk/info.py` sets the protocol to `CH555` for every MCS-51 processor and must be changed to choose it per processor.
 

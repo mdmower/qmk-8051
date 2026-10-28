@@ -227,6 +227,21 @@ enum usb_interfaces {
 #    define MOUSE_IN_EPNUM SHARED_IN_EPNUM
 #    define JOYSTICK_IN_EPNUM SHARED_IN_EPNUM
 #    define DIGITIZER_IN_EPNUM SHARED_IN_EPNUM
+#elif defined(PROTOCOL_SH68F90)
+/*
+ * SH68F90: endpoint 1 has 16-byte and endpoint 2 64-byte packets, both in each direction. The keyboard shares
+ * endpoint 1 with the other reports (KEYBOARD_SHARED_EP); raw HID uses endpoint 2.
+ */
+#    define SHARED_IN_EPNUM 1
+#    define KEYBOARD_IN_EPNUM SHARED_IN_EPNUM
+#    define MOUSE_IN_EPNUM SHARED_IN_EPNUM
+#    define JOYSTICK_IN_EPNUM SHARED_IN_EPNUM
+#    define DIGITIZER_IN_EPNUM SHARED_IN_EPNUM
+#    define RAW_IN_EPNUM 2
+#    define RAW_OUT_EPNUM 2
+#    define SHARED_EPSIZE 16
+// Feature report of the Sinowealth ISP bootloader request (05 75); REPORT_ID_PROGRAMMABLE_BUTTON has the same number
+#    define REPORT_ID_SINOWEALTH_ISP 5
 #else
 enum usb_endpoints {
     __unused_epnum__ = NEXT_EPNUM, // Endpoint numbering starts at 1
@@ -311,10 +326,12 @@ enum usb_endpoints {
 #if (NEXT_EPNUM - 1) > MAX_ENDPOINTS
 #    error There are not enough available endpoints to support all functions. Please disable one or more of the following: Mouse Keys, Extra Keys, Console, NKRO, MIDI, Serial, Steno
 #endif
-#endif // PROTOCOL_CH555
+#endif // PROTOCOL_CH555, PROTOCOL_SH68F90
 
 #define KEYBOARD_EPSIZE 8
-#define SHARED_EPSIZE 32
+#ifndef SHARED_EPSIZE
+#    define SHARED_EPSIZE 32
+#endif
 #define MOUSE_EPSIZE 16
 #define RAW_EPSIZE 32
 #define PLOVER_HID_EPSIZE 9
