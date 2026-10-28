@@ -15,10 +15,3 @@ void keyboard_pre_init_kb(void) {
 
     keyboard_pre_init_user();
 }
-
-/* No key scan: the matrix pins are also the pins of the LED matrix, and this firmware does not drive them yet. */
-void matrix_init_custom(void) {}
-
-bool matrix_scan_custom(matrix_row_t current_matrix[]) {
-    return false;
-}
