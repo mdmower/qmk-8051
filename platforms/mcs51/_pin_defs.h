@@ -99,8 +99,23 @@ extern __code const uint8_t pin_to_pinmask[];
 #    define PORT5_6 PINDEF(5, 6)
 #    define PORT5_7 PINDEF(5, 7)
 #endif
+#ifdef PORT6
+#    define PORT6_0 PINDEF(6, 0)
+#    define PORT6_1 PINDEF(6, 1)
+#    define PORT6_2 PINDEF(6, 2)
+#    define PORT6_3 PINDEF(6, 3)
+#    define PORT6_4 PINDEF(6, 4)
+#    define PORT6_5 PINDEF(6, 5)
+#    define PORT6_6 PINDEF(6, 6)
+#    define PORT6_7 PINDEF(6, 7)
+#endif
 #ifdef PORT7
-// P7 has only P7.0 and P7.1; its register holds their DIR, OUT_PU and IN bits.
 #    define PORT7_0 PINDEF(7, 0)
 #    define PORT7_1 PINDEF(7, 1)
+#    define PORT7_2 PINDEF(7, 2)
+#    define PORT7_3 PINDEF(7, 3)
+#    define PORT7_4 PINDEF(7, 4)
+#    define PORT7_5 PINDEF(7, 5)
+#    define PORT7_6 PINDEF(7, 6)
+#    define PORT7_7 PINDEF(7, 7)
 #endif

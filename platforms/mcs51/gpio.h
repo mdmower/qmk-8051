@@ -36,7 +36,11 @@ uint8_t readPin(uint8_t pin) ;
 #define gpio_set_pin_input_high(pin) pinModeInputHighQMK(pin)
 #define gpio_set_pin_input_low(pin) _Static_assert(0, "MCS51 processors cannot implement an input as pull low")
 #define gpio_set_pin_output_push_pull(pin) pinModeOutputPushPull(pin)
-#define gpio_set_pin_output_open_drain(pin) pinModeOutputOpen(pin)
+#ifdef MCS51_NO_OPEN_DRAIN
+#    define gpio_set_pin_output_open_drain(pin) _Static_assert(0, "This MCU has no open-drain output")
+#else
+#    define gpio_set_pin_output_open_drain(pin) pinModeOutputOpen(pin)
+#endif
 #define gpio_set_pin_output(pin) gpio_set_pin_output_push_pull(pin)
 
 #define gpio_write_pin_high(pin) writePinHigh(pin)

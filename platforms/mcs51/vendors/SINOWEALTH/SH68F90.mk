@@ -1,0 +1,11 @@
+# SH68F90 specific drivers: GPIO, clock, delays, chip ID and reset.
+
+SINOWEALTH_VENDOR_DIR = $(PLATFORM_COMMON_DIR)/vendors/SINOWEALTH
+
+VPATH += $(SINOWEALTH_VENDOR_DIR)
+
+SRC += $(SINOWEALTH_VENDOR_DIR)/gpio.c
+SRC += $(SINOWEALTH_VENDOR_DIR)/clock.c
+SRC += $(SINOWEALTH_VENDOR_DIR)/delay.c
+SRC += $(SINOWEALTH_VENDOR_DIR)/mcu_reset.c
+SRC += $(SINOWEALTH_VENDOR_DIR)/hardware_id.c

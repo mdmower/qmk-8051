@@ -153,7 +153,7 @@ With `EEPROM_DRIVER = vendor`, `common_features.mk` selects the EEPROM driver by
 
 ## Adding an MCU
 
-To port the platform to another 8051 MCU, add the following. None of this has been done for an MCU other than the CH555, so the list may be incomplete.
+To port the platform to another 8051 MCU, add the following. The CH555 is the only MCU whose port is complete, so the list may be incomplete.
 
 1. **MCU selection.** A block in `platforms/mcs51/mcu_selection.mk` that sets `PROTOCOL`, `MCU_FAMILY`, `MCU_SERIES`, `IRAM_SIZE`, `XRAM_LOC`, `XRAM_SIZE`, `CODE_SIZE` and a default `F_CPU`.
 2. **Vendor directory.** `platforms/mcs51/vendors/<MCU_FAMILY>/` with:
@@ -161,14 +161,14 @@ To port the platform to another 8051 MCU, add the following. None of this has be
     - `mcs51_mcu.h`, which the platform's source files include. The CH555's copy is a short example. It must provide:
         - the interrupt enable bit `EA`;
         - `mcs51_clock_init()`, which sets the system clock to `F_CPU`;
-        - `mcs51_print_init()`, which initializes the output that `putchar()` writes to;
+        - `mcs51_print_init()`, which initializes the output that `putchar()` writes to; for an MCU without a print output, an `#error` if `NO_PRINT` is not defined;
         - `MCS51_TIMER_INIT()`, which starts a timer whose interrupt `INT_NO_TIMER` comes once per millisecond and enables that interrupt, and `MCS51_TIMER_RELOAD()`, which the handler runs on each tick (a reload, or the clearing of an overflow flag that the hardware does not clear);
         - `mcs51_delay_us(n)` and `mcs51_delay_ms(n)`, which wait at least `n` microseconds or milliseconds, for `n` up to 65535.
-    - `_pin_defs.h`, the list of ports, and `gpio.c`, which implements the functions declared in `platforms/mcs51/gpio.h`.
+    - `_pin_defs.h`, the list of ports, and `gpio.c`, which implements the functions declared in `platforms/mcs51/gpio.h`. If the ports have no open-drain mode, `_pin_defs.h` defines `MCS51_NO_OPEN_DRAIN`, which makes `gpio_set_pin_output_open_drain()` a compile error.
     - `mcu_reset.c` and, if the MCU has a chip ID, `hardware_id.c`. Without it, the platform's default `get_hardware_id()` returns zeros; to send no serial number instead, define `SERIAL_NUMBER_USE_HARDWARE_ID FALSE` in the keyboard's `config.h`.
     - `config.h` with the MCU's defaults, such as `SERIAL_NUMBER_LENGTH`.
 
-    The vendor's own register header and support code go in `lib/<mcu>/` if they are third-party code.
+    The vendor's own register header and support code go in `lib/<mcu>/` if they are third-party code; a register header written from the datasheet goes in the vendor directory.
 
 3. **EEPROM.** A driver for the MCU's flash in `platforms/mcs51/drivers/eeprom/` and an entry for its `MCU_SERIES` in `common_features.mk`. Without one, `EEPROM_DRIVER = vendor` results in the transient driver.
 4. **USB.** A protocol in `tmk_core/protocol/<name>/`. Share code with the CH555 stack only after a second stack exists and it is clear which code the two have in common.
