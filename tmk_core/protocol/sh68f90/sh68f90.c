@@ -21,6 +21,9 @@
 #ifdef RAW_ENABLE
 #    include "raw_hid.h"
 #endif
+#ifdef NKRO_ENABLE
+#    include "keycode_config.h"
+#endif
 
 #ifndef KEYBOARD_SHARED_EP
 #    error "The SH68F90 protocol needs KEYBOARD_SHARED_EP: the keyboard shares EP1 with the other reports"
@@ -44,6 +47,12 @@
 uint8_t         kbd_report[KEYBOARD_REPORT_SIZE];
 static bool     kbd_report_pending = false;
 static uint16_t kbd_report_time;
+
+#ifdef NKRO_ENABLE
+/* The latest NKRO report that found EP1 busy */
+static report_nkro_t nkro_pending;
+static bool          nkro_pending_set = false;
+#endif
 
 #ifdef EXTRAKEY_ENABLE
 /* Extra key reports that found EP1 busy, the latest one per report ID: [0] REPORT_ID_SYSTEM, [1] REPORT_ID_CONSUMER */
@@ -203,7 +212,10 @@ static void send_keyboard(report_keyboard_t *report) {
 static void send_nkro(report_nkro_t *report) {
 #ifdef NKRO_ENABLE
     wait_ep1();
-    send_ep1(report, sizeof(report_nkro_t));
+    nkro_pending_set = !send_ep1(report, sizeof(report_nkro_t));
+    if (nkro_pending_set) {
+        memcpy(&nkro_pending, report, sizeof(report_nkro_t));
+    }
 #endif
 }
 
@@ -257,8 +269,8 @@ void protocol_pre_init(void) {
     usb_device_init();
 }
 
-/* Until SET_CONFIGURATION the main loop does not wait for the host: the latest keyboard report and the latest extra
- * key report per report ID are kept, the other reports are dropped. */
+/* Until SET_CONFIGURATION the main loop does not wait for the host: the latest keyboard report, the latest NKRO
+ * report and the latest extra key report per report ID are kept, the other reports are dropped. */
 void protocol_post_init(void) {
     host_set_driver(&sh68f90_driver);
 }
@@ -310,18 +322,27 @@ void protocol_post_task(void) {
 
     /* SET_PROTOCOL (USB interrupt) takes effect here. QMK core builds boot reports in the boot protocol and, with
      * NKRO, NKRO reports in the report protocol; clear_keyboard() empties the report and sends it in the new form, as
-     * LUFA and ChibiOS do. */
+     * LUFA and ChibiOS do. A kept NKRO report is dropped. */
     if (usb_keyboard_protocol != usb_device_state_get_protocol()) {
         usb_device_state_set_protocol(usb_keyboard_protocol);
+#ifdef NKRO_ENABLE
+        nkro_pending_set = false;
+#endif
         clear_keyboard();
     }
 
     /* A kept keyboard report; otherwise, with a nonzero SET_IDLE duration (4 ms units), the current report again
-     * once that time has passed since the last report. The repeat does not signal remote wake-up. */
+     * once that time has passed since the last report. The repeat does not signal remote wake-up. NKRO reports are
+     * not repeated, and while QMK core sends them, the keyboard report is not either. */
     if (kbd_report_pending) {
         send_kbd_report();
     } else {
         idle = usb_keyboard_idle;
+#ifdef NKRO_ENABLE
+        if (host_can_send_nkro() && keymap_config.nkro) {
+            idle = 0;
+        }
+#endif
         if (idle && usb_configured && timer_elapsed(kbd_report_time) >= (uint16_t)idle * 4) {
             if (usb_keyboard_protocol == 0 ? load_ep1(&kbd_report[1], KEYBOARD_REPORT_SIZE - 1) : load_ep1(kbd_report, KEYBOARD_REPORT_SIZE)) {
                 kbd_report_time = timer_read();
@@ -329,6 +350,13 @@ void protocol_post_task(void) {
         }
     }
 
+#ifdef NKRO_ENABLE
+    /* A kept NKRO report, when EP1 is free */
+    if (nkro_pending_set) {
+        nkro_pending_set = !send_ep1(&nkro_pending, sizeof(report_nkro_t));
+        return;
+    }
+#endif
 #ifdef EXTRAKEY_ENABLE
     /* One kept extra key report per call, when EP1 is free */
     for (i = 0; i < 2; i++) {
