@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "quantum.h"
+#include "k668.h"
 #include "led_pwm.h"
 
 /* Esc held at power-up starts the bootloader, before USB starts. Esc is on the strobe P6.0 and the input P7.0. */
@@ -20,15 +20,27 @@ void keyboard_pre_init_kb(void) {
     keyboard_pre_init_user();
 }
 
-/* All LEDs dim white */
-void keyboard_post_init_kb(void) {
-    uint16_t i;
-
-    for (i = 0; i < sizeof(led_pwm_buf); i++) {
-        led_pwm_buf[i] = 32;
+/* Key presses for the lighting effects: the LED of the key at matrix row r, column c is in row c of LED column r.
+ * Events from outside the matrix have no LED. */
+bool pre_process_record_kb(uint16_t keycode, keyrecord_t *record) {
+    if (record->event.pressed && record->event.key.row < MATRIX_ROWS) {
+        led_fx_key_pressed(record->event.key.row * LED_FX_ROWS + record->event.key.col);
     }
+    return pre_process_record_user(keycode, record);
+}
 
-    keyboard_post_init_user();
+/* The lighting keycodes; the settings are not saved. */
+bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
+    if (!process_record_user(keycode, record)) {
+        return false;
+    }
+    if (keycode >= RD_KMODE && keycode <= RD_STOG) {
+        if (record->event.pressed) {
+            led_fx_adjust(keycode - RD_KMODE, get_mods() & MOD_MASK_SHIFT);
+        }
+        return false;
+    }
+    return true;
 }
 
 /* The LEDs are off in the bootloader; the PWM banks would otherwise keep running with the last column's duties. */
@@ -43,9 +55,10 @@ bool shutdown_kb(bool jump_to_bootloader) {
 static bool suspended = false;
 
 /* The Win Lock LED is lit while the GUI keys are off (keymap_config.no_gui, toggled with GU_TOGG), except while the
- * host is suspended. */
+ * host is suspended. The lighting effects are rendered here. */
 void housekeeping_task_kb(void) {
     gpio_write_pin(LED_WIN_LOCK_PIN, !keymap_config.no_gui || suspended);
+    led_fx_task();
 
     housekeeping_task_user();
 }

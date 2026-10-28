@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "led_pwm.h"
+#include "keyboards/redragon/common/led_fx.h"
 #include "mcs51_isr.h"
 #include "usb_device.h"
 
@@ -255,4 +256,13 @@ void led_pwm_stop(void) {
     P4 |= ROWS_P4;
     P7 |= ROWS_P7;
     P0 |= ROWS_P0;
+}
+
+/* Slot c * 7 + r is the LED in row r of column c. */
+void led_fx_set_color(uint8_t slot, uint8_t r, uint8_t g, uint8_t b) {
+    __xdata uint8_t *p = led_pwm_buf + (uint16_t)slot * 3;
+
+    p[0] = r;
+    p[1] = g;
+    p[2] = b;
 }

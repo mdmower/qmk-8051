@@ -2,6 +2,12 @@
 
 #pragma once
 
+/* LEDs for the lighting effects: one column per matrix row, 7 LEDs per column (led_pwm.h); the key LEDs and the
+ * side lights (LED row 6) have separate settings. */
+#define LED_FX_COLUMNS MATRIX_ROWS
+#define LED_FX_ROWS 7
+#define LED_FX_ZONES 2
+
 /* Win Lock LED, active low */
 #define LED_WIN_LOCK_PIN PORT4_7
 

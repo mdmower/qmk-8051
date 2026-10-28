@@ -4,6 +4,8 @@ KEYBOARD_SHARED_EP = yes
 # The PWM0 interrupt handler (led_pwm.c) drives the matrix rows, which are also the LED columns, and reads the keys;
 # matrix.c takes them from there (matrix_pins.custom_lite in keyboard.json).
 SRC += led_pwm.c matrix.c
+# Lighting effects
+SRC += keyboards/redragon/common/led_fx.c
 # The PWM0 interrupt handler's declaration, for SDCC's vector table
 MCS51_ISR_HEADERS += led_pwm.h
 
