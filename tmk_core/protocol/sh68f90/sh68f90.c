@@ -16,7 +16,7 @@
 #include "usb_descriptor.h"
 #include "usb_device.h"
 #ifdef BOOTLOADER_SINOWEALTH_ISP
-#    include "bootloader.h"
+#    include "quantum.h"
 #endif
 #ifdef RAW_ENABLE
 #    include "raw_hid.h"
@@ -288,9 +288,10 @@ void protocol_pre_task(void) {
 
 #ifdef BOOTLOADER_SINOWEALTH_ISP
     /* Called here, not in the USB interrupt: a jump out of an interrupt handler, without RETI, leaves the interrupt
-     * in service, and interrupts of the same and lower priority stay blocked. */
+     * in service, and interrupts of the same and lower priority stay blocked. reset_keyboard() runs the shutdown hooks
+     * before bootloader_jump(), as for QK_BOOT. */
     if (usb_isp_requested) {
-        bootloader_jump();
+        reset_keyboard();
     }
 #endif
 

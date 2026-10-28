@@ -450,7 +450,7 @@ static void ep0_in_done(void) {
             USBADDR = usb_address;
         }
 #ifdef BOOTLOADER_SINOWEALTH_ISP
-        /* The main loop calls bootloader_jump() (protocol_pre_task()) */
+        /* The main loop calls reset_keyboard() (protocol_pre_task()) */
         if (SETUP_REQUEST == HID_REQ_SetReport && ep0_isp) {
             usb_isp_requested = true;
         }
