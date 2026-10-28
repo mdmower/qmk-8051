@@ -3,17 +3,23 @@
     "keyboard_name": "K668 Trundle",
     "maintainer": "mdmower",
     "bootloader": "sinowealth-isp",
+    "diode_direction": "COL2ROW",
     "features": {
         "bootmagic": false,
         "extrakey": true,
         "mousekey": false,
         "nkro": true
     },
-    "diode_direction": "COL2ROW",
     "host": {
         "default": {
             "nkro": true
         }
+    },
+    "indicators": {
+        "caps_lock": "PORT0_3",
+        "num_lock": "PORT0_4",
+        "on_state": 0,
+        "scroll_lock": "PORT0_2"
     },
     "matrix_pins": {
         "cols": ["PORT7_0", "PORT7_1", "PORT7_2", "PORT7_3", "PORT5_3", "PORT5_4"],
