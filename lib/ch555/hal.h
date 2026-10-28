@@ -42,8 +42,6 @@
 
 void CfgFsys(void);                                           //CH555 clock selection and configuration
 
-void mDelayuS(UINT16 n);                                      //delay in us
-void mDelaymS(UINT16 n);                                      //delay in ms
 
 #ifdef UART0_PRINTF
 void mInitSTDIO(void);                                        //UART0 init, Timer1 as the baud rate generator

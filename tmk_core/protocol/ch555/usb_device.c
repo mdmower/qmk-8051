@@ -15,6 +15,7 @@
 #include "suspend.h"
 #include "report.h"
 #include "mcs51_isr.h"
+#include "wait.h"
 
 /******************************************************************************/
 /* constant variable definition */
@@ -1019,7 +1020,7 @@ void USB_WakeUp_PC( void )
 	/* USB 2.0 7.1.7.7: resume signaling only after 5 ms of idle bus. bUX_SUSPEND is set after 4-6 ms of idle
 	 * bus (datasheet, Tusp); with the bit still set 2 ms later, the bus has been idle for at least 6 ms. If the
 	 * host has resumed the bus meanwhile, no signal is needed. */
-	mDelaymS( 2 );
+	wait_ms( 2 );
 	if( !( USB_IF & bUX_SUSPEND ) )
 	{
 		return;
@@ -1030,11 +1031,11 @@ void USB_WakeUp_PC( void )
 	USB_WakeUpSent = 0x01;
 	save = USB_CTRL;
     USB_CTRL ^= bUX_DP_PU_EN | bUX_DM_PU_EN;
-    mDelaymS( 10 );  
+    wait_ms( 10 );  
     USB_CTRL = save;
 #if USB_SUSPEND_WAKEUP_DELAY > 0
 	/* QMK option: pause so that hubs, KVM switches and monitors can settle after the wakeup */
-	mDelaymS( USB_SUSPEND_WAKEUP_DELAY );
+	wait_ms( USB_SUSPEND_WAKEUP_DELAY );
 #endif
 }
 
@@ -1064,7 +1065,7 @@ void USB_Sleep( void )
 		USB_CTRL &= ~bUX_DP_PU_EN;
 		PCON |= PD;
 		/* Woken by bus activity or a key. Stock 1.04 waits 1 ms before the 1.5K pull-up goes back on. */
-		mDelaymS( 1 );
+		wait_ms( 1 );
 		USB_CTRL |= bUX_DP_PU_EN;
 		P6_OUT_PU &= ~0x02;
 		SAFE_MOD = 0x55;

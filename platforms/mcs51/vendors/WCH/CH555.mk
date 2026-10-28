@@ -8,6 +8,7 @@ VPATH += $(WCH_VENDOR_DIR)
 VPATH += $(CH555_LIB_DIR)
 
 SRC += $(WCH_VENDOR_DIR)/gpio.c
+SRC += $(WCH_VENDOR_DIR)/delay.c
 # Data flash driver
 ifeq ($(strip $(CH555_DATA_FLASH_ENABLE)), yes)
     SRC += $(WCH_VENDOR_DIR)/data_flash.c

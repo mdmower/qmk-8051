@@ -14,6 +14,7 @@
  * mcu_reset() and putchar(); its config.h holds the MCU's defaults, such as SERIAL_NUMBER_LENGTH.
  */
 
+#include <stdint.h>
 #include "hal.h"
 
 /* Fsys = F_CPU: 12, 16, 24 or 32 MHz */
@@ -41,5 +42,5 @@
     } while (0)
 #define INT_NO_TIMER INT_NO_TMR0
 
-#define mcs51_delay_us(n) mDelayuS(n)
-#define mcs51_delay_ms(n) mDelaymS(n)
+void mcs51_delay_us(uint16_t n);
+void mcs51_delay_ms(uint16_t n);

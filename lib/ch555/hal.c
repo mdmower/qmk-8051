@@ -27,7 +27,7 @@ void CfgFsys(void)
 	SAFE_MOD = 0x55;
 	SAFE_MOD = 0xAA;
 	CLOCK_CFG |= bOSC_EN_XT;                          //Enable external crystal oscillator
-	mDelaymS(10);
+	mcs51_delay_ms(10);
 	SAFE_MOD = 0x55;
 	SAFE_MOD = 0xAA;
 	CLOCK_CFG &= ~bOSC_EN_INT;                        //Turn off the internal crystal oscillator 
@@ -77,67 +77,6 @@ void CfgFsys(void)
 
 	SAFE_MOD = 0x00;
 }
-
-/*******************************************************************************
-* Function Name  : mDelayus
-* Description    : microsecond delay function, delay in us
-* Input          : n
-* Return         : None
-*******************************************************************************/ 
-/* CH555 core cycles: NOP 1; DJNZ Rn 6 when it branches, 2 when it does not. One pass of the loop below, MDELAYUS_NOPS
- * NOPs and a DJNZ r6 that branches, takes FREQ_SYS / 1000000 cycles = 1 us. Every 256th pass takes 2 cycles more (DJNZ
- * r6 does not branch, DJNZ r7 does). Interrupts that run during the loop lengthen the delay. */
-#define MDELAYUS_NOP2  "nop\n nop\n"
-#define MDELAYUS_NOP8  MDELAYUS_NOP2 MDELAYUS_NOP2 MDELAYUS_NOP2 MDELAYUS_NOP2
-#if FREQ_SYS == 32000000
-#define MDELAYUS_NOPS  MDELAYUS_NOP8 MDELAYUS_NOP8 MDELAYUS_NOP8 MDELAYUS_NOP2                              /* 26 */
-#elif FREQ_SYS == 24000000
-#define MDELAYUS_NOPS  MDELAYUS_NOP8 MDELAYUS_NOP8 MDELAYUS_NOP2                                            /* 18 */
-#elif FREQ_SYS == 16000000
-#define MDELAYUS_NOPS  MDELAYUS_NOP8 MDELAYUS_NOP2                                                          /* 10 */
-#elif FREQ_SYS == 12000000
-#define MDELAYUS_NOPS  MDELAYUS_NOP2 MDELAYUS_NOP2 MDELAYUS_NOP2                                            /* 6 */
-#else
-#error "mDelayuS: no loop for this FREQ_SYS"
-#endif
-
-void mDelayuS(UINT16 n) __naked
-{
-	(void)n;                    /* in DPL (low byte) and DPH */
-	/* SDCC saves no registers around a call of a naked function defined in the same file (mDelaymS) */
-	__asm__("push ar6");
-	__asm__("push ar7");
-	__asm__("mov  a,dpl");
-	__asm__("mov  r6,a");
-	__asm__("orl  a,dph");
-	__asm__("jz   00002$");     /* n = 0 */
-	__asm__("mov  r7,dph");
-	__asm__("mov  a,r6");
-	__asm__("jz   00001$");
-	__asm__("inc  r7");         /* low byte not 0: the first r6 round has that many passes, the others 256 */
-	__asm__("00001$:");
-	__asm__(MDELAYUS_NOPS);
-	__asm__("djnz r6,00001$");
-	__asm__("djnz r7,00001$");
-	__asm__("00002$:");
-	__asm__("pop  ar7");
-	__asm__("pop  ar6");
-	__asm__("ret");
-}
-
-/*******************************************************************************
-* Function Name  : mDelayms
-* Description    : Ms delay function, delay in ms
-* Input          : n
-* Return         : None
-*******************************************************************************/
-void mDelaymS(UINT16 n)                                                    
-{
-	while(n){
-		mDelayuS(1000);
-		-- n;
-	}
-}                                         
 
 #ifndef NO_PRINT /* the UART is the print output; platform_setup() calls mInitSTDIO() unless NO_PRINT is defined */
 #ifdef UART0_PRINTF
