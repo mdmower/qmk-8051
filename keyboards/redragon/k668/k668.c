@@ -13,5 +13,28 @@ void keyboard_pre_init_kb(void) {
     }
     gpio_set_pin_input_high(PORT6_0);
 
+    gpio_set_pin_output(LED_WIN_LOCK_PIN);
+    gpio_write_pin_high(LED_WIN_LOCK_PIN);
+
     keyboard_pre_init_user();
+}
+
+static bool suspended = false;
+
+/* The Win Lock LED is lit while the GUI keys are off (keymap_config.no_gui, toggled with GU_TOGG), except while the
+ * host is suspended. */
+void housekeeping_task_kb(void) {
+    gpio_write_pin(LED_WIN_LOCK_PIN, !keymap_config.no_gui || suspended);
+
+    housekeeping_task_user();
+}
+
+void suspend_power_down_kb(void) {
+    suspended = true;
+    suspend_power_down_user();
+}
+
+void suspend_wakeup_init_kb(void) {
+    suspended = false;
+    suspend_wakeup_init_user();
 }
