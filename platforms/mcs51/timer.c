@@ -23,20 +23,10 @@ volatile uint32_t timer_count;
 
 /** \brief timer initialization */
 void timer_init(void) {
-    MCS51_TIMER0_INIT();
+    // A 1 ms interrupt from the MCU's timer (mcs51_mcu.h)
+    MCS51_TIMER_INIT();
 
-    // Set Timer 0 mode 1 - 16bit no auto reload 
-    TMOD = TMOD & 0xf0 | 0x01; //keep 4 MSB, set 4 LSB to value 1
-
-    // Counts per 1 ms tick, truncated (2666 for 2666.67 on a CH555 at 32 MHz: tick 0.025% short)
-    setTimer0Mode1Val(MCS51_TIMER0_HZ/1000);
-
-    // Let timer0 run:
-    TR0 = 1;
-
-    // Enable Timer0 Interrupt
-    ET0 = 1;
-    EA  = 1; // global interrupt enable
+    EA = 1; // global interrupt enable
 }
 
 /** \brief timer clear */
@@ -68,12 +58,11 @@ inline uint32_t timer_read32(void) {
     return t;
 }
 
-// Once per ms. Mode 1 does not reload by itself: the counts from the overflow to this reload are lost (8.6 per tick
-// measured at 24 MHz under the OEM bootloader), so a tick is slightly longer than 1 ms.
+// Once per ms
 #pragma save
 #pragma nooverlay
-MCS51_ISR(Timer0_ISR, INT_NO_TMR0) {
-    setTimer0Mode1Val(MCS51_TIMER0_HZ/1000);
+MCS51_ISR(timer_isr, INT_NO_TIMER) {
+    MCS51_TIMER_RELOAD();
     timer_count++;
 }
 #pragma restore

@@ -159,10 +159,10 @@ To port the platform to another 8051 MCU, add the following. None of this has be
 2. **Vendor directory.** `platforms/mcs51/vendors/<MCU_FAMILY>/` with:
     - `<MCU_SERIES>.mk`, or `<MCU_FAMILY>.mk` if one file serves the whole family. It adds the directory's sources to the build.
     - `mcs51_mcu.h`, which the platform's source files include. The CH555's copy is a short example. It must provide:
-        - the standard 8051 registers and bits that the timer uses (`TMOD`, `TH0`, `TL0`, `TR0`, `ET0`, `EA`) and `INT_NO_TMR0`;
+        - the interrupt enable bit `EA`;
         - `mcs51_clock_init()`, which sets the system clock to `F_CPU`;
         - `mcs51_print_init()`, which initializes the output that `putchar()` writes to;
-        - `MCS51_TIMER0_INIT()`, which selects the clock of Timer0, and `MCS51_TIMER0_HZ`, the resulting count rate;
+        - `MCS51_TIMER_INIT()`, which starts a timer whose interrupt `INT_NO_TIMER` comes once per millisecond and enables that interrupt, and `MCS51_TIMER_RELOAD()`, which the handler runs on each tick (a reload, or the clearing of an overflow flag that the hardware does not clear);
         - `mcs51_delay_us(n)` and `mcs51_delay_ms(n)`, which wait at least `n` microseconds or milliseconds, for `n` up to 65535.
     - `_pin_defs.h`, the list of ports, and `gpio.c`, which implements the functions declared in `platforms/mcs51/gpio.h`.
     - `mcu_reset.c` and, if the MCU has a chip ID, `hardware_id.c`. Without it, the platform's default `get_hardware_id()` returns zeros; to send no serial number instead, define `SERIAL_NUMBER_USE_HARDWARE_ID FALSE` in the keyboard's `config.h`.
@@ -175,4 +175,4 @@ To port the platform to another 8051 MCU, add the following. None of this has be
 5. **Bootloader.** An entry in `platforms/mcs51/bootloader.mk`, a `bootloaders/<name>.c` with `bootloader_jump()`, and an image rule in `platform.mk` if the bootloader accepts a different image format than the linked binary.
 6. **QMK CLI and schema.** The processor in `MCS51_PROCESSORS` and its default bootloader in `lib/python/qmk/constants.py`, and the processor and bootloader names in `data/schemas/keyboard.jsonschema`. `mcs51_processor_rules()` in `lib/python/qmk/info.py` sets the protocol to `CH555` for every MCS-51 processor and must be changed to choose it per processor.
 
-Check the Timer0 setup against the MCU's datasheet in particular. 8051 variants differ in the clock that drives the timers, and the platform's 1 ms tick depends on `MCS51_TIMER0_HZ` being correct.
+Check the timer setup against the MCU's datasheet in particular. 8051 variants differ in their timers and in the clock that drives them, and the platform's 1 ms tick depends on the count per tick being correct.

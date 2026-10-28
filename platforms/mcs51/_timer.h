@@ -21,7 +21,4 @@
 // The platform is 8-bit, so prefer 16-bit timers to reduce code size
 #define FAST_TIMER_T_SIZE 16
 
-#define setTimer0Mode1Val(val) TL0 = (0x10000 - val) & 0xff; \
-                               TH0 =((0x10000 - val)>>8) & 0xff
-
-void Timer0_ISR(void) __interrupt (INT_NO_TMR0) ;
+void timer_isr(void) __interrupt(INT_NO_TIMER);
