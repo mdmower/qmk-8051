@@ -80,6 +80,9 @@ static void usb_bus_reset(void) {
     __asm__("nop\n nop\n nop\n nop\n nop\n nop");
     USBCON &= ~bSWRST;
 
+    /* OEP0RDY is set before the first SETUP arrives. OW is set when a SETUP arrives while OEP0RDY is clear. While OW
+     * is set, writes to OEP0RDY have no effect, and the status stage of a control read is answered with NAK. */
+    EP0CON |= bOEP_RDY;
     USBADDR = 0;
     USBIE1  = bSETUPIE | bRESMIE | bSUSPIE | bPBRSTIE;
 #ifdef RAW_ENABLE
@@ -432,7 +435,9 @@ static void ep0_out(void) {
     EP0CON |= bOEP_RDY;
 }
 
-/* An IN packet on EP0 was acknowledged: the next packet of a control read, or the end of a status stage */
+/* An IN packet on EP0 was acknowledged: the next packet of a control read, or the end of a status stage. OEP0RDY is
+ * set after every IN packet, so that EP0 OUT is ready for the status stage of a control read and for the next
+ * SETUP. */
 static void ep0_in_done(void) {
     if (ep0_state == EP0_IN_DATA) {
         if (ep0_left != 0 || ep0_zlp) {
@@ -452,6 +457,7 @@ static void ep0_in_done(void) {
 #endif
         ep0_state = EP0_IDLE;
     }
+    EP0CON |= bOEP_RDY;
 }
 
 /* The USB interrupt. While FLASHCON.FAC is set, MOVC reads the information area instead of the program; the handler
@@ -485,9 +491,10 @@ MCS51_ISR(usb_isr, INT_NO_USB) {
         }
         if (if1 & bSETUPIF) {
             /* EP0 flags that are still set belong to the transfer that the SETUP ended. SETUPIF is cleared before
-             * OVERIF (datasheet 8.4.4). */
+             * OVERIF (datasheet 8.4.4). OW is cleared by writing 0 to it, although the datasheet lists it as read-only.
+             * A read-modify-write that writes OW back as 1 does not clear it. */
             USBIF1 &= ~bSETUPIF;
-            USBIF1 &= ~bOVERIF;
+            USBIF1 &= ~(bOVERIF | bOW);
             USBIF2 &= ~(bIEP0IF | bOEP0IF);
             usb_wakeup_sent = false;
             ep0_setup();
