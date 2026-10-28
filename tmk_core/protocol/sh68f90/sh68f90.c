@@ -24,6 +24,9 @@
 #ifdef NKRO_ENABLE
 #    include "keycode_config.h"
 #endif
+#ifdef EEPROM_SH68F90_CODE_FLASH
+#    include "eeprom_sh68f90_code_flash.h"
+#endif
 
 #ifndef KEYBOARD_SHARED_EP
 #    error "The SH68F90 protocol needs KEYBOARD_SHARED_EP: the keyboard shares EP1 with the other reports"
@@ -350,6 +353,10 @@ void protocol_post_task(void) {
             }
         }
     }
+
+#ifdef EEPROM_SH68F90_CODE_FLASH
+    eeprom_code_flash_task();
+#endif
 
 #ifdef NKRO_ENABLE
     /* A kept NKRO report, when EP1 is free */

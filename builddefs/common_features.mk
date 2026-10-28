@@ -261,6 +261,10 @@ ifneq ($(strip $(EEPROM_DRIVER)),none)
           # CH555 EEPROM implementation, backed by MCU code flash
           OPT_DEFS += -DEEPROM_DRIVER -DEEPROM_CH555_CODE_FLASH
           SRC += eeprom_driver.c eeprom_ch555_code_flash.c
+        else ifneq ($(filter $(MCU_SERIES),SH68F90),)
+          # SH68F90 EEPROM implementation, backed by MCU code flash
+          OPT_DEFS += -DEEPROM_DRIVER -DEEPROM_SH68F90_CODE_FLASH
+          SRC += eeprom_driver.c eeprom_sh68f90_code_flash.c
         else
           # Fall back to transient, i.e. non-persistent
           OPT_DEFS += -DEEPROM_DRIVER -DEEPROM_TRANSIENT

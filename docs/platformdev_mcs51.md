@@ -48,6 +48,7 @@ The following variables can be set in a keyboard's or keymap's `rules.mk`:
 | `MCS51_FEWER_SPILLS_SRC`       |            | Source files compiled with fewer optimizations, which reduces their use of direct RAM. See [Memory](#memory). When VIA is enabled, `platform.mk` adds several core files to this list. |
 | `CH555_EEPROM_SIZE`            | `1024`     | Size of QMK's EEPROM in code flash, in bytes (a multiple of 64). Applies with `EEPROM_DRIVER = vendor`.                                                                                |
 | `CH555_EEPROM_CODE_FLASH_XRAM` | `0x1800`   | Address in xRAM of the EEPROM's working copy.                                                                                                                                          |
+| `SH68F90_EEPROM_SIZE`          | `496`      | Size of QMK's EEPROM in the SH68F90A's code flash, in bytes (512 × n − 16). Applies with `EEPROM_DRIVER = vendor`.                                                                     |
 | `CH555_DATA_FLASH_ENABLE`      | `no`       | Compiles the driver for the CH555's 1 KB data flash (`data_flash.h`).                                                                                                                  |
 
 ## Writing code for SDCC
@@ -149,7 +150,7 @@ Pins are named `PORT<port>_<pin>`, for example `PORT4_0` for P4.0. A pin is stor
 
 ### EEPROM
 
-With `EEPROM_DRIVER = vendor`, `common_features.mk` selects the EEPROM driver by `MCU_SERIES`. For the CH555 this is the code flash driver: the EEPROM is a copy in xRAM, saved to one of two slots at the top of the application's code space 2 seconds after the last write. The vendor `.mk` computes the size and address of the slots and lowers `CODE_SIZE` so that code is never linked into them. For an MCU without its own driver, `common_features.mk` selects the transient driver, which keeps the EEPROM in RAM only.
+With `EEPROM_DRIVER = vendor`, `common_features.mk` selects the EEPROM driver by `MCU_SERIES`. For the CH555 this is the code flash driver: the EEPROM is a copy in xRAM, saved to one of two slots at the top of the application's code space 2 seconds after the last write. The vendor `.mk` computes the size and address of the slots and lowers `CODE_SIZE` so that code is never linked into them. The SH68F90A driver works the same way with the MCU's 512-byte flash sectors: each slot is a whole number of sectors, and its 16-byte header is at the end of its last sector. For an MCU without its own driver, `common_features.mk` selects the transient driver, which keeps the EEPROM in RAM only.
 
 ## Adding an MCU
 
