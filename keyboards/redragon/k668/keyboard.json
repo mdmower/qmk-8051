@@ -22,6 +22,7 @@
         "scroll_lock": "PORT0_2"
     },
     "matrix_pins": {
+        "custom_lite": true,
         "cols": ["PORT7_0", "PORT7_1", "PORT7_2", "PORT7_3", "PORT5_3", "PORT5_4"],
         "rows": ["PORT6_0", "PORT6_1", "PORT6_2", "PORT6_3", "PORT6_4", "PORT6_5", "PORT6_6", "PORT6_7", "PORT5_0", "PORT5_1", "PORT5_2", "PORT5_7", "PORT4_0", "PORT4_2", "PORT4_3", "PORT4_5", "PORT4_6", "PORT7_4", "PORT0_5", "PORT0_6", "PORT0_7"]
     },

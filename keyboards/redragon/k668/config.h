@@ -2,9 +2,6 @@
 
 #pragma once
 
-/* The matrix rows are also the sinks of the LED columns: an unselected row is driven high, not left to the pull-up. */
-#define MATRIX_UNSELECT_DRIVE_HIGH
-
 /* Win Lock LED, active low */
 #define LED_WIN_LOCK_PIN PORT4_7
 

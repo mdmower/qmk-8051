@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "quantum.h"
+#include "led_pwm.h"
 
 /* Esc held at power-up starts the bootloader, before USB starts. Esc is on the strobe P6.0 and the input P7.0. */
 void keyboard_pre_init_kb(void) {
@@ -17,6 +18,26 @@ void keyboard_pre_init_kb(void) {
     gpio_write_pin_high(LED_WIN_LOCK_PIN);
 
     keyboard_pre_init_user();
+}
+
+/* All LEDs dim white */
+void keyboard_post_init_kb(void) {
+    uint16_t i;
+
+    for (i = 0; i < sizeof(led_pwm_buf); i++) {
+        led_pwm_buf[i] = 32;
+    }
+
+    keyboard_post_init_user();
+}
+
+/* The LEDs are off in the bootloader; the PWM banks would otherwise keep running with the last column's duties. */
+bool shutdown_kb(bool jump_to_bootloader) {
+    if (!shutdown_user(jump_to_bootloader)) {
+        return false;
+    }
+    led_pwm_stop();
+    return true;
 }
 
 static bool suspended = false;
