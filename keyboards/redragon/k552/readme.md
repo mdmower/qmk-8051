@@ -21,7 +21,7 @@ See the [top-level readme](../../../readme.md#getting-started) for complete inst
 
 ```sh
 # Build default image
-python -I util/ch555_build.py redragon/k552
+python -I util/mcs51_build.py redragon/k552
 
 # Reboot from stock to bootloader
 python -I util/evision_flash.py enter --send

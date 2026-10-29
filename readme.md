@@ -99,21 +99,21 @@ python -I util/evision_flash.py extract ${KB}_stock.bin ${KB}_stock_app.bin
 
 ### 2. Build with Docker
 
-`util/ch555_build.py KEYBOARD [KEYMAP] [--serial SERIAL]` builds the firmware inside a Docker container so that you do not need to install the build toolchain on your system (SDCC, clang, and the QMK CLI). The first build creates the Docker image, which takes a few minutes. Subsequent builds are faster. If you would rather install the build toolchain on your system, see section [Development: Build](#build).
+`util/mcs51_build.py KEYBOARD [KEYMAP] [--serial SERIAL]` builds the firmware inside a Docker container so that you do not need to install the build toolchain on your system (SDCC, clang, and the QMK CLI). The first build creates the Docker image, which takes a few minutes. Subsequent builds are faster. If you would rather install the build toolchain on your system, see section [Development: Build](#build).
 
 #### Examples
 
 Example 1: Build the `default` keymap for your device and use the microcontroller chip ID for the USB serial number:
 
 ```sh
-python -I util/ch555_build.py redragon/$KB
+python -I util/mcs51_build.py redragon/$KB
 # Output file: redragon_${KB}_default.bin
 ```
 
 Example 2: Build the `via` keymap for your device and manually provide the serial number from the sticker on the back of your keyboard:
 
 ```sh
-python -I util/ch555_build.py redragon/$KB via --serial RDK580RGB00000000000
+python -I util/mcs51_build.py redragon/$KB via --serial RDK580RGB00000000000
 # Output file: redragon_${KB}_via.bin
 ```
 
