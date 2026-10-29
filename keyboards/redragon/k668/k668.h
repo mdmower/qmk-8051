@@ -6,7 +6,7 @@
 #include "keyboards/redragon/common/led_fx.h"
 
 /* Keycodes from QK_KB_0: the lighting settings in led_fx.h order, key LEDs, then side lights; Shift steps a setting
- * back. */
+ * back. RD_KVALD steps the key LED brightness down (Shift: up). */
 enum k668_keycodes {
     RD_KMODE = QK_KB_0,
     RD_KHUE,
@@ -20,4 +20,5 @@ enum k668_keycodes {
     RD_SVAL,
     RD_SSPD,
     RD_STOG,
+    RD_KVALD,
 };

@@ -54,15 +54,30 @@ bool pre_process_record_kb(uint16_t keycode, keyrecord_t *record) {
     return pre_process_record_user(keycode, record);
 }
 
-/* The lighting keycodes; each change is written to the EEPROM data block. */
+/* The lighting keycodes, each change written to the EEPROM data block, and the keycodes with a GUI modifier. */
 bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     if (!process_record_user(keycode, record)) {
         return false;
     }
-    if (keycode >= RD_KMODE && keycode <= RD_STOG) {
+    if (keycode >= RD_KMODE && keycode <= RD_KVALD) {
         if (record->event.pressed) {
-            led_fx_adjust(keycode - RD_KMODE, get_mods() & MOD_MASK_SHIFT);
+            bool reverse = get_mods() & MOD_MASK_SHIFT;
+            if (keycode == RD_KVALD) {
+                keycode = RD_KVAL;
+                reverse = !reverse;
+            }
+            led_fx_adjust(keycode - RD_KMODE, reverse);
             save_settings();
+        }
+        return false;
+    }
+    /* A keycode with a GUI modifier, such as LGUI(KC_L), sends it also while Win Lock is on: register_code16() adds
+     * the keycode's modifiers without mod_config(), which removes GUI while keymap_config.no_gui is set. */
+    if (IS_QK_MODS(keycode) && (QK_MODS_GET_MODS(keycode) & MOD_LGUI)) {
+        if (record->event.pressed) {
+            register_code16(keycode);
+        } else {
+            unregister_code16(keycode);
         }
         return false;
     }
