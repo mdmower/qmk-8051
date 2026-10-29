@@ -185,6 +185,16 @@ void led_pwm_init(void) {
     P3CR |= CHANNELS_P123;
     P7CR |= CHANNELS_P7;
 
+    /* Full source drive (25 mA) on P1-P3; the reset value of PxDRV, 2, is 10/24 of it. DRVCON selects the port in
+     * bits 7-6, and 0x5 in bits 3-0 allows the change; DRVCON = 0 locks the drive registers again. */
+    DRVCON = 0x05;
+    P1DRV  = 0;
+    DRVCON = 0x45;
+    P2DRV  = 0;
+    DRVCON = 0x85;
+    P3DRV  = 0;
+    DRVCON = 0;
+
     PWM0PERDH = PWM_PERIOD >> 8;
     PWM0PERDL = PWM_PERIOD & 0xFF;
     PWM1PERDH = PWM_PERIOD >> 8;
