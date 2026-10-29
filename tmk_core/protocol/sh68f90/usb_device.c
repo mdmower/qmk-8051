@@ -471,6 +471,10 @@ MCS51_ISR(usb_isr, INT_NO_USB) {
 
     if1 = USBIF1;
     if2 = USBIF2;
+    /* SOFIF is set at every frame; it is handled only while SOFIE is set, which is during a suspend */
+    if (!(USBIE1 & bSOFIE)) {
+        if1 &= ~bSOFIF;
+    }
 
     if (if1 & bUSBRSTIF) {
         /* SWRST clears the other flags (datasheet 8.4.4) */
@@ -478,13 +482,17 @@ MCS51_ISR(usb_isr, INT_NO_USB) {
         USBIF1 &= ~bUSBRSTIF;
     } else {
         if (if1 & bSUSPIF) {
-            /* The controller must be put into suspend within 7 ms of SUSPIF (datasheet 8.4.3) */
-            USBIF1 &= ~bSUSPIF;
+            /* The controller must be put into suspend within 7 ms of SUSPIF (datasheet 8.4.3). RESMIF is set only when
+             * the host resumes the bus while GOSUSP is set; a remote wake-up clears GOSUSP, so after it the first SOF
+             * ends the suspend. */
+            USBIF1 &= ~(bSUSPIF | bSOFIF);
             USBCON |= bGOSUSP;
+            USBIE1 |= bSOFIE;
             usb_suspended = true;
         }
-        if (if1 & bRESMIF) {
-            USBIF1 &= ~bRESMIF;
+        if (if1 & (bRESMIF | bSOFIF)) {
+            USBIF1 &= ~(bRESMIF | bSOFIF);
+            USBIE1 &= ~bSOFIE;
             USBCON &= ~bGOSUSP;
             usb_suspended   = false;
             usb_wakeup_sent = false;
@@ -496,7 +504,6 @@ MCS51_ISR(usb_isr, INT_NO_USB) {
             USBIF1 &= ~bSETUPIF;
             USBIF1 &= ~(bOVERIF | bOW);
             USBIF2 &= ~(bIEP0IF | bOEP0IF);
-            usb_wakeup_sent = false;
             ep0_setup();
         } else {
             if (if2 & bOEP0IF) {

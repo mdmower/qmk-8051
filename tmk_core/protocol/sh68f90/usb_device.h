@@ -23,7 +23,7 @@
 
 /* Set by the USB interrupt, read by the main loop */
 extern volatile bool    usb_configured;       /* SET_CONFIGURATION with a nonzero value */
-extern volatile bool    usb_suspended;        /* SUSPIF until RESMIF or a bus reset */
+extern volatile bool    usb_suspended;        /* SUSPIF until RESMIF, the next SOF or a bus reset */
 extern volatile bool    usb_remote_wakeup;    /* the host enabled remote wake-up */
 extern volatile bool    usb_wakeup_sent;      /* a resume signal was sent and the bus is not active yet */
 extern volatile uint8_t usb_keyboard_leds;    /* the last LED output report */
