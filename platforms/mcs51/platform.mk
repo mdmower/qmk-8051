@@ -9,7 +9,7 @@
 
 # Compiler settings
 #
-CC = python3 $(PLATFORM_COMMON_DIR)/sdcc_cc.py
+CC = $(PLATFORM_COMMON_DIR)/sdcc_cc.py
 OBJCOPY = objcopy
 OBJDUMP = objdump
 SIZE = size
@@ -17,6 +17,9 @@ NM = nm
 AR = sdar
 HEX = $(OBJCOPY) -O $(FORMAT)
 BIN = $(OBJCOPY) -O binary
+EVISION_OEM_IMAGE = $(TOP_DIR)/util/evision_oem_image.py
+EVISION_FLASH = $(TOP_DIR)/util/evision_flash.py
+SINOWEALTH_FLASH = $(TOP_DIR)/util/sinowealth_flash.py
 EEP =
 
 MCUFLAGS = -mmcs51 --model-large
@@ -86,22 +89,22 @@ bin: $(BUILD_DIR)/$(TARGET).bin
 ifeq ($(strip $(BOOTLOADER)), evision-oem)
 $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
 	@$(SILENT) || printf "$(MSG_BIN) $@" | $(AWK_CMD)
-	$(eval CMD=python3 $(TOP_DIR)/util/evision_oem_image.py sdcc $(BUILD_DIR)/$(TARGET).ihx $(INTERMEDIATE_OUTPUT)/quantum/main.asm $@ --code-loc $(MCS51_CODE_LOC) --code-end $(CODE_SIZE))
+	$(eval CMD=$(EVISION_OEM_IMAGE) sdcc $(BUILD_DIR)/$(TARGET).ihx $(INTERMEDIATE_OUTPUT)/quantum/main.asm $@ --code-loc $(MCS51_CODE_LOC) --code-end $(CODE_SIZE))
 	@$(BUILD_CMD)
 endif
 
 # The flash tool of the bootloader checks the image before it is copied to the top directory.
 ifeq ($(strip $(BOOTLOADER)), evision-oem)
-    MCS51_IMAGE_CHECK = $(TOP_DIR)/util/evision_flash.py check
+    MCS51_IMAGE_CHECK = $(EVISION_FLASH) check
 endif
 ifeq ($(strip $(BOOTLOADER)), sinowealth-isp)
-    MCS51_IMAGE_CHECK = $(TOP_DIR)/util/sinowealth_flash.py check
+    MCS51_IMAGE_CHECK = $(SINOWEALTH_FLASH) check
 endif
 ifneq ($(MCS51_IMAGE_CHECK),)
 cpfirmware_qmk: check-image
 check-image: $(BUILD_DIR)/$(TARGET).$(FIRMWARE_FORMAT)
 	@$(SILENT) || printf "Checking $(TARGET).$(FIRMWARE_FORMAT)" | $(AWK_CMD)
-	$(eval CMD={ python3 -I $(MCS51_IMAGE_CHECK) $< >/dev/null; })
+	$(eval CMD={ $(MCS51_IMAGE_CHECK) $< >/dev/null; })
 	@$(BUILD_CMD)
 .PHONY: check-image
 endif
