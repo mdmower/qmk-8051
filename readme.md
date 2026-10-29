@@ -11,7 +11,7 @@ _This is an unofficial QMK fork. Use at your own risk. You assume all risk for d
 | [Redragon K551RGB-1](keyboards/redragon/k551/) | Evision VS11K28A | `320f:5000`       | `5244:0551`     | Untested                       |
 | [Redragon K552RGB-2](keyboards/redragon/k552/) | Evision VS11K28A | `320f:5000`       | `5244:0552`     | Untested                       |
 | [Redragon K580RGB](keyboards/redragon/k580/)   | Evision VS11K33A | `320f:5000`       | `5244:0580`     | Tested on Linux and Windows 11 |
-| [Redragon K582RGB](keyboards/redragon/k582/)   | Evision VS11K28A | `320f:5000`       | `5244:0582`     | Untested                       |
+| [Redragon K582RGB](keyboards/redragon/k582/)   | Evision VS11K28A | `320f:5000`       | `5244:0582`     | Tested on Linux and Windows 11 |
 | [Redragon K589RGB](keyboards/redragon/k589/)   | Evision VS11K28A | `320f:5000`       | `5244:0589`     | Untested                       |
 
 This root readme covers information common to all of the above keyboards. See the individual keyboard readmes for information specific to each (bootloader checks, keymaps, lighting, and hardware).

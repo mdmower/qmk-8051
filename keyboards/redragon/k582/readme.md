@@ -3,7 +3,7 @@
 Some revisions of the Redragon K582RGB and K582RGB SE (K582 Surara RGB) use an Evision VS11K28A MCU, an 8051 microcontroller in the WCH CH555 family. QMK is flashed through the stock bootloader, which is left in place.
 
 - Maintainer: [mdmower](https://github.com/mdmower)
-- Status: Untested
+- Status: Tested on Linux and Windows 11
 
 Procedures for backing up the stock firmware, building and flashing QMK, and restoring the stock firmware (if needed) are as described in the [top-level readme](../../../readme.md#getting-started).
 
