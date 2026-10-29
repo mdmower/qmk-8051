@@ -9,6 +9,7 @@ SDCC 4.6.0 is required.
 | `processor` | `MCU_FAMILY` | `MCU_SERIES` | USB protocol | Bootloaders              |
 | ----------- | ------------ | ------------ | ------------ | ------------------------ |
 | `ch555`     | `WCH`        | `CH555`      | `CH555`      | `evision-oem`, `ch55xbl` |
+| `sh68f90a`  | `SINOWEALTH` | `SH68F90`    | `SH68F90`    | `sinowealth-isp`         |
 
 The MCU and bootloader are set in the keyboard's `keyboard.json`. For example, Evision's VS11K28A and VS11K33A are CH555-family parts and both have processor `ch555`:
 
@@ -17,11 +18,14 @@ The MCU and bootloader are set in the keyboard's `keyboard.json`. For example, E
 "bootloader": "evision-oem",
 ```
 
-| Bootloader    | Description                                                                                                                                                                 |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `evision-oem` | Evision OEM bootloader. The image starts at 0x2800, and `qmk compile` writes it to `<target>.bin`. The [root readme](../readme.md#flash-layout) describes the flash layout. |
-| `ch55xbl`     | WCH factory bootloader in ROM. The image starts at 0x0000. Untested.                                                                                                        |
-| `custom`      | `bootloader_jump()` is defined in the keyboard's code.                                                                                                                      |
+| Bootloader       | Description                                                                                                                                                                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `evision-oem`    | Evision OEM bootloader. The image starts at 0x2800, and `qmk compile` writes it to `<target>.bin`. The [root readme](../readme.md#flash-layout) describes the flash layout.                                                                                  |
+| `sinowealth-isp` | Sinowealth ISP bootloader at 0xF000–0xFFFF (USB `0603:1020`). The image starts at 0x0000 and ends at 0xEFFA (at most), and `qmk compile` writes it to `<target>.hex`. The bootloader retains its start marker and the image's reset vector at 0xEFFB–0xEFFD. |
+| `ch55xbl`        | WCH factory bootloader in ROM. The image starts at 0x0000. Untested.                                                                                                                                                                                         |
+| `custom`         | `bootloader_jump()` is defined in the keyboard's code.                                                                                                                                                                                                       |
+
+For `evision-oem` and `sinowealth-isp`, the bootloader's flash tool in `util/` checks the image before `qmk compile` copies it to the top directory: `evision_flash.py check` or `sinowealth_flash.py check`. The build is aborted if a check fails. `qmk flash` writes the built image: `evision_flash.py` waits up to 15 seconds for the bootloader (the keyboard readme should include instructions for how to reach the bootloader); `sinowealth_flash.py` sends a request to reboot to the bootloader if necessary, and then writes the image.
 
 ## The build
 
@@ -41,7 +45,7 @@ The following variables can be set in a keyboard's or keymap's `rules.mk`:
 
 | Variable                       | Default    | Description                                                                                                                                                                            |
 | ------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `F_CPU`                        | `24000000` | System clock. The CH555 supports 12, 16, 24 and 32 MHz.                                                                                                                                |
+| `F_CPU`                        | `24000000` | System clock. The CH555 supports 12, 16, 24 and 32 MHz; the SH68F90A supports 24 MHz (required for USB support).                                                                       |
 | `MCS51_ISR_HEADERS`            |            | Headers that declare interrupt handlers. See [Interrupt handlers](#interrupt-handlers).                                                                                                |
 | `MCS51_DCE`                    | `yes`      | Set to `no` to keep unused functions in the image.                                                                                                                                     |
 | `MCS51_DCE_KEEP`               |            | Names of functions that only SDCC's library calls and that must not be removed. `putchar`, `getchar` and `_sdcc_external_startup` are always kept.                                     |
@@ -57,7 +61,7 @@ The following variables can be set in a keyboard's or keymap's `rules.mk`:
 
 `platform.mk` passes `--std-sdcc11` to SDCC, which selects C11 with SDCC's extensions. SDCC rejects some C that GCC accepts: case ranges (`case 1 ... 5:`), casts to a union type, variable-length arrays, and empty structs. GCC attributes are removed by [sdcc_compat.h](../platforms/mcs51/sdcc_compat.h), which is included before every source file. That file also defines macros, such as `ARRAY_SIZE`, whose definitions in QMK's headers use GCC built-ins.
 
-Print output goes through SDCC's own `printf()`, which writes to the MCU's UART through `putchar()`. QMK's `lib/printf` is not used.
+Print output, if supported (keyboards that do not support it define `NO_PRINT`), goes through SDCC's own `printf()`, which writes to the MCU's UART through `putchar()`. QMK's `lib/printf` is not used.
 
 A struct whose first member is an array must be zero-initialized with `{{0}}`. SDCC rejects `{0}` for it with error 69.
 
@@ -84,7 +88,7 @@ Functions are not reentrant unless declared `__reentrant`. SDCC passes the secon
 
 ### Memory
 
-`platform.mk` selects SDCC's large memory model, so variables are placed in external RAM (xRAM) unless declared otherwise. On the CH555 the linker places variables in 0x0100–0x0FFF. The USB buffers occupy 0x1000–0x13FF, and 0x1400–0x1FFF holds buffers at fixed addresses, such as the working copy of the EEPROM (`CH555_EEPROM_CODE_FLASH_XRAM`).
+`platform.mk` selects SDCC's large memory model, so variables are placed in external RAM (xRAM) unless declared otherwise. On the CH555, the linker places variables in 0x0100–0x0FFF. The USB buffers occupy 0x1000–0x13FF, and 0x1400–0x1FFF holds buffers at fixed addresses, such as the working copy of the EEPROM (`CH555_EEPROM_CODE_FLASH_XRAM`). On the SH68F90A, the linker places variables in 0x0000–0x0FFF, the whole xRAM, including the EEPROM's working copy. The USB buffers are in the USB RAM at 0x1100–0x11FF, and the PWM registers of banks 0–3 are external SFRs at 0xFF80–0xFFFF, which are read and written with MOVX.
 
 Direct RAM (0x08–0x7F) is small and shared by SDCC's spill locations (where it keeps values that do not fit in registers), bit variables and the stack. If new code adds spill locations, the link can fail, or too little stack can remain. Keep new variables in xRAM unless they are used on a time-critical path. When direct RAM runs out, add the files that use the most of it to `MCS51_FEWER_SPILLS_SRC`, which compiles them without some of SDCC's optimizations.
 
@@ -101,6 +105,8 @@ MCS51_ISR_HEADERS += my_handler.h
 `platform.mk` adds each of these headers to the compiler options of `main.c` with `-include`.
 
 Define the handler with the `MCS51_ISR(name, num)` macro from `mcs51_isr.h`; `num` is one of the `INT_NO_*` constants of the MCU. With the Evision bootloader, the vector table is part of the bootloader, which saves all registers itself and calls the application's handler as a plain function. Because of that, SDCC compiles the handler as an ordinary function, not as an interrupt handler. If the handler calls no other function, SDCC may place its local variables in memory that functions of the main loop also use. Enclose each handler, and every function it calls that has local variables in memory, in `#pragma save`, `#pragma nooverlay` and `#pragma restore`. The handlers in this tree do this regardless of the bootloader.
+
+On the SH68F90A, MOVC reads the information area instead of the program while FLASHCON.FAC is set. A handler that reads code memory with MOVC, such as a table or a descriptor in code, saves FLASHCON, clears it, and restores it at the end.
 
 ### Changes to the QMK core
 
@@ -125,14 +131,16 @@ The following bugs and feature requests have workarounds in this tree, most of t
 
 The files are arranged as in the ChibiOS platform: code shared by all 8051 MCUs is in `platforms/mcs51/`, and code for one MCU family is in `platforms/mcs51/vendors/<MCU_FAMILY>/`.
 
-| Path                              | Contents                                                                                                                                      |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `platforms/mcs51/`                | Platform code: timer, GPIO interface, suspend, platform setup, the compiler driver and its helper files, MCU selection, bootloader selection. |
-| `platforms/mcs51/vendors/WCH/`    | CH555 code: build rules (`CH555.mk`), the MCU interface (`mcs51_mcu.h`), defaults (`config.h`), port list, GPIO, chip ID, reset, data flash.  |
-| `platforms/mcs51/drivers/eeprom/` | EEPROM drivers. `eeprom_ch555_code_flash.c` stores QMK's EEPROM in CH555 code flash.                                                          |
-| `platforms/mcs51/bootloaders/`    | `bootloader_jump()` for each bootloader.                                                                                                      |
-| `lib/ch555/`                      | WCH's register header and support code (clock, delays, UART).                                                                                 |
-| `tmk_core/protocol/ch555/`        | USB stack for the CH555's USB controller.                                                                                                     |
+| Path                                  | Contents                                                                                                                                                    |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `platforms/mcs51/`                    | Platform code: timer, GPIO interface, suspend, platform setup, the compiler driver and its helper files, MCU selection, bootloader selection.               |
+| `platforms/mcs51/vendors/WCH/`        | CH555 code: build rules (`CH555.mk`), the MCU interface (`mcs51_mcu.h`), defaults (`config.h`), port list, GPIO, chip ID, reset, data flash.                |
+| `platforms/mcs51/vendors/SINOWEALTH/` | SH68F90A code: build rules (`SH68F90.mk`), the register header (`sh68f90a.h`), the MCU interface, defaults, port list, GPIO, clock, delays, chip ID, reset. |
+| `platforms/mcs51/drivers/eeprom/`     | EEPROM drivers. `eeprom_ch555_code_flash.c` and `eeprom_sh68f90_code_flash.c` store QMK's EEPROM in the CH555's and the SH68F90A's code flash.              |
+| `platforms/mcs51/bootloaders/`        | `bootloader_jump()` for each bootloader.                                                                                                                    |
+| `lib/ch555/`                          | WCH's register header and support code (clock, delays, UART).                                                                                               |
+| `tmk_core/protocol/ch555/`            | USB stack for the CH555's USB controller.                                                                                                                   |
+| `tmk_core/protocol/sh68f90/`          | USB stack for the SH68F90A's USB controller.                                                                                                                |
 
 ### Build order and configuration
 
@@ -154,7 +162,7 @@ With `EEPROM_DRIVER = vendor`, `common_features.mk` selects the EEPROM driver by
 
 ## Adding an MCU
 
-To port the platform to another 8051 MCU, add the following. The CH555 is the only MCU whose port is complete, so the list may be incomplete.
+To port the platform to another 8051 MCU, add the following. The CH555 and SH68F90A ports use this layout.
 
 1. **MCU selection.** A block in `platforms/mcs51/mcu_selection.mk` that sets `PROTOCOL`, `MCU_FAMILY`, `MCU_SERIES`, `IRAM_SIZE`, `XRAM_LOC`, `XRAM_SIZE`, `CODE_SIZE` and a default `F_CPU`.
 2. **Vendor directory.** `platforms/mcs51/vendors/<MCU_FAMILY>/` with:
@@ -173,7 +181,7 @@ To port the platform to another 8051 MCU, add the following. The CH555 is the on
 
 3. **EEPROM.** A driver for the MCU's flash in `platforms/mcs51/drivers/eeprom/` and an entry for its `MCU_SERIES` in `common_features.mk`. Without one, `EEPROM_DRIVER = vendor` results in the transient driver.
 4. **USB.** A protocol in `tmk_core/protocol/<name>/`, and a block for it in `tmk_core/protocol/usb_descriptor.h` that sets the endpoint numbers if the USB controller's endpoints do not fit QMK's default numbering (the CH555 and the SH68F90A have one). Share code with the CH555 stack only after a second stack exists and it is clear which code the two have in common.
-5. **Bootloader.** An entry in `platforms/mcs51/bootloader.mk`, a `bootloaders/<name>.c` with `bootloader_jump()`, and an image rule in `platform.mk` if the bootloader accepts a different image format than the linked binary.
+5. **Bootloader.** An entry in `platforms/mcs51/bootloader.mk`, a `bootloaders/<name>.c` with `bootloader_jump()`, and an image rule in `platform.mk` if the bootloader accepts a different image format than the linked binary. If the bootloader has a flash tool in `util/`, its check in `platform.mk` and its branch of the `flash` target in `platforms/mcs51/flash.mk`.
 6. **QMK CLI and schema.** The processor in `MCS51_PROCESSORS` and its default bootloader in `lib/python/qmk/constants.py`, and the processor and bootloader names in `data/schemas/keyboard.jsonschema`. The processor's protocol in the map in `mcs51_processor_rules()` (`lib/python/qmk/info.py`).
 
 Check the timer setup against the MCU's datasheet in particular. 8051 variants differ in their timers and in the clock that drives them, and the platform's 1 ms tick depends on the count per tick being correct.
