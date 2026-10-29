@@ -6,15 +6,14 @@
 #include <stdbool.h>
 #include "sh68f90a.h"
 
-/*
- * The LED matrix: the 21 key matrix rows (MATRIX_ROWS) are also the LED columns. They sink the current of the LEDs,
- * one row at a time: in each phase of the PWM0 interrupt one row is driven low, the six key inputs are read, and
- * the 21 PWM channels light that column's LEDs. The channels are the LED rows: rows 0-5 (the key rows, top row 0)
- * and row 6 (the side lights, in columns 0-16), with one channel per color: rows 0 and 1 PWM20-PWM25 (P1.0-P1.5),
- * rows 2 and 3 PWM10-PWM15 (P2.0-P2.5), row 4 PWM03-PWM05 (P3.3-P3.5), row 5 PWM00-PWM02 (P3.0-P3.2), row 6
- * PWM30-PWM32 (P7.5-P7.7).
- * Buffer: one byte per color, 21 bytes per column: LED_PWM_BYTE(column, row, color), color 0 red, 1 green, 2 blue.
- */
+/* The LED matrix and key scan. The 21 key matrix rows (MATRIX_ROWS) are the LED columns: in each phase of the PWM0
+ * interrupt one row is driven low and sinks the current of that column's LEDs, the six key inputs are read, and the
+ * 21 PWM channels light the column. */
+
+/* The PWM channels are the LED rows: rows 0-5 (the key rows, top row 0) and row 6 (the side lights, in columns
+ * 0-16), with one channel per color: rows 0 and 1 PWM20-PWM25 (P1.0-P1.5), rows 2 and 3 PWM10-PWM15 (P2.0-P2.5),
+ * row 4 PWM03-PWM05 (P3.3-P3.5), row 5 PWM00-PWM02 (P3.0-P3.2), row 6 PWM30-PWM32 (P7.5-P7.7).
+ * Buffer: one byte per color, 21 bytes per column: LED_PWM_BYTE(column, row, color), color 0 red, 1 green, 2 blue. */
 #define LED_PWM_COLUMNS 21
 #define LED_PWM_ROWS 7
 #define LED_PWM_BYTE(c, r, color) ((c) * (LED_PWM_ROWS * 3) + (r) * 3 + (color))
