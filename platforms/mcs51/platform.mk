@@ -90,6 +90,22 @@ $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
 	@$(BUILD_CMD)
 endif
 
+# The flash tool of the bootloader checks the image before it is copied to the top directory.
+ifeq ($(strip $(BOOTLOADER)), evision-oem)
+    MCS51_IMAGE_CHECK = $(TOP_DIR)/util/evision_flash.py check
+endif
+ifeq ($(strip $(BOOTLOADER)), sinowealth-isp)
+    MCS51_IMAGE_CHECK = $(TOP_DIR)/util/sinowealth_flash.py check
+endif
+ifneq ($(MCS51_IMAGE_CHECK),)
+cpfirmware_qmk: check-image
+check-image: $(BUILD_DIR)/$(TARGET).$(FIRMWARE_FORMAT)
+	@$(SILENT) || printf "Checking $(TARGET).$(FIRMWARE_FORMAT)" | $(AWK_CMD)
+	$(eval CMD={ python3 -I $(MCS51_IMAGE_CHECK) $< >/dev/null; })
+	@$(BUILD_CMD)
+.PHONY: check-image
+endif
+
 # Code end and internal RAM, from the linker's memory map
 check-size: build
 	@$(SILENT) || grep -E "ROM/EPROM/FLASH|EXTERNAL RAM|Stack starts" $(BUILD_DIR)/$(TARGET).mem
