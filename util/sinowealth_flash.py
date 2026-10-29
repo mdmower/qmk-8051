@@ -85,10 +85,6 @@ ISP_TIMEOUT = 10                         # seconds to wait for ISP mode after 05
 APP_TIMEOUT = 30                         # seconds to wait for the firmware after the reboot
 ERASE_SETTLE = 2.0                       # seconds after the erase before the next command
 
-KNOWN_IMAGES = {   # sha256 of the 61,440-byte firmware region in ISP form -> label
-    "ed1599c7d89e3f89770c5c5835ca0d983e72fe772eaeaf2db35238555affdd2a":
-        "K668 stock V1.6.6 (bcdDevice 0x0105) firmware region, as read from one K668",
-}
 KNOWN_BOOTLOADERS = {   # MD5 of the 4 KB bootloader -> label
     "3e0ebd0c440af5236d7ff8872343f85d": "SH68F90 ISP bootloader 3e0ebd0c (on the K668)",
     "2d169670eae0d36eae8188562c1f66e8": "SH68F90 ISP bootloader 2d169670",
@@ -176,8 +172,7 @@ def load_image(path):
         raise SystemExit("%s: no jump into the ISP bootloader (%s) in the image; after a flash the board could not "
                          "enter ISP mode again" % (path, ISP_JUMP.hex(" ")))
     sha = hashlib.sha256(img).hexdigest()
-    info = {"path": path, "full": full, "used": used, "entry": entry, "jump": jump, "sha256": sha,
-            "label": KNOWN_IMAGES.get(sha)}
+    info = {"path": path, "full": full, "used": used, "entry": entry, "jump": jump, "sha256": sha}
     if full:
         info["bootloader"] = bytes(raw[FW_SIZE:])
     return img, info
@@ -186,7 +181,7 @@ def print_image(info):
     print("image   : %s" % info["path"])
     print("          %d B used of %d (last non-zero byte at 0x%04X), reset LJMP to 0x%04X, ISP jump at 0x%04X"
           % (info["used"], FW_SIZE, info["used"] - 1, info["entry"], info["jump"]))
-    print("          sha256 %s (firmware region)%s" % (info["sha256"], " = " + info["label"] if info["label"] else ""))
+    print("          sha256 %s (firmware region)" % info["sha256"])
     if info["full"]:
         print("          full 64 KB backup: only 0x0000-0x%04X is written" % (FW_SIZE - 1))
 
@@ -632,8 +627,7 @@ def do_backup(a):
     fw_sha = hashlib.sha256(data[:FW_SIZE]).hexdigest()
     print("saved   : %s (%d B, two identical reads)" % (a.out, len(data)))
     print("          sha256 %s, MD5 %s (64 KB)" % (hashlib.sha256(data).hexdigest(), hashlib.md5(data).hexdigest()))
-    print("          firmware region sha256 %s%s" % (fw_sha, " = " + KNOWN_IMAGES[fw_sha] if fw_sha in KNOWN_IMAGES
-                                                     else ""))
+    print("          firmware region sha256 %s" % fw_sha)
     print("          bootloader %s" % bootloader_text(bl))
     if not a.no_reboot:
         wait_app(port, list(APP_IDS))

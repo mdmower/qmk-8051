@@ -141,7 +141,7 @@ _Tip: Include argument `--poll` at the end of the above flash command to make th
 
 ### Restore stock firmware (if needed)
 
-The `evision_flash.py` script only accepts known stock images (search for string `KNOWN =` in `util/evision_flash.py`) and images that have the feature "hold Esc when plugging in to reach the bootloader". All QMK images have this feature. If the firmware backup you made earlier is unrecognized by the script, you can either add the SHA-256 to the list of `KNOWN`s, or you can modify your stock firmware to include the feature:
+The `evision_flash.py` script only accepts stock images, which it recognizes by the stock firmware's command to enter the bootloader, and images that have the feature "hold Esc when plugging in to reach the bootloader". All QMK images have this feature. If the firmware backup you made earlier is unrecognized by the script, you can modify your stock firmware to include the feature:
 
 ```sh
 # Notice _app in filename

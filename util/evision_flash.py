@@ -23,9 +23,9 @@ Safety:
     (799 packets), the range erased by the bootloader. Writing beyond 0xEFBF would program unerased data flash, or the
     WCH factory bootloader, or wrap around to 0x0000.
   * Image checks: LJMP at 0x2800 and a 13-entry LJMP interrupt table at 0x3000 (where the bootloader forwards every
-    interrupt), all targets inside the app range. Except for known stock images, flashing is only allowed if the LJMP at
-    0x2800 points to an Esc check (Esc held at plug-in enters the bootloader), so that a flashed image that fails at
-    startup can still be replaced.
+    interrupt), all targets inside the app range. Flashing is only allowed if the LJMP at 0x2800 points to an Esc check
+    (Esc held at plug-in enters the bootloader), so that a flashed image that fails at startup can still be replaced, or
+    if the image holds the stock firmware's bootloader entry (04 EE EE 00, sent by 'enter').
   * Checks device identity (VID:PID on USB interface 1) and the bootloader's hello fingerprint before erasing. Checks
     status after every command and never sends reset (05) unless the checksum is OK.
   * Refuses when more than one keyboard has an ID where the command could apply.
@@ -93,19 +93,25 @@ ESC_CHECK = bytes.fromhex(
     "a1aa53b1f775a15575a1aa43b11080fed2808bc58ac489c288c1"
     "02")
 
-KNOWN = {   # sha256 of the raw (unpadded) app image -> label
-    "75eb9250cb7842b82220cb1ffb7374042d49a7461b076ee79e0ea5fdaabdaea4":
-        "K580 stock 1.04 app region, as read from one K580",
-    "4f7f1f17694774b452c46418e98981d30aa6274631da73428bcde1454a554ff5":
-        "K580 vendor 1.02 app region, from the Redragon updater",
-    "f583bda04856362d9f531fea76fa6df9445840e9b4f5c52110a65aec4b050a58":
-        "K552RGB-2 vendor V0101 app region, from the Redragon updater",
-    "4718cf8b32ef3b396b33df348849121ded521f425a0a15f11f5c0e5d4af3b3fb":
-        "K551RGB-1/K582RGB/K589RGB vendor V0107 app region, from the Redragon updater",
-}
+# The stock firmware's bootloader entry (04 EE EE 00 on interface 1, the command of 'enter'): checks EE EE 00, calls
+# WCH's flash erase with page 0x27C0 (the boot marker), then sets bSW_RESET. The two bytes between the parts are the
+# address of the erase routine. An image with it can enter the bootloader itself, so it needs no Esc check.
+STOCK_ENTER = (bytes.fromhex("e0b4ee1ba3e0b4ee16a3e07012c2af7fc07e2712"),   # ... CLR EA; R7:R6 = 0x27C0; LCALL
+               bytes.fromhex("75a15575a1aa43b110"))                          # SAFE_MOD 55 AA; GLOBAL_CFG |= bSW_RESET
+ROM_ERASE = bytes.fromhex("7586a6")      # MOV ROM_CTRL,#0xA6 (erase), in the routine's first 64 bytes
 
-def known_label(sha):
-    return KNOWN.get(sha)
+def stock_enter(raw):
+    """Return the address of the stock firmware's bootloader entry in the raw app image, or None."""
+    head, tail = STOCK_ENTER
+    i = raw.find(head)
+    while i >= 0:
+        call = i + len(head)
+        if raw[call + 2:call + 2 + len(tail)] == tail:
+            off = ((raw[call] << 8) | raw[call + 1]) - APP_BASE
+            if 0 <= off < len(raw) and ROM_ERASE in raw[off:off + 64]:
+                return APP_BASE + i
+        i = raw.find(head, i + 1)
+    return None
 
 # --- image handling -------------------------------------------------------------------------------------
 def ljmp_target(img, off):
@@ -127,17 +133,18 @@ def load_image(path):
                     % (len(raw), n, MAX_PACKETS, APP_BASE, ERASE_END - 1))
     end = APP_BASE + n * PKT
     sha = hashlib.sha256(raw).hexdigest()
-    label = known_label(sha)
+    stock = stock_enter(raw)
     entry = ljmp_target(raw, 0)
     app = None
     if entry is None or not (APP_BASE <= entry < end):
         errs.append("no LJMP into the app at 0x2800 (got %s)" % raw[:3].hex(" "))
-    elif not label:
+    elif stock is None:
         off = entry - APP_BASE
         if raw[off:off + len(ESC_CHECK)] == ESC_CHECK:
             app = ljmp_target(raw, off + len(ESC_CHECK) - 1)
         if app is None or not (APP_BASE <= app < end):
-            errs.append("the LJMP at 0x2800 does not lead to the Esc check (without it a failing image can be "
+            errs.append("the LJMP at 0x2800 does not lead to the Esc check, and the image has no stock bootloader entry "
+                        "(without either, a failing image can be "
                         "replaced only through the WCH factory ISP); add it with "
                         "util/evision_oem_image.py stock")
     for k in range(IVT_ENTRIES):
@@ -153,14 +160,16 @@ def load_image(path):
     if errs:
         raise SystemExit("image rejected:\n  " + "\n  ".join(errs))
     return img, {"path": path, "size": len(raw), "packets": n, "end": end - 1, "checksum": cks,
-                 "sha256": sha, "label": label, "entry": entry, "app": app}
+                 "sha256": sha, "stock": stock, "entry": entry, "app": app}
 
 def print_image(info):
     print("image   : %s" % info["path"])
-    print("sha256  : %s  (%s)" % (info["sha256"], info["label"] or "NOT a known image"))
+    print("sha256  : %s" % info["sha256"])
     print("range   : 0x%04x-0x%04x  (%d bytes, %d x 64 B packets)" % (APP_BASE, info["end"], info["size"],
                                                                     info["packets"]))
     print("checksum: 0x%06x" % info["checksum"])
+    if info["stock"] is not None:
+        print("stock   : 0x%04x: bootloader entry of the stock firmware (04 EE EE 00, 'enter')" % info["stock"])
     if info["app"] is not None:
         print("entry   : 0x%04x: Esc check (hold Esc at plug-in: bootloader), then 0x%04x"
               % (info["entry"], info["app"]))
