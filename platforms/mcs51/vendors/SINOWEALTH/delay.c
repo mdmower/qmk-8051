@@ -35,8 +35,11 @@ void mcs51_delay_us(uint16_t n) __naked {
     __asm__("ret");
 }
 
+/* A read of RSTSTAT restarts the watchdog count (datasheet 8.8), so a wait longer than the watchdog period does not
+ * reset the chip. */
 void mcs51_delay_ms(uint16_t n) {
     while (n) {
+        (void)RSTSTAT;
         mcs51_delay_us(1000);
         --n;
     }
