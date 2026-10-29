@@ -28,7 +28,7 @@ static __code const uint8_t led_pos[LED_FX_COLUMNS * LED_FX_ROWS] = {
      97,  89,  93,  95,  99, 111, 112, // matrix row 10
     105,  97, 101, 103,   0,   0, 124, // matrix row 11
     114, 105, 110,   0,   0,   0, 135, // matrix row 12
-    122, 120, 120, 117, 115, 121, 146, // matrix row 13
+    122, 118, 120, 117, 115, 121, 146, // matrix row 13
     135, 135, 135,   0,   0, 135, 158, // matrix row 14
     143, 143, 143,   0, 143, 143, 169, // matrix row 15
     152, 152, 152,   0,   0, 152, 180, // matrix row 16

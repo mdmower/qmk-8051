@@ -27,11 +27,15 @@ void keyboard_pre_init_kb(void) {
     gpio_set_pin_input_high(PORT7_0);
     gpio_set_pin_output(PORT6_0);
     gpio_write_pin_low(PORT6_0);
-    wait_us(10);
+    wait_us(50);
     if (!gpio_read_pin(PORT7_0)) {
         bootloader_jump();
     }
     gpio_set_pin_input_high(PORT6_0);
+
+    /* P5.5 and P5.6 are unused: inputs with pull-ups, so that they do not float */
+    gpio_set_pin_input_high(PORT5_5);
+    gpio_set_pin_input_high(PORT5_6);
 
     gpio_set_pin_output(LED_WIN_LOCK_PIN);
     gpio_write_pin_high(LED_WIN_LOCK_PIN);

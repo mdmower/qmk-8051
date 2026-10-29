@@ -5,6 +5,8 @@
 #include "mcs51_isr.h"
 #include "usb_device.h"
 
+_Static_assert(LED_FX_COLUMNS == LED_PWM_COLUMNS && LED_FX_ROWS == LED_PWM_ROWS, "LED_FX_COLUMNS, LED_FX_ROWS: LED_PWM_COLUMNS, LED_PWM_ROWS");
+
 /* Matrix rows (LED columns) per port: P6.0-P6.7, P5.0-P5.2, P5.7, P4.0, P4.2, P4.3, P4.5, P4.6, P7.4, P0.5-P0.7 */
 #define ROWS_P6 0xFF
 #define ROWS_P5 0x87
