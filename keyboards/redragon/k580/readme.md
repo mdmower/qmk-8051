@@ -124,7 +124,7 @@ The G1–G5, Rec, and media keys have fixed colors (no RGB) with a brightness th
 | 1   | Static           | One color on all keys                                                      |
 | 2   | Rainbow          | A static rainbow from left to right                                        |
 | 3   | Reversed rainbow | A static rainbow from right to left                                        |
-| 4   | Wave             | A rainbow that moves from left to right                                    |
+| 4   | Wave (default)   | A rainbow that moves from left to right                                    |
 | 5   | Reversed wave    | A rainbow that moves from right to left                                    |
 | 6   | Color cycle      | All keys cycle through colors together                                     |
 | 7   | Breathing        | All keys fade in and out together                                          |
@@ -147,15 +147,15 @@ The G1–G5, Rec, and media keys have fixed colors (no RGB) with a brightness th
 | Speed      | Fn+G5     | Fn+Shift+G5   |
 | On/off     | Fn+Rec    |               |
 
-| #   | Mode             | What it does                            |
-| --- | ---------------- | --------------------------------------- |
-| 1   | Static           | One color for the whole strip           |
-| 2   | Rainbow          | A static rainbow from back to front     |
-| 3   | Reversed rainbow | A static rainbow from front to back     |
-| 4   | Wave             | A rainbow that moves from back to front |
-| 5   | Reversed wave    | A rainbow that moves from front to back |
-| 6   | Color cycle      | The whole strip cycles through colors   |
-| 7   | Breathing        | The whole strip fades in and out        |
+| #   | Mode              | What it does                            |
+| --- | ----------------- | --------------------------------------- |
+| 1   | Static            | One color for the whole strip           |
+| 2   | Rainbow (default) | A static rainbow from back to front     |
+| 3   | Reversed rainbow  | A static rainbow from front to back     |
+| 4   | Wave              | A rainbow that moves from back to front |
+| 5   | Reversed wave     | A rainbow that moves from front to back |
+| 6   | Color cycle       | The whole strip cycles through colors   |
+| 7   | Breathing         | The whole strip fades in and out        |
 
 ## Flash space
 

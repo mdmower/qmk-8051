@@ -76,7 +76,7 @@ Lighting changes are saved 3 seconds after the last change and are stored in a d
 | 1   | Static           | One color on all keys                                                      |
 | 2   | Rainbow          | A static rainbow from left to right                                        |
 | 3   | Reversed rainbow | A static rainbow from right to left                                        |
-| 4   | Wave             | A rainbow that moves from left to right                                    |
+| 4   | Wave (default)   | A rainbow that moves from left to right                                    |
 | 5   | Reversed wave    | A rainbow that moves from right to left                                    |
 | 6   | Color cycle      | All keys cycle through colors together                                     |
 | 7   | Breathing        | All keys fade in and out together                                          |
