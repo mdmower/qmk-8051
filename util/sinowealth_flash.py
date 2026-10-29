@@ -68,7 +68,7 @@ CONTROL_TIMEOUT_MS = 5000
 
 STOCK_IDS = {(0x258a, 0x0049): "stock firmware"}
 QMK_IDS = {(0x5244, 0x0668): "QMK K668"}
-ISP_IDS = {(0x0603, 0x1020): "ISP bootloader", (0x0603, 0x1021): "ISP bootloader"}
+ISP_IDS = {(0x0603, 0x1020): "ISP bootloader"}
 APP_IDS = {**STOCK_IDS, **QMK_IDS}
 ALL_IDS = {**APP_IDS, **ISP_IDS}
 VENDOR_PAGE = 0xff00                     # usage page of the collections of reports 5 and 6
@@ -104,16 +104,27 @@ class IspError(Exception):
     pass
 
 # --- images ---------------------------------------------------------------------------------------------------
+def read_file(path):
+    try:
+        with open(path, "rb") as f:
+            return f.read()
+    except OSError as e:
+        raise SystemExit("%s: %s" % (path, e.strerror or e))
+
 def read_ihex(path):
     """Intel HEX -> {address: byte}. Checks every record's checksum."""
     data, base = {}, 0
-    for n, line in enumerate(open(path), 1):
+    for n, line in enumerate(read_file(path).splitlines(), 1):
         line = line.strip()
         if not line:
             continue
-        if not line.startswith(":"):
+        if not line.startswith(b":"):
             raise SystemExit("%s:%d: not an Intel HEX record" % (path, n))
-        rec = bytes.fromhex(line[1:])
+        try:
+            rec = bytes.fromhex(line[1:].decode("ascii"))
+        except ValueError:
+            raise SystemExit("%s:%d: not an Intel HEX record (an odd number of digits or a character that is not a "
+                             "hex digit)" % (path, n))
         if len(rec) < 5 or len(rec) != rec[0] + 5 or sum(rec) & 0xff:
             raise SystemExit("%s:%d: bad record length or checksum" % (path, n))
         addr, typ, payload = rec[1] << 8 | rec[2], rec[3], rec[4:-1]
@@ -143,7 +154,7 @@ def load_image(path):
         for a, b in data.items():
             raw[a] = b
     else:
-        raw = bytearray(open(path, "rb").read())
+        raw = bytearray(read_file(path))
         if len(raw) > FW_SIZE and len(raw) != FLASH_SIZE:
             raise SystemExit("%s: %d bytes; expected the firmware region (at most %d) or a full 64 KB backup"
                              % (path, len(raw), FW_SIZE))
@@ -400,6 +411,11 @@ def need_access(b):
 
 def enter_isp(b):
     """Send 05 75 to the firmware of board b; return the board in ISP mode."""
+    if not b.cmd:
+        raise SystemExit("%s: no HID node with the feature report 5 (%d B), so its firmware cannot be told to enter "
+                         "ISP mode; nothing was sent. Not a K668, or a firmware without this report: start the "
+                         "bootloader with Fn+Esc or with Esc held while plugging in, if the firmware has them."
+                         % (b, CMD_LEN))
     need_access(b)
     fd = open_node(b.cmd)
     try:
@@ -463,6 +479,9 @@ class Isp:
         except OSError:                                  # the bootloader resets during the request
             pass
 
+def error_text(e):
+    return "interrupted" if isinstance(e, KeyboardInterrupt) else str(e)
+
 def progress(what, done, total):
     if done == total or done % 8 == 0:
         print("  %-8s %2d/%d pages" % (what, done, total), flush=True)
@@ -516,6 +535,7 @@ def do_flash(a):
              " or ".join("%04x:%04x" % i for i in ids)))
     if not a.send:
         print("\nDRY-RUN. Nothing sent. Re-run with --send to flash."); return
+    was_isp = b.isp
     if not b.isp:
         b = enter_isp(b)
     need_access(b)
@@ -528,18 +548,21 @@ def do_flash(a):
     try:
         try:
             check_first_page(isp)
+            erased = True                                # an error of the erase request may come after the erase
             isp.command(CMD_ERASE)
-            erased = True
             print("  erase    0x0000-0x%04X" % (FW_SIZE - 1), flush=True)
             time.sleep(ERASE_SETTLE)
             isp.write(bytes(wimg))
             back = isp.read(0, FW_PAGES, "verify")
-        except (OSError, IspError) as e:
+        except (OSError, IspError, KeyboardInterrupt) as e:
             if erased:
-                raise SystemExit("ABORT: %s. The board stays in ISP mode, also across replugs; run the flash again."
-                                 % e)
+                raise SystemExit("ABORT: %s. The flash may be erased: the board stays in ISP mode, also across "
+                                 "replugs; run the flash again." % error_text(e))
+            if was_isp:
+                raise SystemExit("ABORT before the erase: %s. Nothing was written; the board is in ISP mode as before."
+                                 % error_text(e))
             raise SystemExit("ABORT before the erase: %s. Nothing was written; a replug starts the firmware again."
-                             % e)
+                             % error_text(e))
         diff = [i for i in range(FW_SIZE) if back[i] != img[i]]
         if diff:
             raise SystemExit("ABORT: the read-back differs from the image in %d bytes, first at 0x%04X (%02X, image "
@@ -548,9 +571,9 @@ def do_flash(a):
         print("  verify   0x0000-0x%04X identical" % (FW_SIZE - 1), flush=True)
         try:
             isp.command(CMD_ENABLE)
-        except OSError as e:
+        except (OSError, KeyboardInterrupt) as e:
             raise SystemExit("ABORT: verified, but 55 (enable) failed: %s. The board stays in ISP mode; run the flash "
-                             "again." % e)
+                             "again." % error_text(e))
         print("  enable   ok", flush=True)
         isp.reboot()
     finally:
@@ -574,32 +597,42 @@ def do_backup(a):
     print("          (55 programs 02 at 0x%04X only if it is not there; on a board whose firmware runs it is)" % MARKER)
     if not a.send:
         print("\nDRY-RUN. Nothing sent. Re-run with --send to read."); return
-    if not b.isp:
-        b = enter_isp(b)
-    need_access(b)
-    port = b.port
-    isp = Isp(b)
+    try:                                                 # before anything is sent, so the reads cannot be lost
+        out = open(a.out, "xb")
+    except OSError as e:
+        raise SystemExit("%s: %s; nothing was sent" % (a.out, e.strerror or e))
+    saved = False
     try:
+        if not b.isp:
+            b = enter_isp(b)
+        need_access(b)
+        port = b.port
+        isp = Isp(b)
         try:
-            isp.command(CMD_ENABLE)
-            reads = [isp.read(0, FLASH_PAGES, "read %d" % n) for n in (1, 2)]
-        except (OSError, IspError) as e:
-            raise SystemExit("ABORT: %s. Nothing was saved. The board is in ISP mode; a replug starts the firmware."
-                             % e)
-        if not a.no_reboot:
-            isp.reboot()
+            try:
+                isp.command(CMD_ENABLE)
+                reads = [isp.read(0, FLASH_PAGES, "read %d" % n) for n in (1, 2)]
+            except (OSError, IspError, KeyboardInterrupt) as e:
+                raise SystemExit("ABORT: %s. Nothing was saved. The board is in ISP mode; a replug starts the "
+                                 "firmware." % error_text(e))
+            if not a.no_reboot:
+                isp.reboot()
+        finally:
+            isp.close()
+        if reads[0] != reads[1]:
+            n = sum(x != y for x, y in zip(*reads))
+            raise SystemExit("the two reads differ in %d bytes; nothing was saved" % n)
+        data = reads[0]
+        bl = data[FW_SIZE:]
+        if not bl.startswith(BOOT_PROLOGUE) or BOOT_ISP_REPORT not in bl:
+            raise SystemExit("0x%04X-0x%04X is not the ISP bootloader (it starts %s); nothing was saved"
+                             % (FW_SIZE, FLASH_SIZE - 1, bl[:5].hex(" ")))
+        out.write(data)
+        saved = True
     finally:
-        isp.close()
-    if reads[0] != reads[1]:
-        n = sum(x != y for x, y in zip(*reads))
-        raise SystemExit("the two reads differ in %d bytes; nothing was saved" % n)
-    data = reads[0]
-    bl = data[FW_SIZE:]
-    if not bl.startswith(BOOT_PROLOGUE) or BOOT_ISP_REPORT not in bl:
-        raise SystemExit("0x%04X-0x%04X is not the ISP bootloader (it starts %s); nothing was saved"
-                         % (FW_SIZE, FLASH_SIZE - 1, bl[:5].hex(" ")))
-    with open(a.out, "xb") as f:
-        f.write(data)
+        out.close()
+        if not saved:
+            os.remove(a.out)
     fw_sha = hashlib.sha256(data[:FW_SIZE]).hexdigest()
     print("saved   : %s (%d B, two identical reads)" % (a.out, len(data)))
     print("          sha256 %s, MD5 %s (64 KB)" % (hashlib.sha256(data).hexdigest(), hashlib.md5(data).hexdigest()))
@@ -636,7 +669,10 @@ def main():
                         % " or ".join("%04x:%04x" % i for i in APP_IDS))
     p.set_defaults(fn=do_flash)
     a = ap.parse_args()
-    a.fn(a)
+    try:
+        a.fn(a)
+    except KeyboardInterrupt:
+        raise SystemExit("interrupted")
 
 if __name__ == "__main__":
     main()
