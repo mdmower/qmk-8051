@@ -72,7 +72,7 @@ static __xdata uint8_t settings[LED_FX_ZONES][LED_FX_SETTINGS] = {
 };
 static __xdata uint16_t phase[LED_FX_ZONES];
 
-/* Per-zone values for the current pass; in iRAM, as are the other values used for every LED */
+/* Per-zone values for the current pass */
 typedef struct {
     uint8_t mode;
     uint8_t flags;
