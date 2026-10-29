@@ -6,15 +6,18 @@
 #include "timer.h"
 #include "eeprom_sh68f90_code_flash.h"
 
-/* SH68F90.mk sets the store's bounds: it occupies [SH68F90_EEPROM_CODE_FLASH_ADDR, SH68F90_EEPROM_CODE_FLASH_END). */
+/* SH68F90.mk sets the store's bounds: it occupies [SH68F90_EEPROM_CODE_FLASH_ADDR, SH68F90_EEPROM_CODE_FLASH_END),
+ * and code is linked below it (CODE_SIZE). */
 #if !defined(EEPROM_SIZE) || !defined(SH68F90_EEPROM_CODE_FLASH_ADDR) || !defined(SH68F90_EEPROM_CODE_FLASH_END)
-#    error "EEPROM_SIZE, SH68F90_EEPROM_CODE_FLASH_ADDR and SH68F90_EEPROM_CODE_FLASH_END are not defined"
+#    error "EEPROM_SIZE, SH68F90_EEPROM_CODE_FLASH_ADDR or SH68F90_EEPROM_CODE_FLASH_END is not defined"
 #endif
 
 #ifndef SH68F90_EEPROM_SAVE_DELAY
 #    define SH68F90_EEPROM_SAVE_DELAY 2000
 #endif
 
+/* The store holds two slots of whole 512-byte sectors; a slot holds EEPROM_SIZE data bytes, followed by a 16-byte
+ * header at the end of its last sector. */
 #define SECTOR_SIZE 512
 #define HEADER_SIZE 16
 #define SLOT_SECTORS ((EEPROM_SIZE + HEADER_SIZE) / SECTOR_SIZE)
@@ -72,7 +75,10 @@ static uint8_t  save_errors = 0;
 /* Runs one SSP command on the byte or the sector at addr (datasheet 7.4.3). XPAGE holds bits 8-15 of the address
  * (the sector number and bit 8 of the offset in the sector), IB_OFFSET bits 0-7; FLASHCON.FAC clear selects the
  * main block. The CPU idles until the command ends and continues after the NOPs. Interrupts are off throughout.
- * Returns 0 if the command was started. */
+ * Returns 0 if the command was started.
+ * SSP (sector self-programming) can erase and program any sector of code flash. This function starts every SSP command of the driver, and the
+ * address is checked against the store bounds again after it is loaded into XPAGE and IB_OFFSET, right before the
+ * command. */
 static uint8_t ssp_command(uint16_t addr, uint8_t command, uint8_t data) {
     uint8_t status = 0xFF;
 
@@ -151,6 +157,8 @@ static bool slot_valid(uint8_t slot, uint16_t *seq) {
     return true;
 }
 
+/* Loads the valid slot with the higher sequence number; without one, the EEPROM reads 0x00 and QMK writes its
+ * defaults. */
 void eeprom_driver_init(void) {
     uint16_t seq0, seq1;
     bool     valid0 = slot_valid(0, &seq0);
@@ -219,9 +227,11 @@ static void save_stop(bool failed) {
     }
 }
 
-/* Steps of a save: erase the sector with the header, then the other sectors of the slot; program the data in
- * steps of PROGRAM_STEP bytes, each compared with the copy; program the header with the sum of the data in flash.
- * A write to the copy during a save ends it before its header, and a new save starts after the delay. */
+/* Steps of a save into the slot that does not hold the newest copy: erase the sector with the header, then the other
+ * sectors of the slot; program the data in steps of PROGRAM_STEP bytes, each compared with the copy; program the
+ * header last, with the sum of the data in flash, so that a power loss during a save leaves the previous slot as the
+ * newest valid one. A write to the copy during a save ends it before its header, and a new save starts after the
+ * delay. */
 void eeprom_code_flash_task(void) {
     if (save_slot == NO_SLOT) {
         if (!dirty || timer_elapsed(last_write) < SH68F90_EEPROM_SAVE_DELAY || save_errors >= 3) return;

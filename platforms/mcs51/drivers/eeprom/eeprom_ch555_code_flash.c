@@ -7,15 +7,16 @@
 #include "eeprom_ch555_code_flash.h"
 
 /* The MCU's build rules set the store's bounds: it occupies [CH555_EEPROM_CODE_FLASH_ADDR,
- * CH555_EEPROM_CODE_FLASH_END). */
+ * CH555_EEPROM_CODE_FLASH_END), and code is linked below it (CODE_SIZE). */
 #if !defined(EEPROM_SIZE) || !defined(CH555_EEPROM_CODE_FLASH_ADDR) || !defined(CH555_EEPROM_CODE_FLASH_END) || !defined(CH555_EEPROM_CODE_FLASH_XRAM)
-#    error "EEPROM_SIZE, CH555_EEPROM_CODE_FLASH_ADDR, CH555_EEPROM_CODE_FLASH_END and CH555_EEPROM_CODE_FLASH_XRAM are not defined"
+#    error "EEPROM_SIZE, CH555_EEPROM_CODE_FLASH_ADDR, CH555_EEPROM_CODE_FLASH_END or CH555_EEPROM_CODE_FLASH_XRAM is not defined"
 #endif
 
 #ifndef CH555_EEPROM_SAVE_DELAY
 #    define CH555_EEPROM_SAVE_DELAY 2000
 #endif
 
+/* The store holds two slots of EEPROM_SIZE data bytes and a 64-byte header page each. */
 #define STORE_ADDR ((uint16_t)(CH555_EEPROM_CODE_FLASH_ADDR))
 #define STORE_END ((uint16_t)(CH555_EEPROM_CODE_FLASH_END))
 #define DATA_PAGES (EEPROM_SIZE / ROM_PAGE_SIZE)
@@ -88,6 +89,9 @@ static uint8_t  save_errors = 0;
 /*
  * Flash operations on store page n (0..STORE_PAGES-1). Each returns 0 on success. Interrupts are off from
  * write enable to write disable; the CPU stops during the command.
+ * Code-flash writes need bCODE_WE, which enables writes to all of code flash, the bootloader included. Only these
+ * functions set it, for one erase or program of one store page; the page number is checked against the store
+ * size, and the address in ROM_ADDR against the store bounds again after write enable, right before the command.
  */
 
 static uint16_t page_addr(uint8_t n) {
@@ -186,6 +190,8 @@ static bool slot_valid(uint8_t slot, uint16_t *seq) {
     return true;
 }
 
+/* Loads the valid slot with the higher sequence number; without one, the EEPROM reads 0x00 and QMK writes its
+ * defaults. */
 void eeprom_driver_init(void) {
     uint16_t seq0, seq1;
     bool     valid0 = slot_valid(0, &seq0);
@@ -258,9 +264,10 @@ static bool page_matches(uint8_t slot, uint8_t page, __xdata const uint8_t *buf)
     return memcmp(slot_page(slot, page), buf, ROM_PAGE_SIZE) == 0;
 }
 
-/* Steps of a save: erase the header page, then the data pages; program the data pages, each compared with
- * the copy; program the header with the sum of the data in flash. A write to the copy during a save ends
- * it before its header, and a new save starts after the delay. */
+/* Steps of a save into the slot that does not hold the newest copy: erase the header page, then the data pages;
+ * program the data pages, each compared with the copy; program the header last, with the sum of the data in flash,
+ * so that a power loss during a save leaves the previous slot as the newest valid one. A write to the copy during a
+ * save ends it before its header, and a new save starts after the delay. */
 void eeprom_code_flash_task(void) {
     if (save_slot == NO_SLOT) {
         if (!dirty || timer_elapsed(last_write) < CH555_EEPROM_SAVE_DELAY || save_errors >= 3) return;
