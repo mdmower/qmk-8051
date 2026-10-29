@@ -46,8 +46,9 @@
 
 /* The current keyboard report: the report ID, then the 8 bytes of the boot report. It is the last report loaded
  * into EP1, or one kept until EP1 is free; GET_REPORT (USB interrupt) answers it, and with a nonzero SET_IDLE
- * duration it is sent again when that time has passed since the last report (HID 1.11 7.2.4). */
-uint8_t         kbd_report[KEYBOARD_REPORT_SIZE];
+ * duration it is sent again when that time has passed since the last report (HID 1.11 7.2.4). Before the first
+ * report it is the empty report with its report ID. */
+uint8_t         kbd_report[KEYBOARD_REPORT_SIZE] = {REPORT_ID_KEYBOARD};
 static bool     kbd_report_pending = false;
 static uint16_t kbd_report_time;
 
