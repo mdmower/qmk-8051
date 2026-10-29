@@ -213,8 +213,13 @@ static void send_keyboard(report_keyboard_t *report) {
     send_kbd_report();
 }
 
+/* In the boot protocol the keyboard endpoint carries only boot keyboard reports (HID 1.11 7.2.6): the NKRO, mouse,
+ * extra key, joystick, programmable button and digitizer reports are dropped. */
 static void send_nkro(report_nkro_t *report) {
 #ifdef NKRO_ENABLE
+    if (usb_keyboard_protocol == 0) {
+        return;
+    }
     wait_ep1();
     nkro_pending_set = !send_ep1(report, sizeof(report_nkro_t));
     if (nkro_pending_set) {
@@ -225,6 +230,9 @@ static void send_nkro(report_nkro_t *report) {
 
 static void send_mouse(report_mouse_t *report) {
 #ifdef MOUSE_ENABLE
+    if (usb_keyboard_protocol == 0) {
+        return;
+    }
     wait_ep1();
     send_ep1(report, sizeof(report_mouse_t));
 #endif
@@ -233,6 +241,9 @@ static void send_mouse(report_mouse_t *report) {
 static void send_extra(report_extra_t *report) {
 #ifdef EXTRAKEY_ENABLE
     uint8_t i = (report->report_id == REPORT_ID_CONSUMER) ? 1 : 0;
+    if (usb_keyboard_protocol == 0) {
+        return;
+    }
     wait_ep1();
     extra_pending_set[i] = !send_ep1(report, sizeof(report_extra_t));
     if (extra_pending_set[i]) {
@@ -243,6 +254,9 @@ static void send_extra(report_extra_t *report) {
 
 void send_joystick(report_joystick_t *report) {
 #ifdef JOYSTICK_ENABLE
+    if (usb_keyboard_protocol == 0) {
+        return;
+    }
     wait_ep1();
     send_ep1(report, sizeof(report_joystick_t));
 #endif
@@ -250,6 +264,9 @@ void send_joystick(report_joystick_t *report) {
 
 void send_programmable_button(report_programmable_button_t *report) {
 #ifdef PROGRAMMABLE_BUTTON_ENABLE
+    if (usb_keyboard_protocol == 0) {
+        return;
+    }
     wait_ep1();
     send_ep1(report, sizeof(report_programmable_button_t));
 #endif
@@ -257,6 +274,9 @@ void send_programmable_button(report_programmable_button_t *report) {
 
 void send_digitizer(report_digitizer_t *report) {
 #ifdef DIGITIZER_ENABLE
+    if (usb_keyboard_protocol == 0) {
+        return;
+    }
     wait_ep1();
     send_ep1(report, sizeof(report_digitizer_t));
 #endif
@@ -327,11 +347,15 @@ void protocol_post_task(void) {
 
     /* SET_PROTOCOL (USB interrupt) takes effect here. QMK core builds boot reports in the boot protocol and, with
      * NKRO, NKRO reports in the report protocol; clear_keyboard() empties the report and sends it in the new form, as
-     * LUFA and ChibiOS do. A kept NKRO report is dropped. */
+     * LUFA and ChibiOS do. The kept NKRO and extra key reports are dropped. */
     if (usb_keyboard_protocol != usb_device_state_get_protocol()) {
         usb_device_state_set_protocol(usb_keyboard_protocol);
 #ifdef NKRO_ENABLE
         nkro_pending_set = false;
+#endif
+#ifdef EXTRAKEY_ENABLE
+        extra_pending_set[0] = false;
+        extra_pending_set[1] = false;
 #endif
         clear_keyboard();
     }
