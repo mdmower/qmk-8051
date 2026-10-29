@@ -203,6 +203,14 @@ void eeprom_write_block(const void *buf, void *addr, size_t len) {
     }
 }
 
+uint8_t eeprom_code_flash_clear(void) {
+    memset(ee_copy, 0, EEPROM_SIZE);
+    dirty     = false;
+    save_slot = NO_SLOT;
+    newest    = NO_SLOT;
+    return ssp_command(slot_addr(0) + SLOT_SIZE - SECTOR_SIZE, SSP_ERASE, 0) | ssp_command(slot_addr(1) + SLOT_SIZE - SECTOR_SIZE, SSP_ERASE, 0);
+}
+
 static void save_stop(bool failed) {
     save_slot = NO_SLOT;
     if (failed) {

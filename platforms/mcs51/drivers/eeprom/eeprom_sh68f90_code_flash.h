@@ -29,3 +29,6 @@
 /* Runs one step of a pending save: one sector erase, or the program and compare of up to 64 bytes. The CPU
  * idles during each SSP command, with interrupts off. Called from the main loop (protocol_post_task()). */
 void eeprom_code_flash_task(void);
+/* Clears the EEPROM: the copy reads 0x00, a running save ends, and the header sectors of both slots are erased, so
+ * that the next start finds no valid slot. Returns 0 if both erase commands were started. */
+uint8_t eeprom_code_flash_clear(void);
