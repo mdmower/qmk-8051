@@ -20,7 +20,7 @@ Read-only by construction:
     has that ID (these keyboards share it; the stock firmware does not identify the board).
   * DRY-RUN by default. Nothing is sent without --send.
 
-Linux (hidraw and sysfs) and Windows (hid.dll and SetupAPI, in util/evision_win.py). Python standard library only.
+Linux (hidraw and sysfs) and Windows (hid.dll and SetupAPI, in util/hid_win.py). Python standard library only.
 
 Usage:
   python3 -I util/evision_dump.py --out k580_full64k.bin [--send]
@@ -121,7 +121,7 @@ def read_chunk(fd, addr, n):
 # --- Windows: the same functions on hid.dll and SetupAPI ------------------------------------------------------
 if sys.platform == "win32":
     _spec = importlib.util.spec_from_file_location(
-        "evision_win", os.path.join(os.path.dirname(os.path.abspath(__file__)), "evision_win.py"))
+        "hid_win", os.path.join(os.path.dirname(os.path.abspath(__file__)), "hid_win.py"))
     _win = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_win)
     for _name in ("find_nodes", "usb_port", "open_node", "close_node", "write_report", "read_report"):

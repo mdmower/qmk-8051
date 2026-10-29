@@ -6,7 +6,7 @@ image is for the board.
 
 The protocol and every guard below come from a disassembly of the OEM bootloader (0x0000-0x27FF of a stock
 1.04 flash dump) and match Glitch752's USB capture (https://github.com/Glitch752/qmk-8051-vs11k28a).
-Linux (hidraw and sysfs) and Windows (hid.dll and SetupAPI, in util/evision_win.py). Python standard library only.
+Linux (hidraw and sysfs) and Windows (hid.dll and SetupAPI, in util/hid_win.py). Python standard library only.
 
 How the board boots: the bootloader jumps to the app (0x2800) only if code[0x27C0..0x27C3] == AA 55 33 CC.
 The app's "enter bootloader" report (04 EE EE 00) erases the 64-byte page at 0x27C0 and resets, so the board
@@ -313,7 +313,7 @@ def report_page(devpath):
 # --- Windows: the same functions on hid.dll and SetupAPI ------------------------------------------------------
 if sys.platform == "win32":
     _spec = importlib.util.spec_from_file_location(
-        "evision_win", os.path.join(os.path.dirname(os.path.abspath(__file__)), "evision_win.py"))
+        "hid_win", os.path.join(os.path.dirname(os.path.abspath(__file__)), "hid_win.py"))
     _win = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_win)
     for _name in ("find_nodes", "usb_dir", "usb_port", "usb_attrs", "usb_devices", "wait_usb_at", "wait_access",

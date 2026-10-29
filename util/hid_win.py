@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Windows device access for util/evision_flash.py and util/evision_dump.py. On Windows the tools load this file in
-place of their sysfs and hidraw functions; the functions here have the same names and return the same values.
+"""Windows device access for util/evision_flash.py, util/evision_dump.py and util/sinowealth_flash.py. On Windows the
+tools load this file in place of their sysfs and hidraw functions; the functions here have the same names and return
+the same values.
 SetupAPI, cfgmgr32 and hid.dll through ctypes; Python standard library only. Any user can open vendor and consumer
 HID collections: no driver and no administrator rights are needed.
 
@@ -38,6 +39,7 @@ ERROR_IO_PENDING = 997
 WAIT_OBJECT_0 = 0
 
 UsbDevice = collections.namedtuple("UsbDevice", "location instance vid pid bcd serial hidpath")
+Collection = collections.namedtuple("Collection", "path iface page feat dev")
 
 if CTYPES_ERROR is None:
     class GUID(ctypes.Structure):
@@ -140,8 +142,9 @@ def _usb_device(devinst):
             return devinst, inst
         devinst = parent.value
 
-def _collections(ids):
-    """Return [(path, iface1, UsbDevice)] for the present HID collections of the (vid, pid) pairs in ids."""
+def hid_collections(ids):
+    """Return [Collection] for the present HID collections of the (vid, pid) pairs in ids: path, USB interface number
+    (None for a device with one interface), usage page, feature report length (with the report ID byte), USB device."""
     _need_ctypes()
     guid = GUID()
     HidD_GetHidGuid(ctypes.byref(guid))
@@ -183,16 +186,26 @@ def _collections(ids):
             if vidpid not in ids:
                 continue
             mi = re.search(r"&mi_([0-9a-f]{2})", path, re.I)
-            iface1 = bool(mi) and int(mi.group(1), 16) == 1 and (
-                caps.UsagePage == IFACE1_PAGE[vidpid] if vidpid in IFACE1_PAGE else "&col" not in path.lower())
             devinst, inst = _usb_device(dinfo.DevInst)
             location = (_devnode_strings(devinst, CM_DRP_LOCATION_PATHS)
                         or _devnode_strings(devinst, CM_DRP_LOCATION_INFORMATION) or [inst])[0]
             tail = inst.split("\\")[-1]             # the serial, or an ID that Windows made (contains "&")
-            hits.append((path, iface1, UsbDevice(location, inst, attrs.VendorID, attrs.ProductID,
-                                                 attrs.VersionNumber, None if "&" in tail else tail, path)))
+            hits.append(Collection(path, int(mi.group(1), 16) if mi else None, caps.UsagePage,
+                                   caps.FeatureReportByteLength,
+                                   UsbDevice(location, inst, attrs.VendorID, attrs.ProductID, attrs.VersionNumber,
+                                             None if "&" in tail else tail, path)))
     finally:
         SetupDiDestroyDeviceInfoList(hdev)
+    return hits
+
+def _collections(ids):
+    """Return [(path, iface1, UsbDevice)] for the present HID collections of the (vid, pid) pairs in ids."""
+    hits = []
+    for c in hid_collections(ids):
+        vidpid = (c.dev.vid, c.dev.pid)
+        iface1 = c.iface == 1 and (
+            c.page == IFACE1_PAGE[vidpid] if vidpid in IFACE1_PAGE else "&col" not in c.path.lower())
+        hits.append((c.path, iface1, c.dev))
     return hits
 
 def find_nodes(vid, pid):
@@ -307,6 +320,23 @@ def get_feature(node):
                                             ov), CONTROL_TIMEOUT) is None:
         raise TimeoutError(errno.ETIMEDOUT, "GET_FEATURE timed out")
     return buf.raw[1:]
+
+def set_feature_id(node, data):
+    """SET_FEATURE of a report whose first byte is its report ID. Windows takes the collection's longest feature
+    report: a shorter one is padded with zeros, and the device receives only the length of its report ID."""
+    buf = _report(node, bytes(data) + bytes(max(0, node.feat - len(data))), node.feat, "feature")
+    if _io(node, lambda ov: DeviceIoControl(node.h, IOCTL_HID_SET_FEATURE, buf, len(buf), None, 0, None, ov),
+           CONTROL_TIMEOUT) is None:
+        raise TimeoutError(errno.ETIMEDOUT, "SET_FEATURE timed out")
+
+def get_feature_id(node, report_id):
+    """GET_FEATURE of report report_id; the reply starts with the report ID."""
+    buf = ctypes.create_string_buffer(bytes([report_id]), node.feat)
+    n = _io(node, lambda ov: DeviceIoControl(node.h, IOCTL_HID_GET_FEATURE, buf, len(buf), buf, len(buf), None, ov),
+            CONTROL_TIMEOUT)
+    if n is None:
+        raise TimeoutError(errno.ETIMEDOUT, "GET_FEATURE timed out")
+    return buf.raw[:n or len(buf)]
 
 def write_report(node, data):
     """Output report, report ID first. Without an OUT endpoint Windows sends it as a SET_REPORT, as Linux does."""

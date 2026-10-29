@@ -33,7 +33,7 @@ This root readme covers information common to all of the above keyboards. See th
     ```sh
     groups # Verify output includes: plugdev
 
-    sudo cp util/udev/70-redragon-ch555.rules /etc/udev/rules.d/
+    sudo cp util/udev/70-redragon.rules /etc/udev/rules.d/
     sudo udevadm control --reload && sudo udevadm trigger
     ```
 

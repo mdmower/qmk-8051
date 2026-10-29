@@ -1,0 +1,50 @@
+# Redragon keyboards with an Evision CH555-family 8051 (K580 RGB: VS11K33A; K552RGB-2, K551RGB-1, K582RGB,
+# K589RGB: VS11K28A) and the K668 (Sinowealth SH68F90A): user access to the hidraw and USB device nodes that
+# util/evision_dump.py, util/evision_flash.py, util/sinowealth_flash.py and VIA use.
+#   sudo cp util/udev/70-redragon.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload && sudo udevadm trigger
+# The 70- prefix matters: uaccess tags must be applied before 73-seat-late.rules.
+#
+# The hidraw rules match the node's DEVPATH (e.g. .../1-2.2:1.1/0003:320F:5000.000F/hidraw/hidraw14), so a rule
+# can select a single USB interface. HID device names use upper-case hex.
+
+# Stock firmware of the CH555-family keyboards (320f:5000), interface 1 only: the Evision vendor collection (usage
+# page 0xFF1C, usage 0x92), used for the flash dump and for bootloader entry. This interface also carries the NKRO
+# keyboard report (report ID 1), so a process with access to this node can read keystrokes. Interface 0 (the boot
+# keyboard) stays root-only. Remove this rule once the stock firmware is no longer in use.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:320F:5000.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# Evision OEM bootloader (firmware update mode). It reports no keystrokes, so all of its HID nodes are granted.
+KERNEL=="hidraw*", DEVPATH=="*/0003:0C45:7687.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# QMK on the K580 (5244:0580), interface 1 only: raw HID (usage page 0xFF60, usage 0x61), used by VIA. It carries
+# no keystrokes: interface 0 (boot keyboard) and interface 2 (NKRO and media keys) stay root-only.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0580.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+# QMK on the K552 (5244:0552), interface 1 only, as above.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0552.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+# QMK on the K551 (5244:0551), interface 1 only, as above.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0551.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+# QMK on the K582 (5244:0582), interface 1 only, as above.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0582.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+# QMK on the K589 (5244:0589), interface 1 only, as above.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0589.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# Redragon K668 stock firmware (258a:0049), interface 1 only: its vendor feature reports, one of which starts the ISP
+# bootloader. This interface also carries the NKRO keyboard and mouse reports, so a process with access to this node
+# can read keystrokes. Interface 0 (the boot keyboard) stays root-only. Other keyboards use the same ID. Remove this
+# rule once the stock firmware is no longer in use.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:258A:0049.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# Sinowealth ISP bootloader of the K668 (0603:1020). It reports no keystrokes. Its interface declares no endpoint,
+# so the kernel's HID driver does not bind to it and it has no hidraw node: this rule grants the USB device node,
+# which util/sinowealth_flash.py opens.
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0603", ATTRS{idProduct}=="1020", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# QMK on the K668 (5244:0668). Interface 1: raw HID, used by VIA; it carries no keystrokes. Interface 0: the
+# keyboard interface, which also carries the feature report with which util/sinowealth_flash.py starts the ISP
+# bootloader, so a process with access to this node can read keystrokes. Without the interface 0 rule, start the
+# bootloader with Fn+Esc, or hold Esc while plugging in the keyboard, before util/sinowealth_flash.py flash.
+KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0668.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+KERNEL=="hidraw*", DEVPATH=="*:1.0/0003:5244:0668.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# The WCH factory ISP bootloader (4348:55e0) is not granted. Flashing through it overwrites the OEM bootloader.
