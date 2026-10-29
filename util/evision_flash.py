@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Evision OEM bootloader (0c45:7687) flasher for Redragon keyboards with an Evision CH555-family 8051
-(K580: VS11K33A; the others in QMK_IDS: VS11K28A). The bootloader does not identify the keyboard: check that the
-image is for the board.
+(VS11K33A or VS11K28A).
 
-The protocol and every guard below come from a disassembly of the OEM bootloader (0x0000-0x27FF of a stock
-1.04 flash dump) and match Glitch752's USB capture (https://github.com/Glitch752/qmk-8051-vs11k28a).
-Linux (hidraw and sysfs) and Windows (hid.dll and SetupAPI, in util/hid_win.py). Python standard library only.
-
-How the board boots: the bootloader jumps to the app (0x2800) only if code[0x27C0..0x27C3] == AA 55 33 CC.
-The app's "enter bootloader" report (04 EE EE 00) erases the 64-byte page at 0x27C0 and resets, so the board
-then stays in the bootloader across replugs until a flash completes. The bootloader writes the marker back
-only after the checksum matches. So any abort, crash or unplug mid-flash leaves the board safely in the
-bootloader, ready to retry.
+The bootloader jumps to the app (0x2800) only if code[0x27C0..0x27C3] == AA 55 33 CC. The app's "enter bootloader"
+report (04 EE EE 00) erases the 64-byte page at 0x27C0 and resets, so the board then stays in the bootloader across
+replugs until a flash completes. The bootloader writes the marker back only after the checksum matches. So any abort,
+crash, or unplug mid-flash leaves the board in the bootloader; flashing can be retried.
 
 Bootloader commands (SET_FEATURE, report ID 0, 64 B, on interface 1; GET_FEATURE returns
 [cmd aa 55 xx][status x4][00 11 22 33], status FA FA FA FA = OK):
@@ -23,39 +17,40 @@ Bootloader commands (SET_FEATURE, report ID 0, 64 B, on interface 1; GET_FEATURE
   04 aa 55 00 00 00 00 00 s0 s1 s2 s3   sum of bytes written; if it matches, writes the marker
   05 aa 55                          software reset (runs the app if the marker is present)
 
-SAFETY BY CONSTRUCTION:
-  * Never addresses anything below 0x2800 (the bootloader enforces this too) and caps the image at
-    0x2800-0xEFBF (799 packets), the range the bootloader erases. Past that it would program unerased data
-    flash or the WCH factory bootloader, or wrap around to 0x0000.
-  * Image checks: LJMP at 0x2800 and a 13-entry LJMP interrupt table at 0x3000 (the bootloader forwards
-    every interrupt there), all targets inside the app range. Except for the known stock images, the LJMP at
-    0x2800 must lead to the Esc check of util/evision_oem_image.py (Esc held at plug-in enters the
-    bootloader), so that a flashed image that fails at startup can still be replaced.
-  * Checks device identity (VID:PID on USB interface 1) and the bootloader's hello fingerprint before
-    erasing. Checks status after every command and never sends reset (05) unless the checksum is OK.
-  * Refuses when more than one keyboard has the ID it needs (the keyboards share the stock and bootloader
-    IDs, which do not identify the board) and prints the USB port of the one it uses.
-  * DRY-RUN by default. Nothing is sent without --send.
+Safety:
+  * Dry run by default: nothing is sent without --send.
+  * Never addresses anything below 0x2800 (the bootloader enforces this too) and caps the image at 0x2800-0xEFBF
+    (799 packets), the range erased by the bootloader. Writing beyond 0xEFBF would program unerased data flash, or the
+    WCH factory bootloader, or wrap around to 0x0000.
+  * Image checks: LJMP at 0x2800 and a 13-entry LJMP interrupt table at 0x3000 (where the bootloader forwards every
+    interrupt), all targets inside the app range. Except for known stock images, flashing is only allowed if the LJMP at
+    0x2800 points to an Esc check (Esc held at plug-in enters the bootloader), so that a flashed image that fails at
+    startup can still be replaced.
+  * Checks device identity (VID:PID on USB interface 1) and the bootloader's hello fingerprint before erasing. Checks
+    status after every command and never sends reset (05) unless the checksum is OK.
+  * Refuses when more than one keyboard has an ID where the command could apply.
+
+Linux (hidraw and sysfs) and Windows (hid.dll and SetupAPI, in hid_win.py). Python standard library only.
 
 Usage:
   python3 -I util/evision_flash.py extract FULL64K.bin OUT.bin        # cut the app region out of a full dump
   python3 -I util/evision_flash.py check IMAGE.bin                    # validate an app image (no device access)
-  python3 -I util/evision_flash.py status                             # which mode is the board in?
-  python3 -I util/evision_flash.py enter [--send]                     # app -> bootloader (commits to a reflash)
+  python3 -I util/evision_flash.py status                             # current keyboard mode
+  python3 -I util/evision_flash.py enter [--send]                     # app -> bootloader (commits to a flash)
   python3 -I util/evision_flash.py flash IMAGE.bin [--poll] [--send]  # bootloader: erase, write, verify, reset
                                                                       #   (--settings FILE: restore a backup)
   python3 -I util/evision_flash.py verify DUMP.bin IMAGE.bin          # compare a read-back dump to an image
   python3 -I util/evision_flash.py backup-settings OUT.bin [--send]   # QMK: save the code-flash EEPROM to a file
 
-backup-settings is used to read QMK's EEPROM (settings and macros, kept in code flash) for later restore. This
-feature is only available when REDRAGON_STORE_COMMANDS is enabled in a keymap. Two reads are performed and the
-output file is only saved if both match.
-  File: 16-byte header ("RDEE", format 1, 0, VID, PID, EEPROM size, store address, layout; 16-bit values
-  little-endian), then the EEPROM data.
+backup-settings is used to read QMK's EEPROM (settings and macros, kept in code flash) for later restore. This feature
+is only available when REDRAGON_STORE_COMMANDS is enabled in a keymap. Two reads are performed and the output file is
+only saved if both match.
+  File: 16-byte header ("RDEE", format 1, 0, VID, PID, EEPROM size, store address, layout; 16-bit values little-endian),
+  then the EEPROM data.
 
-flash --settings restores a file created by backup-settings. The image is padded to 0xEFBF and the EEPROM data
-plus header is placed in the store's first slot. The firmware only loads the slot if the backup's EEPROM size and
-layout match its own.
+flash --settings restores a file created by backup-settings. The image is padded to 0xEFBF and the EEPROM data plus
+header is placed in the store's first slot. The firmware only loads the slot if the backup's EEPROM size and layout
+match its own.
 """
 import sys, os, glob, argparse, array, hashlib, select, struct, time, importlib.util
 if sys.platform != "win32":
@@ -516,8 +511,8 @@ def store_command(fd, req):
             return r
         if len(r) == RAW_LEN and r[0] == req[0] and (req[0] != STORE_READ or r[1:4] == req[1:4]):
             return r
-    raise SystemExit("no reply to store command 0x%02x within 1 s (only keymaps with REDRAGON_STORE_COMMANDS, e.g. "
-                     "the K580 `macro` keymap, answer the store commands)" % req[0])
+    raise SystemExit("no reply to store command 0x%02x within 1 s (only keymaps with REDRAGON_STORE_COMMANDS "
+                     "answer the store commands)" % req[0])
 
 def read_store(fd, size):
     data = bytearray()
@@ -540,8 +535,8 @@ def do_backup_settings(a):
     try:
         r = store_command(fd, bytes([STORE_INFO]) + bytes(RAW_LEN - 1))
         if r[0] != STORE_INFO:
-            raise SystemExit("the firmware does not answer the store commands (only keymaps with REDRAGON_STORE_COMMANDS, "
-                             "e.g. the K580 `macro` keymap, do)")
+            raise SystemExit("the firmware does not answer the store commands (only keymaps with "
+                             "REDRAGON_STORE_COMMANDS do)")
         fmt, size, addr, layout = r[1], r[2] | r[3] << 8, r[4] | r[5] << 8, r[6] | r[7] << 8
         if fmt != 1 or not size or size % PKT or addr % PKT or addr + 2 * (size + PKT) != ERASE_END:
             raise SystemExit("unexpected store info: %s" % r[:8].hex(" "))

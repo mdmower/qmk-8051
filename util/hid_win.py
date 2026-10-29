@@ -1,18 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Windows device access for util/evision_flash.py, util/evision_dump.py and util/sinowealth_flash.py. On Windows the
-tools load this file in place of their sysfs and hidraw functions; the functions here have the same names and return
-the same values.
-SetupAPI, cfgmgr32 and hid.dll through ctypes; Python standard library only. Any user can open vendor and consumer
-HID collections: no driver and no administrator rights are needed.
-
-Windows creates one HID device per top-level collection. On USB interface 1 the tools use the vendor collection of
-the stock firmware (usage page 0xFF1C; the interface also has keyboard, system control, consumer control and mouse
-collections), the only collection of the OEM bootloader (consumer page, 64-byte feature report without a
-report ID) and QMK's raw HID collection (usage page 0xFF60, 32-byte reports without a report ID).
-
-A USB device is identified by its location path (e.g. PCIROOT(0)#PCI(1400)#USBROOT(0)#USB(2)#USB(3)). The path is
-the same when a board enumerates again with another USB ID at the same port, as the sysfs name of the port is on
-Linux.
+"""Windows device access for evision_flash.py, evision_dump.py, and sinowealth_flash.py. On Windows, these tools load
+this file in place of their sysfs and hidraw functions. The functions have the same names and return the same values.
+These functions use SetupAPI, cfgmgr32, and hid.dll through ctypes from the Python standard library. Any user can open
+vendor and consumer HID collections without a driver or administrator rights.
 """
 import re, time, errno, collections
 

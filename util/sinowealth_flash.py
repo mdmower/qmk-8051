@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Backup and flash through the Sinowealth ISP bootloader (USB 0603:1020) of the Redragon K668 (SH68F90A). The
-bootloader does not identify the keyboard, and the stock ID 258a:0049 is shared by other Redragon keyboards: check
-that the image is for the board.
+"""Sinowealth ISP bootloader (0603:1020) backup and flash tool for Redragon keyboards with a Sinowealth SH68F90A.
 
-Flash layout: 0x0000-0xEFFF firmware, 0xF000-0xFFFF the ISP bootloader. The bootloader keeps its own jump at 0x0000
-and starts the firmware only if 0xEFFB holds 02 (LJMP), followed by the firmware's reset vector at 0xEFFC-0xEFFD.
-It reads and writes 0x0000-0xEFFF in "ISP form": bytes 0x0000-0x0002 are the firmware's own LJMP and 0xEFFB-0xEFFF
-read as zeros. QMK images and backups made by this tool are in this form.
+The firmware occupies 0x0000-0xEFFF, and the ISP bootloader 0xF000-0xFFFF. The bootloader keeps its own jump at 0x0000
+and starts the firmware only if 0xEFFB holds 02 (LJMP), followed by the firmware's reset vector at 0xEFFC-0xEFFD. It
+reads and writes 0x0000-0xEFFF in "ISP form": bytes 0x0000-0x0002 are the firmware's own LJMP, and 0xEFFB-0xEFFF read as
+zeros. QMK images and backups made by this tool are in this form.
 
-How a board gets into ISP mode: its firmware (stock or QMK) receives the feature report 05 75 and jumps to the
-bootloader, or QMK is started with Esc held while plugging in, or Fn+Esc is pressed in QMK. A replug in ISP mode
-starts the firmware again if it is enabled (02 at 0xEFFB); after an erase the board stays in ISP mode across replugs
-until a flash completes.
+The firmware (stock or QMK) jumps to the ISP bootloader when it receives the feature report 05 75. QMK also jumps to it
+when Esc is held while plugging in, or when Fn+Esc is pressed. A replug in ISP mode starts the firmware again if it is
+enabled (02 at 0xEFFB); after an erase, the board stays in ISP mode across replugs until a flash completes.
 
 Bootloader commands (SET_FEATURE, report ID 5, 6 bytes: 05 cmd lo hi 00 00) and transfers (report ID 6, 2050 bytes:
 06 72|77 + one 2048-byte page):
@@ -23,35 +20,33 @@ Bootloader commands (SET_FEATURE, report ID 5, 6 bytes: 05 cmd lo hi 00 00) and 
   45        erase 0x0000-0xEFFF; the bootloader puts its jump at 0x0000
   5A        reboot (a watchdog reset)
 
-SAFETY BY CONSTRUCTION:
-  * Never writes the bootloader: only 30 pages from 0x0000 (0x0000-0xEFFF) are written, and the bootloader itself
-    does not write above 0xEFFF.
-  * Image checks: an LJMP at 0x0000 to an address below 0xEFFB, zeros at 0xEFFB-0xEFFF, nothing at or above 0xF000
-    (the firmware region of a full 64 KB backup is used), and the jump into the ISP bootloader (clr EA,
-    mov B,#0xA5, mov A,#0x5A, ljmp 0xFF00) somewhere in the image, so that a flashed image that starts can enter
-    ISP mode again.
-  * Before the erase, reads the bootloader's first page and checks its first instructions: the transfer report,
-    its page size and the bootloader are checked before anything is written.
-  * After the write, reads 0x0000-0xEFFF back and compares it with the image; 55 (enable) and 5A (reboot) are sent
-    only if they are identical. A failed flash leaves the board in ISP mode, where it can be repeated.
-  * backup sends 55 before it reads. 55 enables whatever is at 0x0000-0xEFFF, so a board that is in ISP mode
-    after a failed flash must be flashed, not backed up: backup from ISP mode needs --from-isp.
-  * Refuses when more than one board in these modes is connected, and prints the USB port of the one it uses.
-  * DRY-RUN by default. Nothing is sent without --send.
+Safety:
+  * Dry run by default: nothing is sent without --send.
+  * Never writes the bootloader: only 30 pages from 0x0000 (0x0000-0xEFFF) are written, and the bootloader itself does
+    not write above 0xEFFF.
+  * Image checks: an LJMP at 0x0000 to an address below 0xEFFB, zeros at 0xEFFB-0xEFFF, nothing at or above 0xF000 (the
+    firmware region of a full 64 KB backup is used), and the jump into the ISP bootloader (clr EA, mov B,#0xA5,
+    mov A,#0x5A, ljmp 0xFF00) somewhere in the image, so that a flashed image that starts can enter ISP mode again.
+  * Before the erase, reads the bootloader's first page and checks its first instructions: the transfer report, its page
+    size, and the bootloader are checked before anything is written.
+  * After the write, reads 0x0000-0xEFFF back and compares it with the image; 55 (enable) and 5A (reboot) are sent only
+    if they are identical. A failed flash leaves the board in ISP mode; flashing can be retried.
+  * backup sends 55 before it reads. 55 enables whatever is at 0x0000-0xEFFF, so a board that is in ISP mode after a
+    failed flash must be flashed, not backed up: backup from ISP mode needs --from-isp.
+  * Refuses when more than one board in these modes is connected.
 
-Linux (hidraw, usbfs and sysfs) and Windows (hid.dll and SetupAPI, in util/hid_win.py). Python standard library
-only. On Linux the bootloader has no hidraw node: its interface descriptor declares no endpoint (bNumEndpoints 0,
-although an interrupt endpoint descriptor follows), so the kernel's HID driver does not bind to it. The tool sends
-its reports as HID class requests on endpoint 0 through usbfs (/dev/bus/usb), which needs the udev rule for the
-USB device 0603:1020.
+Linux (hidraw, usbfs, and sysfs) and Windows (hid.dll and SetupAPI, in hid_win.py). Python standard library only. On
+Linux, the bootloader has no hidraw node: its interface descriptor declares no endpoint (bNumEndpoints 0, although an
+interrupt endpoint descriptor follows), so the kernel's HID driver does not bind to it. The tool sends its reports as
+HID class requests on endpoint 0 through usbfs (/dev/bus/usb), which needs the udev rule for the USB device 0603:1020.
 
 Usage:
-  python3 -I util/sinowealth_flash.py status                         # which mode is the board in?
+  python3 -I util/sinowealth_flash.py status                         # current keyboard mode
   python3 -I util/sinowealth_flash.py check IMAGE                    # validate an image (no device access)
   python3 -I util/sinowealth_flash.py backup OUT.bin [--send]        # read the 64 KB flash twice, save if equal
   python3 -I util/sinowealth_flash.py flash IMAGE [--send]           # erase, write, verify, enable, reboot
-IMAGE is Intel HEX (.hex, as qmk compile writes it) or binary: the firmware region (at most 61,440 B) or a full
-64 KB backup, of which only the firmware region is written.
+IMAGE is Intel HEX (.hex, as qmk compile writes it) or binary: the firmware region (at most 61,440 B) or a full 64 KB
+backup, of which only the firmware region is written.
 """
 import sys, os, re, glob, argparse, hashlib, struct, time, ctypes, importlib.util
 if sys.platform != "win32":
@@ -329,7 +324,7 @@ def get_feature(fd, report_id, length):
     n = fcntl.ioctl(fd, HIDIOCGFEATURE(length), buf, True)
     return bytes(buf[:n])
 
-# --- device discovery: Windows (util/hid_win.py) --------------------------------------------------------------
+# --- device discovery: Windows (hid_win.py) -------------------------------------------------------------------
 if sys.platform == "win32":
     _spec = importlib.util.spec_from_file_location(
         "hid_win", os.path.join(os.path.dirname(os.path.abspath(__file__)), "hid_win.py"))
@@ -413,8 +408,9 @@ def enter_isp(b):
     """Send 05 75 to the firmware of board b; return the board in ISP mode."""
     if not b.cmd:
         raise SystemExit("%s: no HID node with the feature report 5 (%d B), so its firmware cannot be told to enter "
-                         "ISP mode; nothing was sent. Not a K668, or a firmware without this report: start the "
-                         "bootloader with Fn+Esc or with Esc held while plugging in, if the firmware has them."
+                         "ISP mode; nothing was sent. Another keyboard with this ID, or a firmware without this "
+                         "report: start the bootloader with Fn+Esc or with Esc held while plugging in, if the "
+                         "firmware has them."
                          % (b, CMD_LEN))
     need_access(b)
     fd = open_node(b.cmd)
@@ -518,10 +514,10 @@ def find_board():
     """The one connected board; exit if there is none."""
     b = the_board()
     if not b:
-        raise SystemExit("no board found: connect the K668 (stock firmware, QMK or ISP mode)")
+        raise SystemExit("no board found: connect the keyboard (stock firmware, QMK or ISP mode)")
     print("device  : %s" % b)
     if (b.vid, b.pid) in STOCK_IDS:
-        print("          258a:0049 is the ID of several Redragon keyboards: check that this is a K668")
+        print("          258a:0049 is the ID of several Redragon keyboards: check the model on the label")
     return b
 
 def do_flash(a):

@@ -1,6 +1,6 @@
 # Redragon keyboards with an Evision CH555-family 8051 (K580 RGB: VS11K33A; K552RGB-2, K551RGB-1, K582RGB,
 # K589RGB: VS11K28A) and the K668 (Sinowealth SH68F90A): user access to the hidraw and USB device nodes that
-# util/evision_dump.py, util/evision_flash.py, util/sinowealth_flash.py and VIA use.
+# evision_dump.py, evision_flash.py, sinowealth_flash.py and VIA use.
 #   sudo cp util/udev/70-redragon.rules /etc/udev/rules.d/
 #   sudo udevadm control --reload && sudo udevadm trigger
 # The 70- prefix matters: uaccess tags must be applied before 73-seat-late.rules.
@@ -37,13 +37,13 @@ KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:258A:0049.*", MODE="0660", GROUP="plugde
 
 # Sinowealth ISP bootloader of the K668 (0603:1020). It reports no keystrokes. Its interface declares no endpoint,
 # so the kernel's HID driver does not bind to it and it has no hidraw node: this rule grants the USB device node,
-# which util/sinowealth_flash.py opens.
+# which sinowealth_flash.py opens.
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0603", ATTRS{idProduct}=="1020", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 
 # QMK on the K668 (5244:0668). Interface 1: raw HID, used by VIA; it carries no keystrokes. Interface 0: the
-# keyboard interface, which also carries the feature report with which util/sinowealth_flash.py starts the ISP
+# keyboard interface, which also carries the feature report with which sinowealth_flash.py starts the ISP
 # bootloader, so a process with access to this node can read keystrokes. Without the interface 0 rule, start the
-# bootloader with Fn+Esc, or hold Esc while plugging in the keyboard, before util/sinowealth_flash.py flash.
+# bootloader with Fn+Esc, or hold Esc while plugging in the keyboard, before sinowealth_flash.py flash.
 KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0668.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 KERNEL=="hidraw*", DEVPATH=="*:1.0/0003:5244:0668.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 

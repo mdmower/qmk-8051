@@ -1,38 +1,19 @@
 #!/usr/bin/env python3
-"""Make a flash image for the Evision OEM bootloader (app based at 0x2800) from an SDCC build.
+# SPDX-License-Identifier: GPL-2.0-or-later
+"""Make a flash image for the Evision OEM bootloader from an SDCC build.
 
-The Evision OEM bootloader (USB 0c45:7687, found on the Redragon K580 with a VS11K33A MCU) and its boot
-marker occupy 0x0000-0x27FF; the app may use 0x2800-0xEFBF. The bootloader jumps to 0x2800 while the marker
-AA 55 33 CC is present at 0x27C0. Its interrupt vectors jump to a table of 3-byte LJMP entries at 0x3000,
-one per vector 0x03-0x6B in order, except 0x43. It has no key or pin input that enters it, so the image
-also gets an Esc check that runs before the app:
-
-  0x2800  LJMP to the Esc check
-  check:  switch P4 to key-input mode (P4_LED_KEY/P4_MOD_OC = 0xFF; at reset P4 is in LED-drive mode),
-          drive col 0 (P0.0) low push-pull, read row 0 (P4.0) = Esc;
-          if Esc is pressed in all 64 samples (estimated at 12 MHz, the reset clock, which the OEM
-          bootloader does not change: about 2.7 ms settle delay, then about 5.5 ms of samples):
-          erase the 64-byte marker page 0x27C0 and do a software reset, so the board starts in the OEM
-          bootloader (the same sequence as the K580 1.04 firmware's 04 EE EE handler @0xdb84);
-          otherwise restore every SFR it changed and LJMP to the app entry.
-
-The check runs before any app code, so it also works when the app fails at startup. Its only flash
-operation is the erase of page 0x27C0.
+The bootloader occupies 0x0000-0x27FF, starts the app at 0x2800, and forwards each interrupt to a table of LJMP entries
+at 0x3000; the app and its EEPROM use 0x2800-0xEFBF. This script adds an Esc check that runs before the app: with Esc
+held at plug-in, it erases the boot marker page 0x27C0 and resets, so the board starts in the bootloader.
 
 Usage:
   python3 util/evision_oem_image.py sdcc APP.ihx MAIN.asm OUT.bin [--code-loc 0x3027] [--code-end 0xEFC0]
-      For an SDCC build linked with --code-loc CODE_LOC (>= 0x3027) whose code ends below CODE_END
-      (<= 0xEFC0; lower when the app keeps data at the top of its region). Writes the LJMP at 0x2800, the Esc
-      check, and the 13-entry interrupt table at 0x3000. Each table entry jumps to SDCC's vector slot
-      (CODE_LOC+3+8n), or to a RET for a vector SDCC did not emit (the bootloader's stub calls the entry with
-      LCALL and ends the interrupt with its own RETI). MAIN.asm is the SDCC module that holds __interrupt_vect
-      (quantum/main.asm in a QMK build).
+      APP.ihx is linked with --code-loc CODE_LOC and its code ends below CODE_END. MAIN.asm is the SDCC module
+      with __interrupt_vect (quantum/main.asm in a QMK build).
   python3 util/evision_oem_image.py stock APP.bin OUT.bin
-      Adds the Esc check to an existing app image based at 0x2800 (for example stock firmware), in the
-      free space after the app, and changes the LJMP at 0x2800 to jump to it. The interrupt table is not
-      changed. For testing the Esc check.
+      Adds the Esc check to an app image based at 0x2800, such as stock firmware.
 """
-import sys, argparse, re
+import argparse, re
 
 APP_BASE, ERASE_END = 0x2800, 0xEFC0
 IVT_BASE = 0x3000
@@ -54,8 +35,8 @@ def esc_check(base, cont):
     def rel(n): fix.append((len(code), n)); code.append(0)
     emit(0xC2, EA)                       # CLR EA
     # Save the mode registers changed below (restored before the jump to the app). At reset P4 is in
-    # LED-drive mode, so key reads need P4_LED_KEY/P4_MOD_OC = 0xFF first (K580 1.04 firmware @0x7955,
-    # WCH's sleep routine CH55X_Sleep_Deal, removed from tmk_core/protocol/ch555/usb_device.c).
+    # LED-drive mode, so key reads need P4_LED_KEY/P4_MOD_OC = 0xFF first (as in the stock firmware and in WCH's sleep
+    # routine CH55X_Sleep_Deal).
     # (Mode registers only: reading P0/P4 returns pin levels, not the latch, so latches aren't saved;
     # the P4.0 latch is set to 1, and P0.0 is set to 1 again, its reset value.)
     for rn, sfr in enumerate((P4_LED_KEY, P4_MOD_OC, P0_MOD_OC, P0_DIR_PU)):
