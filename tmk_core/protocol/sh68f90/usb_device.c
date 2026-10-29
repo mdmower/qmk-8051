@@ -353,11 +353,12 @@ static bool ep0_hid_request(void) {
             return true;
 
         case HID_REQ_SetProtocol:
-            /* protocol_post_task() applies it */
+            /* Any value but 0 selects the report protocol, as in usb_device_state_set_protocol(); protocol_post_task()
+             * applies it */
             if (interface != KEYBOARD_INTERFACE) {
                 return false;
             }
-            usb_keyboard_protocol = SETUP_VALUE_L;
+            usb_keyboard_protocol = (SETUP_VALUE_L != 0);
             ep0_status();
             return true;
 
