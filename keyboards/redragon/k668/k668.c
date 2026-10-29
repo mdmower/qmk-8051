@@ -2,6 +2,9 @@
 
 #include "k668.h"
 #include "led_pwm.h"
+#ifdef EEPROM_SH68F90_CODE_FLASH
+#    include "eeprom_sh68f90_code_flash.h"
+#endif
 
 _Static_assert(EECONFIG_KB_DATA_SIZE == LED_FX_SAVE_SIZE, "EECONFIG_KB_DATA_SIZE: LED_FX_SAVE_SIZE bytes");
 
@@ -54,7 +57,11 @@ bool pre_process_record_kb(uint16_t keycode, keyrecord_t *record) {
     return pre_process_record_user(keycode, record);
 }
 
-/* The lighting keycodes, each change written to the EEPROM data block, and the keycodes with a GUI modifier. */
+/* QK_CLEAR_EEPROM was pressed with Ctrl held */
+static bool clear_armed = false;
+
+/* The lighting keycodes, each change written to the EEPROM data block, QK_CLEAR_EEPROM, and the keycodes with a GUI
+ * modifier. */
 bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     if (!process_record_user(keycode, record)) {
         return false;
@@ -68,6 +75,19 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             }
             led_fx_adjust(keycode - RD_KMODE, reverse);
             save_settings();
+        }
+        return false;
+    }
+    /* Only with Ctrl held at the press. On release, so that the key is up when the keyboard starts again. QMK's own
+     * clear writes only the EEPROM copy in xRAM, and its soft reset comes before the delayed save. */
+    if (keycode == QK_CLEAR_EEPROM) {
+        if (record->event.pressed) {
+            clear_armed = (get_mods() & MOD_MASK_CTRL) != 0;
+        } else if (clear_armed) {
+#ifdef EEPROM_SH68F90_CODE_FLASH
+            eeprom_code_flash_clear();
+#endif
+            soft_reset_keyboard();
         }
         return false;
     }

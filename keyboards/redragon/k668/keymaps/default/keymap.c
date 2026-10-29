@@ -15,12 +15,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     /* Fn layer: Fn+Esc starts the bootloader, Fn+F1/F2 step the key LED brightness down and up, Fn+F3-F12 are the
      * functions on the key caps (mail, calculator, computer, media player, media keys, volume), Fn+Win turns Win
-     * Lock on and off.
+     * Lock on and off, Fn+Ctrl+Backspace clears the saved settings and restarts the keyboard.
      * Lighting (Shift reverses): Ins/Num7 mode, Home/Num8 hue, PgUp/Num9 saturation, Del/Num4 brightness, End/Num5
      * speed, PgDn/Num6 on/off; Ins-PgDn for the keys, Num7-Num6 for the side lights. */
     [1] = LAYOUT_fullsize_ansi(
         QK_BOOT, RD_KVALD, RD_KVAL, KC_MAIL, KC_CALC, KC_MYCM, KC_MSEL, KC_MPRV, KC_MPLY, KC_MNXT, KC_MUTE, KC_VOLD, KC_VOLU, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RD_KMODE, RD_KHUE, RD_KSAT, _______, _______, _______, _______,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, EE_CLR,  RD_KMODE, RD_KHUE, RD_KSAT, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RD_KVAL, RD_KSPD, RD_KTOG, RD_SMODE, RD_SHUE, RD_SSAT, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RD_SVAL, RD_SSPD, RD_STOG,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
