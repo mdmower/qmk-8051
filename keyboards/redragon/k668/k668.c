@@ -83,7 +83,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
         return false;
     }
     /* Only with Ctrl held at the press. On release, so that the key is up when the keyboard starts again. QMK's own
-     * clear writes only the EEPROM copy in xRAM, and its soft reset comes before the delayed save. */
+     * clear changes the EEPROM only in xRAM, and its soft reset comes before the delayed save. */
     if (keycode == QK_CLEAR_EEPROM) {
         if (record->event.pressed) {
             clear_armed = (get_mods() & MOD_MASK_CTRL) != 0;

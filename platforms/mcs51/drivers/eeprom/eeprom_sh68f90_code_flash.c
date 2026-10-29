@@ -42,7 +42,10 @@ _Static_assert((SH68F90_EEPROM_CODE_FLASH_END) <= 0x10000L, "store above 64 KB")
 #define SSP_KEY4 0x09
 #define SSP_KEY5 0x06
 
-static __xdata uint8_t ee_copy[EEPROM_SIZE];
+/* One sector of the EEPROM is in xRAM: reads of that sector and all writes use it. Reads of the other sectors come
+ * from the newest slot in code flash, or are 0x00 after an erase, after a clear or without a valid slot. */
+#define BUF_SIZE (SLOT_SECTORS == 1 ? EEPROM_SIZE : SECTOR_SIZE)
+static __xdata uint8_t ee_sector[BUF_SIZE];
 static __xdata uint8_t header_buf[HEADER_SIZE];
 
 /* Header at the end of a slot's last sector. Bytes are programmed in address order, so a header cut short lacks
@@ -66,11 +69,18 @@ static __xdata uint8_t header_buf[HEADER_SIZE];
 
 static uint8_t  newest      = NO_SLOT; // slot of the newest valid copy
 static uint16_t newest_seq  = 0;
-static bool     dirty       = false; // the xRAM copy changed since the newest slot or since the save began
+static uint8_t  base        = NO_SLOT; // slot that holds the sectors not in xRAM, NO_SLOT when they read 0x00
+static uint8_t  loaded      = 0;       // the sector in ee_sector
+static bool     dirty       = false;   // the EEPROM changed since the newest slot or since the save began
 static uint16_t last_write  = 0;
 static uint8_t  save_slot   = NO_SLOT; // slot being written, NO_SLOT when no save runs
 static uint8_t  save_step   = 0;       // next step of the save: erase 0..SLOT_SECTORS-1, then program
 static uint8_t  save_errors = 0;
+
+/* A write that changes two sectors, during the save that holds it (write_len > 0) */
+static const uint8_t *write_src;
+static uint16_t       write_offset;
+static uint16_t       write_len = 0;
 
 /* Runs one SSP command on the byte or the sector at addr (datasheet 7.4.3). XPAGE holds bits 8-15 of the address
  * (the sector number and bit 8 of the offset in the sector), IB_OFFSET bits 0-7; FLASHCON.FAC clear selects the
@@ -115,12 +125,43 @@ static uint16_t slot_addr(uint8_t slot) {
     return STORE_ADDR + slot * SLOT_SIZE;
 }
 
+/* The EEPROM byte at offset */
+static uint8_t data_byte(uint16_t offset) {
+    if ((uint16_t)(offset - write_offset) < write_len) return write_src[offset - write_offset];
+    if (offset / SECTOR_SIZE == loaded) return ee_sector[offset % SECTOR_SIZE];
+    if (base == NO_SLOT) return 0;
+    return ((__code const uint8_t *)slot_addr(base))[offset];
+}
+
+/* Puts sector n of the EEPROM into ee_sector */
+static void load(uint8_t n) {
+    uint16_t len = (n == SLOT_SECTORS - 1) ? SECTOR_SIZE - HEADER_SIZE : SECTOR_SIZE;
+    if (base == NO_SLOT) {
+        memset(ee_sector, 0, len);
+    } else {
+        memcpy(ee_sector, (__code const uint8_t *)(slot_addr(base) + (uint16_t)n * SECTOR_SIZE), len);
+    }
+    loaded = n;
+}
+
 /* Programs len bytes at addr from src and compares them with src. Returns 0 on success. */
 static uint8_t program(uint16_t addr, __xdata const uint8_t *src, uint8_t len) {
     for (uint8_t i = 0; i < len; i++) {
         if (ssp_command(addr + i, SSP_PROGRAM, src[i]) != 0) return 1;
     }
     return memcmp((__code const uint8_t *)addr, src, len) != 0;
+}
+
+/* Programs len bytes of the EEPROM from offset into the slot being saved and compares them. Returns 0 on success. */
+static uint8_t program_data(uint16_t offset, uint8_t len) {
+    uint16_t addr = slot_addr(save_slot) + offset;
+    for (uint8_t i = 0; i < len; i++) {
+        if (ssp_command(addr + i, SSP_PROGRAM, data_byte(offset + i)) != 0) return 1;
+    }
+    for (uint8_t i = 0; i < len; i++) {
+        if (((__code const uint8_t *)addr)[i] != data_byte(offset + i)) return 1;
+    }
+    return 0;
 }
 
 /* Rotate-and-add sum of a slot's data as stored in flash */
@@ -157,7 +198,7 @@ static bool slot_valid(uint8_t slot, uint16_t *seq) {
     return true;
 }
 
-/* Loads the valid slot with the higher sequence number; without one, the EEPROM reads 0x00 and QMK writes its
+/* Takes the valid slot with the higher sequence number; without one, the EEPROM reads 0x00 and QMK writes its
  * defaults. */
 void eeprom_driver_init(void) {
     uint16_t seq0, seq1;
@@ -171,11 +212,8 @@ void eeprom_driver_init(void) {
         newest     = 1;
         newest_seq = seq1;
     }
-    if (newest != NO_SLOT) {
-        memcpy(ee_copy, (__code const uint8_t *)slot_addr(newest), EEPROM_SIZE);
-    } else {
-        memset(ee_copy, 0, EEPROM_SIZE);
-    }
+    base = newest;
+    load(0);
 }
 
 static void mark_dirty(void) {
@@ -184,7 +222,8 @@ static void mark_dirty(void) {
 }
 
 void eeprom_driver_erase(void) {
-    memset(ee_copy, 0, EEPROM_SIZE);
+    memset(ee_sector, 0, BUF_SIZE);
+    base = NO_SLOT;
     mark_dirty();
 }
 
@@ -195,28 +234,26 @@ void eeprom_driver_format(bool erase) {
 }
 
 void eeprom_read_block(void *buf, const void *addr, size_t len) {
+    uint8_t *dst    = buf;
     uint16_t offset = (uint16_t)addr;
     if (offset >= EEPROM_SIZE) return;
     if (len > EEPROM_SIZE - offset) len = EEPROM_SIZE - offset;
-    memcpy(buf, &ee_copy[offset], len);
-}
-
-void eeprom_write_block(const void *buf, void *addr, size_t len) {
-    uint16_t offset = (uint16_t)addr;
-    if (offset >= EEPROM_SIZE) return;
-    if (len > EEPROM_SIZE - offset) len = EEPROM_SIZE - offset;
-    if (len && memcmp(&ee_copy[offset], buf, len) != 0) {
-        memcpy(&ee_copy[offset], buf, len);
-        mark_dirty();
+    while (len) {
+        uint8_t  n     = offset / SECTOR_SIZE;
+        uint16_t in    = offset % SECTOR_SIZE;
+        uint16_t chunk = SECTOR_SIZE - in;
+        if (chunk > len) chunk = len;
+        if (n == loaded) {
+            memcpy(dst, &ee_sector[in], chunk);
+        } else if (base == NO_SLOT) {
+            memset(dst, 0, chunk);
+        } else {
+            memcpy(dst, (__code const uint8_t *)(slot_addr(base) + offset), chunk);
+        }
+        dst += chunk;
+        offset += chunk;
+        len -= chunk;
     }
-}
-
-uint8_t eeprom_code_flash_clear(void) {
-    memset(ee_copy, 0, EEPROM_SIZE);
-    dirty     = false;
-    save_slot = NO_SLOT;
-    newest    = NO_SLOT;
-    return ssp_command(slot_addr(0) + SLOT_SIZE - SECTOR_SIZE, SSP_ERASE, 0) | ssp_command(slot_addr(1) + SLOT_SIZE - SECTOR_SIZE, SSP_ERASE, 0);
 }
 
 static void save_stop(bool failed) {
@@ -227,24 +264,17 @@ static void save_stop(bool failed) {
     }
 }
 
-/* Steps of a save into the slot that does not hold the newest copy: erase the sector with the header, then the other
- * sectors of the slot; program the data in steps of PROGRAM_STEP bytes, each compared with the copy; program the
- * header last, with the sum of the data in flash, so that a power loss during a save leaves the previous slot as the
- * newest valid one. A write to the copy during a save ends it before its header, and a new save starts after the
- * delay. */
-void eeprom_code_flash_task(void) {
-    if (save_slot == NO_SLOT) {
-        if (!dirty || timer_elapsed(last_write) < SH68F90_EEPROM_SAVE_DELAY || save_errors >= 3) return;
-        dirty     = false;
-        save_slot = (newest == 0) ? 1 : 0;
-        save_step = 0;
-        return;
-    }
-    if (dirty) {
-        save_stop(false);
-        return;
-    }
+static void save_start(void) {
+    dirty     = false;
+    save_slot = (newest == 0) ? 1 : 0;
+    save_step = 0;
+}
 
+/* Steps of a save into the slot that does not hold the newest copy: erase the sector with the header, then the other
+ * sectors of the slot; program the data in steps of PROGRAM_STEP bytes, each compared with the EEPROM; program the
+ * header last, with the sum of the data in flash, so that a power loss during a save leaves the previous slot as the
+ * newest valid one. A write that changes the EEPROM during a save ends it before its header. */
+static void save_continue(void) {
     if (save_step < SLOT_SECTORS) {
         uint16_t addr = slot_addr(save_slot) + (uint16_t)(SLOT_SECTORS - 1 - save_step) * SECTOR_SIZE;
         if (ssp_command(addr, SSP_ERASE, 0) != 0) {
@@ -254,7 +284,7 @@ void eeprom_code_flash_task(void) {
     } else if (save_step < SLOT_SECTORS + PROGRAM_STEPS) {
         uint16_t offset = (uint16_t)(save_step - SLOT_SECTORS) * PROGRAM_STEP;
         uint8_t  len    = (EEPROM_SIZE - offset < PROGRAM_STEP) ? EEPROM_SIZE - offset : PROGRAM_STEP;
-        if (program(slot_addr(save_slot) + offset, &ee_copy[offset], len) != 0) {
+        if (program_data(offset, len) != 0) {
             save_stop(true);
             return;
         }
@@ -279,9 +309,90 @@ void eeprom_code_flash_task(void) {
         }
         newest      = save_slot;
         newest_seq  = seq;
+        base        = save_slot;
         save_errors = 0;
         save_stop(false);
         return;
     }
     save_step++;
+}
+
+/* Finishes a running save, and runs a new one while the EEPROM has unsaved changes. Returns true when none are
+ * left, false after the third failed save. A whole save takes longer than the watchdog period; a read of RSTSTAT
+ * restarts the watchdog count (datasheet 8.8). */
+static bool save_now(void) {
+    for (;;) {
+        (void)RSTSTAT;
+        if (save_slot == NO_SLOT) {
+            if (!dirty) return true;
+            if (save_errors >= 3) return false;
+            save_start();
+        } else if (dirty) {
+            save_stop(false);
+        } else {
+            save_continue();
+        }
+    }
+}
+
+/* Only the bytes from the first to the last one that change are written. A write to a sector other than the one in
+ * ee_sector saves the pending changes first (save_now()) and then loads that sector. A write that changes two
+ * sectors is saved at once with all its bytes, so that no slot holds a part of it. If the save fails, the write is
+ * dropped. */
+void eeprom_write_block(const void *buf, void *addr, size_t len) {
+    const uint8_t *src    = buf;
+    uint16_t       offset = (uint16_t)addr;
+    uint8_t        n;
+    if (offset >= EEPROM_SIZE) return;
+    if (len > EEPROM_SIZE - offset) len = EEPROM_SIZE - offset;
+    while (len && data_byte(offset) == *src) {
+        offset++;
+        src++;
+        len--;
+    }
+    while (len && data_byte(offset + len - 1) == src[len - 1]) {
+        len--;
+    }
+    if (len == 0) return;
+
+    n = (offset + len - 1) / SECTOR_SIZE;
+    if (offset / SECTOR_SIZE != n) {
+        write_src    = src;
+        write_offset = offset;
+        write_len    = len;
+        mark_dirty();
+        if (save_now()) load(n);
+        write_len = 0;
+        return;
+    }
+    if (n != loaded) {
+        if (!save_now()) return;
+        load(n);
+    }
+    memcpy(&ee_sector[offset % SECTOR_SIZE], src, len);
+    mark_dirty();
+}
+
+uint8_t eeprom_code_flash_clear(void) {
+    memset(ee_sector, 0, BUF_SIZE);
+    base      = NO_SLOT;
+    dirty     = false;
+    save_slot = NO_SLOT;
+    newest    = NO_SLOT;
+    return ssp_command(slot_addr(0) + SLOT_SIZE - SECTOR_SIZE, SSP_ERASE, 0) | ssp_command(slot_addr(1) + SLOT_SIZE - SECTOR_SIZE, SSP_ERASE, 0);
+}
+
+/* Starts a save SH68F90_EEPROM_SAVE_DELAY ms after the last change, then runs one step of it per call. A change
+ * during the save ends it, and a new save starts after the delay. */
+void eeprom_code_flash_task(void) {
+    if (save_slot == NO_SLOT) {
+        if (!dirty || timer_elapsed(last_write) < SH68F90_EEPROM_SAVE_DELAY || save_errors >= 3) return;
+        save_start();
+        return;
+    }
+    if (dirty) {
+        save_stop(false);
+        return;
+    }
+    save_continue();
 }
