@@ -125,10 +125,10 @@ These are in addition to the limitations listed in the [top-level readme](../../
 
 Remaining free space in the application region for each keymap:
 
-- `default`: 28.0 KB before the code flash store
-- `via`: 17.2 KB before the code flash store
+- `default`: 27.3 KB before the code flash store
+- `via`: 16.6 KB before the code flash store
 
-The code flash store is at 0xEA00–0xEDFF in the `default` keymap and at 0xDE00–0xEDFF in the `via` keymap. Features that have been turned off to save space are listed in [config.h](config.h) and [rules.mk](rules.mk).
+The code flash store is at 0xEA00–0xEDFF in the `default` keymap and at 0xDE00–0xEDFF in the `via` keymap. Seven 24-byte ranges of the flash (0x10F0–0x1107 and the same offset in every 8 KB block up to 0xD0F0) hold no code: an instruction that accesses external RAM fails on this MCU at the last ten bytes of each range (0x10FE–0x1107 and the like), so the build keeps code out of the ranges and `sinowealth_flash.py check` refuses an image that has anything but 0xA5 there. Features that have been turned off to save space are listed in [config.h](config.h) and [rules.mk](rules.mk).
 
 ## Hardware
 
