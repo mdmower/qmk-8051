@@ -103,22 +103,26 @@ bool redragon_process_record(uint16_t keycode, keyrecord_t *record) {
     return true;
 }
 
-void redragon_task(void) {
+static void save_settings(void) {
     __xdata uint8_t rec[LED_FX_SAVE_SIZE + REDRAGON_KB_SETTINGS];
 
+    save_pending = false;
+    led_fx_save(rec);
+#if REDRAGON_KB_SETTINGS > 0
+    {
+        uint8_t i;
+        for (i = 0; i < REDRAGON_KB_SETTINGS; i++) {
+            rec[LED_FX_SAVE_SIZE + i] = redragon_kb_settings[i];
+        }
+    }
+#endif
+    flash_store_save(rec, sizeof(rec));
+}
+
+void redragon_task(void) {
     led_fx_task();
     if (save_pending && timer_elapsed(save_time) >= SAVE_DELAY) {
-        save_pending = false;
-        led_fx_save(rec);
-#if REDRAGON_KB_SETTINGS > 0
-        {
-            uint8_t i;
-            for (i = 0; i < REDRAGON_KB_SETTINGS; i++) {
-                rec[LED_FX_SAVE_SIZE + i] = redragon_kb_settings[i];
-            }
-        }
-#endif
-        flash_store_save(rec, sizeof(rec));
+        save_settings();
     }
 }
 
@@ -178,7 +182,12 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
 }
 #endif
 
+/* Settings that wait for their save are saved at the start of a suspend: the timer of the delay stops while the MCU
+ * sleeps (CH555_SUSPEND_SLEEP), and the host can cut the power during the suspend. */
 void redragon_suspend(bool suspended) {
+    if (suspended && save_pending) {
+        save_settings();
+    }
 #ifdef LED_INDICATOR_ENABLE_PIN
     gpio_write_pin(LED_INDICATOR_ENABLE_PIN, suspended);
 #endif

@@ -66,7 +66,8 @@ void redragon_task(void);
 /* From led_update_kb: the lock indicators in the LED matrix (LED_*_LOCK_BYTE). */
 void redragon_led_update(led_t led_state);
 #endif
-/* From suspend_power_down_kb (true) and suspend_wakeup_init_kb (false): LEDs off while the host is suspended. */
+/* From suspend_power_down_kb (true) and suspend_wakeup_init_kb (false): LEDs off while the host is suspended; at the
+ * start of a suspend, settings that wait for their save are saved. */
 void redragon_suspend(bool suspended);
 /* Saves the settings SAVE_DELAY after the last call. */
 void redragon_settings_changed(void);
