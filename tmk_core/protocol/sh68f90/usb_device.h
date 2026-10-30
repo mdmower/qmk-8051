@@ -42,6 +42,14 @@ extern uint8_t kbd_report[KEYBOARD_REPORT_SIZE];
 
 void usb_device_init(void);
 void usb_send_resume(void);
+#ifdef SH68F90_SUSPEND_SLEEP
+/* Powers the MCU down while the bus is suspended (USB 2.0 7.1.7.6, 7.2.3); returns after the wake. */
+void usb_sleep(void);
+/* Defined by the keyboard: called with interrupts off before the MCU powers down (key_wake: set up the keys as a wake
+ * source) and after it wakes. */
+void sh68f90_sleep_enter_kb(bool key_wake);
+void sh68f90_sleep_exit_kb(void);
+#endif
 
 #pragma save
 #pragma nooverlay

@@ -4,6 +4,7 @@
  * requests, bus reset, suspend and resume. The descriptors come from usb_descriptor.c. */
 
 #include "usb_device.h"
+#include "mcs51_mcu.h"
 /* Standard request codes, request type fields and feature selectors */
 #include "lib/lufa/LUFA/Drivers/USB/Core/StdRequestType.h"
 #include "report.h"
@@ -22,6 +23,11 @@ volatile bool usb_raw_out_waiting;
 #endif
 #ifdef BOOTLOADER_SINOWEALTH_ISP
 volatile bool usb_isp_requested;
+#endif
+#ifdef SH68F90_SUSPEND_SLEEP
+/* usb_sleep() has lowered the clock: the USB interrupt leaves GOSUSP to it, except at a bus reset, whose SWRST clears
+ * GOSUSP */
+static volatile bool usb_sleeping;
 #endif
 
 /* HID 1.11 7.2.4: the recommended idle rate of a keyboard at initialization, 500 ms (4 ms units) */
@@ -494,7 +500,14 @@ MCS51_ISR(usb_isr, INT_NO_USB) {
         if (if1 & (bRESMIF | bSOFIF)) {
             USBIF1 &= ~(bRESMIF | bSOFIF);
             USBIE1 &= ~bSOFIE;
+#ifdef SH68F90_SUSPEND_SLEEP
+            /* GOSUSP is cleared after the high-frequency clock has started again (datasheet 8.4.3) */
+            if (!usb_sleeping) {
+                USBCON &= ~bGOSUSP;
+            }
+#else
             USBCON &= ~bGOSUSP;
+#endif
             usb_suspended   = false;
             usb_wakeup_sent = false;
         }
@@ -559,3 +572,47 @@ void usb_send_resume(void) {
     }
     IEN1 |= bEUSB;
 }
+
+#ifdef SH68F90_SUSPEND_SLEEP
+/*
+ * Power-down in USB suspend (datasheet 8.4.3 and 8.9.3). Only the USB interrupt, and the keyboard's key interrupt if
+ * the host enabled remote wake-up, stay enabled; resume, bus reset and key presses wake the MCU, and the interrupt
+ * handler runs before the code after PCON.PD, at SYSCLK = 128 kHz. The 3.3 V regulator stays on: datasheet 8.4.3
+ * (design spec 4) keeps it on in power-down with a USB wake-up, although the REGCON description (8.1) asks for it to
+ * be off before power-down. Not after a remote wake-up signal, which has cleared GOSUSP: the host then resumes the
+ * bus (USB 2.0 7.1.7.7).
+ * SUSLO = 0x55 and the write of PCON.PD must be consecutive instructions, followed by at least three NOPs. On the
+ * 8051 an instruction that writes IE delays interrupts by one more instruction: an interrupt that is pending at SETB
+ * EA runs between the SUSLO and the PCON write, and the MCU does not power down.
+ */
+void usb_sleep(void) {
+    uint8_t ien0;
+    uint8_t ien1;
+
+    EA = 0;
+    if (!usb_suspended || usb_wakeup_sent) {
+        EA = 1;
+        return;
+    }
+    ien0 = IEN0;
+    ien1 = IEN1;
+    sh68f90_sleep_enter_kb(usb_remote_wakeup);
+    ET2  = 0;
+    IEN1 = bEUSB;
+    mcs51_clock_stop();
+    usb_sleeping = true;
+    (void)RSTSTAT;
+    __asm__("setb _EA\n mov _SUSLO,#0x55\n orl _PCON,#0x02\n nop\n nop\n nop\n nop\n nop\n nop");
+    EA = 0;
+    mcs51_clock_restart();
+    (void)RSTSTAT;
+    usb_sleeping = false;
+    if (!usb_suspended) {
+        USBCON &= ~bGOSUSP;
+    }
+    sh68f90_sleep_exit_kb();
+    IEN1 = ien1;
+    IEN0 = ien0;
+    EA   = 1;
+}
+#endif

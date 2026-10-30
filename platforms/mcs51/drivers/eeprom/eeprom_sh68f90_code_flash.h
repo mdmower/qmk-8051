@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <stdbool.h>
+
 /* QMK's EEPROM in SH68F90A code flash (EEPROM_DRIVER = vendor): EEPROM_SIZE bytes, of which one sector (at most 512
  * bytes) is in xRAM, saved to code flash SH68F90_EEPROM_SAVE_DELAY ms after the last write. eeprom_write_block()
  * saves the pending changes at once before it changes another sector. */
@@ -15,6 +17,9 @@
 /* Runs one step of a pending save: one sector erase, or the program and compare of up to 64 bytes. The CPU
  * idles during each SSP command, with interrupts off. Called from the main loop (protocol_post_task()). */
 void eeprom_code_flash_task(void);
+/* True while changes wait for their save (also during the delay before it) or a save runs; false after three failed
+ * saves, when no further save starts. */
+bool eeprom_code_flash_busy(void);
 /* Clears the EEPROM: it reads 0x00, a running save ends, and the header sectors of both slots are erased, so
  * that the next start finds no valid slot. Returns 0 if both erase commands were started. */
 uint8_t eeprom_code_flash_clear(void);

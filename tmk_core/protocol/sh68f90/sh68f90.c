@@ -305,6 +305,19 @@ void protocol_post_init(void) {
 #    define USB_RESUME_DELAY_MS 500
 #endif
 
+#ifdef EEPROM_SH68F90_CODE_FLASH
+#    define EEPROM_BUSY() eeprom_code_flash_busy()
+#else
+#    define EEPROM_BUSY() false
+#endif
+
+#if defined(SH68F90_SUSPEND_SLEEP) && !defined(USB_SLEEP_HOLD_MS)
+/* Awake time after each wake and after the start of a suspend before the MCU powers down: a key press that woke it
+ * must pass the matrix scan and the debounce before its report calls wake_host(), and the suspend hooks and the
+ * housekeeping task turn the LEDs off first. */
+#    define USB_SLEEP_HOLD_MS 50
+#endif
+
 void protocol_pre_task(void) {
     /* The watchdog restarts its count when RSTSTAT is read or written (datasheet 8.8); its period after a reset is
      * 1024 ms. */
@@ -322,16 +335,31 @@ void protocol_pre_task(void) {
 #if !defined(NO_USB_STARTUP_CHECK)
     /* Run the QMK suspend hooks when the bus enters or leaves suspend. Unlike LUFA and ChibiOS this does not wait in
      * a loop: the matrix is still scanned while suspended, and a key press wakes the host through wake_host() (if
-     * the host enabled remote wake-up). After that signal the bus counts as suspended until the host resumes it. */
+     * the host enabled remote wake-up). After that signal the bus counts as suspended until the host resumes it.
+     * With SH68F90_SUSPEND_SLEEP the MCU powers down while the bus is suspended; bus activity wakes it, and a key
+     * press too if the host enabled remote wake-up. */
     static bool     suspended = false;
     static uint16_t suspend_time;
+#    ifdef SH68F90_SUSPEND_SLEEP
+    static uint16_t wake_time;
+#    endif
 
     if (usb_suspended || usb_wakeup_sent) {
         suspend_time = timer_read();
         if (!suspended) {
             suspended = true;
             suspend_power_down();
+#    ifdef SH68F90_SUSPEND_SLEEP
+            wake_time = suspend_time;
+#    endif
         }
+#    ifdef SH68F90_SUSPEND_SLEEP
+        /* Not while an EEPROM save is due or runs: the timer that delays it stops in power-down */
+        if (timer_elapsed(wake_time) >= USB_SLEEP_HOLD_MS && !EEPROM_BUSY()) {
+            usb_sleep();
+            wake_time = timer_read();
+        }
+#    endif
     } else if (suspended && timer_elapsed(suspend_time) >= USB_RESUME_DELAY_MS) {
         suspended = false;
         suspend_wakeup_init();

@@ -12,6 +12,9 @@
 
 /* SYSCLK = F_CPU = 24 MHz, the PLL's 48 MHz divided by 2 */
 void mcs51_clock_init(void);
+/* SYSCLK = 128 kHz with the PLL and the 24 MHz RC oscillator off, before power-down; and back to F_CPU after it */
+void mcs51_clock_stop(void);
+void mcs51_clock_restart(void);
 
 /* The 1 ms tick: Timer 2 in 16-bit auto-reload mode at SYSCLK / 12 (T2MOD.TCLKP2 = 0). TF2 is cleared by software
  * only: the handler clears it. */
