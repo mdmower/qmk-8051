@@ -380,7 +380,14 @@ static bool ep0_hid_request(void) {
 }
 
 /* A SETUP packet: it ends the previous control transfer (USB 2.0 8.5.3). EP0 accepts the next OUT packet (the data
- * stage of a control write, or the status stage of a control read) once the packet has been read. */
+ * stage of a control write, or the status stage of a control read) once the packet has been read.
+ * Facts not in the datasheet: OW is set by a SETUP that finds OEP0RDY clear, OVERIF by an IN or OUT data packet that
+ * arrives while the SETUP is unread, and while either is set the SIE takes no write to the EP0 ready and stall bits
+ * (OW: a readout of the registers; OVERIF: Sinowealth's demo code). Both are cleared by writing them 0, although the
+ * datasheet lists OW as read-only; a read-modify-write that writes OW back as 1 does not clear it. A data packet
+ * between the clear and the write of OEP0RDY sets OVERIF again, so the write is checked and repeated once, as the
+ * demo code does. The request handlers write the ready and stall bits after OEP0RDY is set, when no packet sets
+ * OVERIF. */
 static void ep0_setup(void) {
     uint8_t i;
     bool    ok;
@@ -388,7 +395,12 @@ static void ep0_setup(void) {
     for (i = 0; i < sizeof(setup); i++) {
         setup[i] = USB_EP0_OUT_BUF[i];
     }
+    USBIF1 &= ~(bOVERIF | bOW);
     EP0CON |= bOEP_RDY;
+    if (!(EP0CON & bOEP_RDY)) {
+        USBIF1 &= ~(bOVERIF | bOW);
+        EP0CON |= bOEP_RDY;
+    }
     ep0_state = EP0_IDLE;
 #ifdef BOOTLOADER_SINOWEALTH_ISP
     ep0_isp = false;
@@ -513,10 +525,8 @@ MCS51_ISR(usb_isr, INT_NO_USB) {
         }
         if (if1 & bSETUPIF) {
             /* EP0 flags that are still set belong to the transfer that the SETUP ended. SETUPIF is cleared before
-             * OVERIF (datasheet 8.4.4). OW is cleared by writing 0 to it, although the datasheet lists it as read-only.
-             * A read-modify-write that writes OW back as 1 does not clear it. */
+             * OVERIF (datasheet 8.4.4), which ep0_setup() clears with OW. */
             USBIF1 &= ~bSETUPIF;
-            USBIF1 &= ~(bOVERIF | bOW);
             USBIF2 &= ~(bIEP0IF | bOEP0IF);
             ep0_setup();
         } else {
