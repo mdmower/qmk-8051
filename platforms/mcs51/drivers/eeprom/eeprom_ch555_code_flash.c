@@ -322,3 +322,7 @@ void eeprom_code_flash_task(void) {
     }
     save_page++;
 }
+
+bool eeprom_code_flash_busy(void) {
+    return save_slot != NO_SLOT || (dirty && save_errors < 3);
+}

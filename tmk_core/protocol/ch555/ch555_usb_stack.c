@@ -432,6 +432,12 @@ void protocol_post_init(void) {
 #    define USB_RESUME_DELAY_MS 500
 #endif
 
+#ifdef EEPROM_CH555_CODE_FLASH
+#    define EEPROM_BUSY() eeprom_code_flash_busy()
+#else
+#    define EEPROM_BUSY() false
+#endif
+
 #if defined(CH555_SUSPEND_SLEEP) && !defined(USB_SLEEP_HOLD_MS)
 /* Awake time after each wake before the MCU sleeps again: a key press that woke it must pass the
  * matrix scan and the debounce before its report calls wake_host(). */
@@ -459,7 +465,8 @@ void protocol_pre_task(void) {
             suspend_power_down();
         }
 #    ifdef CH555_SUSPEND_SLEEP
-        if (timer_elapsed(wake_time) >= USB_SLEEP_HOLD_MS) {
+        /* Not while an EEPROM save is due or runs: the timer that delays it stops while the MCU sleeps */
+        if (timer_elapsed(wake_time) >= USB_SLEEP_HOLD_MS && !EEPROM_BUSY()) {
             USB_Sleep();
             wake_time = timer_read();
         }
