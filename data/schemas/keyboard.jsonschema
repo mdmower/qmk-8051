@@ -252,7 +252,6 @@
                 "atmel-dfu",
                 "bootloadhid",
                 "caterina",
-                "ch55xbl",
                 "custom",
                 "evision-oem",
                 "gd32v-dfu",
@@ -271,7 +270,8 @@
                 "uf2boot",
                 "unknown",
                 "usbasploader",
-                "wb32-dfu"
+                "wb32-dfu",
+                "wch-isp"
             ]
         },
         "bootloader_instructions": {

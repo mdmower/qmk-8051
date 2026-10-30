@@ -70,7 +70,7 @@ MCU2BOOTLOADER = {
     "atmega32a": "bootloadhid",
     "atmega328p": "usbasploader",
     "atmega328": "usbasploader",
-    "ch555": "ch55xbl",
+    "ch555": "wch-isp",
     "sh68f90a": "sinowealth-isp",
 }
 

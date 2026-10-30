@@ -8,7 +8,7 @@ SDCC 4.6.0 is required.
 
 | `processor` | `MCU_FAMILY` | `MCU_SERIES` | USB protocol | Bootloaders              |
 | ----------- | ------------ | ------------ | ------------ | ------------------------ |
-| `ch555`     | `WCH`        | `CH555`      | `CH555`      | `evision-oem`, `ch55xbl` |
+| `ch555`     | `WCH`        | `CH555`      | `CH555`      | `evision-oem`, `wch-isp` |
 | `sh68f90a`  | `SINOWEALTH` | `SH68F90`    | `SH68F90`    | `sinowealth-isp`         |
 
 The MCU and bootloader are set in the keyboard's `keyboard.json`. For example, Evision's VS11K28A and VS11K33A are CH555-family parts and both have processor `ch555`:
@@ -22,7 +22,7 @@ The MCU and bootloader are set in the keyboard's `keyboard.json`. For example, E
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `evision-oem`    | Evision OEM bootloader. The image starts at 0x2800, and `qmk compile` writes it to `<target>.bin`. The [root readme](../readme.md#flash-layout) describes the flash layout.                                                                                  |
 | `sinowealth-isp` | Sinowealth ISP bootloader at 0xF000–0xFFFF (USB `0603:1020`). The image starts at 0x0000 and ends at 0xEFFA (at most), and `qmk compile` writes it to `<target>.hex`. The bootloader retains its start marker and the image's reset vector at 0xEFFB–0xEFFD. |
-| `ch55xbl`        | WCH factory bootloader in ROM. The image starts at 0x0000. Untested.                                                                                                                                                                                         |
+| `wch-isp`        | WCH factory bootloader at 0xF400 (USB `4348:55e0`). The image starts at 0x0000 and ends at 0xEFFF (at most), and `qmk compile` writes it to `<target>.bin`. Untested.                                                                                        |
 | `custom`         | `bootloader_jump()` is defined in the keyboard's code.                                                                                                                                                                                                       |
 
 For `evision-oem` and `sinowealth-isp`, the bootloader's flash tool in `util/` checks the image before `qmk compile` copies it to the top directory: `evision_flash.py check` or `sinowealth_flash.py check`. The build is aborted if a check fails. `qmk flash` writes the built image: `evision_flash.py` waits up to 15 seconds for the bootloader (the keyboard readme should include instructions for how to reach the bootloader); `sinowealth_flash.py` sends a request to reboot to the bootloader if necessary, and then writes the image.

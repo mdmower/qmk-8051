@@ -19,16 +19,23 @@
 #include "ch555.h"
 
 /*
- * Disables USB and all interrupts, waits for the host to detect the disconnect, then jumps to the WCH factory
- * bootloader at BOOT_LOAD_ADDR (0xF400 on the CH555).
+ * The WCH factory bootloader at 0xF400 (4348:55e0). Called from the app, its start-up code stays in USB mode,
+ * without a timeout, if P1.5 reads low when it starts (or code 0x0000-0x0001 reads 00 00); otherwise it resets into
+ * the app.
+ * P1.5 is also an output of the RGB LED controller, which is stopped first. The bootloader leaves only through a
+ * reset, so the call does not return.
  */
 void bootloader_jump(void) {
-    USB_CTRL = 0;
     EA       = 0; // Disabling all interrupts is required.
+    LED_CTRL = 0;
+    USB_CTRL = 0;
     wait_us(50000);
     wait_us(50000);
 
-    __asm__("lcall #0xF400"); // Jump to bootloader code
+    P1_MOD_OC &= ~(uint8_t)(1 << 5);
+    P1_DIR_PU |= 1 << 5;
+    P1_5 = 0;
+    __asm__("lcall #0xF400");
 
     while (1)
         ;
