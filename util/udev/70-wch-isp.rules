@@ -1,0 +1,8 @@
+# The bootloader that WCH builds into the CH555 (USB 4348:55e0): user access to its USB device node, which wch_isp.py
+# opens. The bootloader has no HID interface, so only the device node rule is needed.
+#   sudo cp util/udev/70-wch-isp.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload && sudo udevadm trigger
+# The 70- prefix matters: uaccess tags must be applied before 73-seat-late.rules.
+#
+# The same ID belongs to the bootloaders of WCH's other chips, so this rule also grants those.
+SUBSYSTEM=="usb", ATTR{idVendor}=="4348", ATTR{idProduct}=="55e0", MODE="0660", GROUP="plugdev", TAG+="uaccess"

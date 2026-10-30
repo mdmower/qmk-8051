@@ -437,15 +437,15 @@ def do_flash(a):
         print("waiting : up to %d s for the bootloader %04x:%04x; press Fn+Esc (QMK) ..."
               % (POLL_TIMEOUT, BOOT_VID, BOOT_PID), flush=True)
         hit = wait_for(BOOT_VID, BOOT_PID, POLL_TIMEOUT)
-        if hit and not wait_access(hit[0], 5):
-            raise SystemExit("no read/write access to %s (Linux: is the udev rule for %04x:%04x installed?)"
-                             % (hit[0], BOOT_VID, BOOT_PID))
         if hit:
             print("device  : %04x:%04x  node %s (interface 1, %s)" % (BOOT_VID, BOOT_PID, hit[0],
                                                                        usb_port(hit[1])))
     if not hit:
         raise SystemExit("bootloader not present")
     node, dev = hit
+    if not wait_access(node, 5):                  # udev applies the rule to a new node after sysfs lists it
+        raise SystemExit("no read/write access to %s (Linux: is the udev rule for %04x:%04x installed?)"
+                         % (node, BOOT_VID, BOOT_PID))
     fd = open_node(node)
     try:
         try:

@@ -10,6 +10,8 @@ else ifeq ($(strip $(BOOTLOADER)), evision-oem)
 	$(UNSYNC_OUTPUT_CMD) && $(EVISION_FLASH) flash $(BUILD_DIR)/$(TARGET).bin --poll --send
 else ifeq ($(strip $(BOOTLOADER)), sinowealth-isp)
 	$(UNSYNC_OUTPUT_CMD) && $(SINOWEALTH_FLASH) flash $(BUILD_DIR)/$(TARGET).hex --send
+else ifeq ($(strip $(BOOTLOADER)), wch-isp)
+	$(UNSYNC_OUTPUT_CMD) && $(WCH_ISP_FLASH) flash $(BUILD_DIR)/$(TARGET).bin --poll --send
 else
 	$(PRINT_OK); $(SILENT) || printf "$(MSG_FLASH_BOOTLOADER)"
 endif

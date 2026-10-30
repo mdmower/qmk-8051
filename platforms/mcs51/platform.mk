@@ -20,6 +20,7 @@ BIN = $(OBJCOPY) -I elf32-little -O binary
 EVISION_OEM_IMAGE = $(TOP_DIR)/util/evision_oem_image.py
 EVISION_FLASH = $(TOP_DIR)/util/evision_flash.py
 SINOWEALTH_FLASH = $(TOP_DIR)/util/sinowealth_flash.py
+WCH_ISP_FLASH = $(TOP_DIR)/util/wch_isp.py
 EEP =
 
 MCUFLAGS = -mmcs51 --model-large
@@ -99,6 +100,9 @@ ifeq ($(strip $(BOOTLOADER)), evision-oem)
 endif
 ifeq ($(strip $(BOOTLOADER)), sinowealth-isp)
     MCS51_IMAGE_CHECK = $(SINOWEALTH_FLASH) check
+endif
+ifeq ($(strip $(BOOTLOADER)), wch-isp)
+    MCS51_IMAGE_CHECK = $(WCH_ISP_FLASH) check
 endif
 ifneq ($(MCS51_IMAGE_CHECK),)
 cpfirmware_qmk: check-image
