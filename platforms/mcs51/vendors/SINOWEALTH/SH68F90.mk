@@ -24,3 +24,7 @@ ifeq ($(strip $(EEPROM_DRIVER)), vendor)
 endif
 SRC += $(SINOWEALTH_VENDOR_DIR)/mcu_reset.c
 SRC += $(SINOWEALTH_VENDOR_DIR)/hardware_id.c
+# Seven 24-byte ranges of code flash where an instruction that accesses external RAM fails hold 0xA5
+# (flash_reserved.c); each object's code is its own area, so that the linker places the objects around them.
+SRC += $(SINOWEALTH_VENDOR_DIR)/flash_reserved.c
+CFLAGS += --codeseg-per-object

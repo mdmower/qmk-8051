@@ -24,7 +24,9 @@ Safety:
   * Dry run by default: nothing is sent without --send.
   * Never writes the bootloader: only 30 pages from 0x0000 (0x0000-0xEFFF) are written, and the bootloader itself does
     not write above 0xEFFF.
-  * Image checks: an LJMP at 0x0000 to an address below 0xEFFB, zeros at 0xEFFB-0xEFFF, nothing at or above 0xF000 (the
+  * Image checks: an LJMP at 0x0000 to an address below 0xEFFB, zeros at 0xEFFB-0xEFFF, 0xA5 at the seven reserved
+    ranges 0x10F0-0x1107, 0x30F0-0x3107, ... 0xD0F0-0xD107 (an instruction that accesses external RAM fails at
+    0x10FE-0x1107 and at the same offset of the other 8 KB blocks, Sinowealth), nothing at or above 0xF000 (the
     firmware region of a full 64 KB backup is used), and the jump into the ISP bootloader (clr EA, mov B,#0xA5,
     mov A,#0x5A, ljmp 0xFF00) somewhere in the image, so that a flashed image that starts can enter ISP mode again.
   * Before the erase, reads the bootloader's first page and checks its first instructions: the transfer report, its page
@@ -79,6 +81,8 @@ CMD_ENABLE, CMD_READ, CMD_WRITE, CMD_ERASE, CMD_REBOOT = 0x55, 0x52, 0x57, 0x45,
 XFER_READ, XFER_WRITE = 0x72, 0x77
 ISP_JUMP = bytes.fromhex("c2af75f0a5745a02ff00")   # clr EA; mov B,#0xA5; mov A,#0x5A; ljmp 0xFF00
 BOOT_PROLOGUE = bytes.fromhex("c2af758170")         # clr EA; mov SP,#0x70
+RESERVED = range(0x10f0, FW_SIZE, 0x2000)   # 24 bytes from each: no code, 0xA5 (the OVL reset opcode)
+RESERVED_LEN = 24
 BOOT_ISP_REPORT = bytes.fromhex(                    # the collection of report 6 in the bootloader's descriptor
     "0600ff0901a1018506150025ff190129027508960108b102c0")
 ISP_TIMEOUT = 10                         # seconds to wait for ISP mode after 05 75
@@ -171,6 +175,11 @@ def load_image(path):
     if jump < 0:
         raise SystemExit("%s: no jump into the ISP bootloader (%s) in the image; after a flash the board could not "
                          "enter ISP mode again" % (path, ISP_JUMP.hex(" ")))
+    bad = [a for a in RESERVED if img[a:a + RESERVED_LEN] != b"\xa5" * RESERVED_LEN]
+    if bad:
+        raise SystemExit("%s: 0x%04X-0x%04X is not all 0xA5 (%s); an instruction that accesses external RAM fails at "
+                         "these code addresses (Sinowealth), so the 24 bytes from 0x10F0 of every 8 KB block must hold "
+                         "0xA5 and no code" % (path, bad[0], bad[0] + RESERVED_LEN - 1, img[bad[0]:bad[0] + RESERVED_LEN].hex(" ")))
     sha = hashlib.sha256(img).hexdigest()
     info = {"path": path, "full": full, "used": used, "entry": entry, "jump": jump, "sha256": sha}
     if full:

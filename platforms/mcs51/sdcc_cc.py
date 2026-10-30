@@ -22,6 +22,9 @@ Compile (`-c`):
   5. Assemble OBJ.asm to OBJ (sdas8051; SDCC's .rel format).
   A file with SDCC inline assembly (`__asm` ... `__endasm`, which clang cannot read) skips steps 2 and 3: its
   definitions count as strong, and it is not checked.
+  With --codeseg-per-object the code of each object is its own area, CSEG_ and the object's path, so that the
+  linker places the objects' code around absolute code areas (an MCU's reserved addresses, in its vendor files)
+  instead of one code area that must fit between them. The link then orders the objects (step 4).
 
 Link (`--output ELF`):
   1. Weak symbols: a global defined in several objects, where every definition but one is weak, keeps the
@@ -36,6 +39,14 @@ Link (`--output ELF`):
      it, matches the linked code.
   3. Link with sdcc (the module with main() first) to ELF's name with .ihx, then convert the .ihx to ELF with
      objcopy, so that QMK's .hex/.bin rules work. An undefined global stops the link (sdld only warns).
+  4. With per-object code areas and absolute code areas: sdld places the relocatable areas one after another in
+     link order; an area that would overlap an absolute area goes past it, to an address up to 31 bytes after
+     its end (sdld scans a bitmap in 32-bit words), which leaves the space before the absolute area unused. So
+     the link runs twice: the first time with the code size relaxed to 64 KB, only for the end of the areas that
+     precede the objects' (HOME, GSINIT, GSFINAL, CSEG, CONST, XINIT, main's) in its map; then the objects are
+     ordered so that each space is filled with the largest areas that fit (`pack_code_areas`, area sizes from
+     the .rel files; after a skipped absolute area the next address is taken as 32 bytes after its end, which
+     the real one never exceeds), and the link runs again with the code size given.
 
 Other GCC options that SDCC does not have (-W, -O, -f, -g, -std, -l, -Wl) are ignored; the platform sets SDCC's
 own options (platform.mk). clang, clang-query and llvm-nm: CLANG, CLANG_QUERY, LLVM_NM.
@@ -96,6 +107,7 @@ class Args:
         self.dep = None  # (file, phony)
         self.dce = True
         self.dce_keep = []
+        self.codeseg_per_object = False
         dep_file, dep_phony, dep_mmd = None, False, False
         i = 0
         while i < len(argv):
@@ -125,6 +137,8 @@ class Args:
                 i += 1  # C only
             elif a == "--no-dce":
                 self.dce = False
+            elif a == "--codeseg-per-object":
+                self.codeseg_per_object = True
             elif a.startswith("--dce-keep="):
                 self.dce_keep.append(a.split("=", 1)[1])
             elif a in VALUE_OPTS:
@@ -183,6 +197,17 @@ def clang_analysis(src, ana, base):
     return weak
 
 
+def code_area_name(obj):
+    """CSEG_ and the object's path below the build's object directory (the last obj_* component), with non-word
+    characters as _."""
+    parts = os.path.normpath(obj[:-2] if obj.endswith(".o") else obj).split(os.sep)
+    for i in range(len(parts) - 1, -1, -1):
+        if parts[i].startswith("obj_"):
+            parts = parts[i + 1:]
+            break
+    return "CSEG_" + re.sub(r"\W", "_", "_".join(parts))
+
+
 def compile_c(args):
     if len(args.inputs) != 1 or not args.output:
         die("compile needs one input and -o")
@@ -210,6 +235,8 @@ def compile_c(args):
     cc = list(args.cc)
     if weak:
         cc.append("--nopurity")
+    if args.codeseg_per_object:
+        cc += ["--codeseg", code_area_name(obj)]
     asm = base + ".asm"
     run([SDCC, "-S"] + cc + args.pp + [src, "-o", asm])
     if args.mode == "asm":
@@ -259,8 +286,9 @@ def weaken(asm_in, asm_out, names, tag):
             f.write(line)
 
 
-# Unused functions. A function is the CSEG text from its label (the first label after SDCC's `; function NAME`
-# comment) to the next function's label or the next .area line. It is kept when a kept function or anything
+# Unused functions. A function is the code area text (CSEG, or CSEG_<object> with --codeseg-per-object) from its
+# label (the first label after SDCC's `; function NAME` comment) to the next function's label or the next .area
+# line. It is kept when a kept function or anything
 # outside a function names it (calls, jumps, `mov dptr,#_f`, address tables, the interrupt vectors, GSINIT) or
 # one of the labels in its text. A function whose text does not end in a return or a jump (inline assembly, a
 # table), and code outside functions that does not, keep the function after them, into which they can run.
@@ -271,6 +299,7 @@ def weaken(asm_in, asm_out, names, tag):
 DCE_KEEP = ("putchar", "getchar", "_sdcc_external_startup")
 FUNC_RE = re.compile(r"^;\s+function (\S+)\s*$")
 AREA_RE = re.compile(r"^\s*\.area\s+(\w+)")
+CODE_AREA_RE = re.compile(r"^CSEG(_|$)")
 NAMED_LABEL_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)::?(?=\s|$)")
 EQU_RE = re.compile(r"^\s*[A-Za-z_][A-Za-z0-9_]*\s*=")
 SYM_RE = re.compile(r"(?<![\w$.])(_[A-Za-z0-9_]+)")
@@ -307,6 +336,7 @@ class AsmModule:
         self.globl = set()
         alloc_by_name, alloc_fn = {}, None
         area, header, cur, last, top_last = None, None, None, None, None
+        in_code = False
         ends, order = {}, []
         for i, line in enumerate(lines):
             m = ALLOC_HDR_RE.match(line)
@@ -327,22 +357,23 @@ class AsmModule:
                 continue
             m = AREA_RE.match(c)
             label = NAMED_LABEL_RE.match(c)
-            if m or (label and area == "CSEG" and header is not None):
+            if m or (label and in_code and header is not None):
                 if cur is not None:
                     self.funcs[cur][1] = i
                     ends[cur] = last is not None and bool(END_RE.match(last))
                     if m and not ends[cur]:
-                        die("%s: function %s runs into the end of its CSEG" % (obj, cur))
+                        die("%s: function %s runs into the end of its code area" % (obj, cur))
                 cur = None
             if m:
                 area, top_last = m.group(1), None
+                in_code = bool(CODE_AREA_RE.match(area))
                 order.append(None)
                 continue
             m = GLOBL_RE.match(c)
             if m:
                 self.globl.add(m.group(1))
                 continue
-            if label and area == "CSEG" and header is not None:
+            if label and in_code and header is not None:
                 cur, last = label.group(1), None
                 if top_last is not None and not END_RE.match(top_last):
                     self.top.add(cur)
@@ -365,14 +396,14 @@ class AsmModule:
                 self.refs[cur] |= named_syms(c)
             else:
                 self.top |= named_syms(c)
-                if area == "CSEG":
+                if in_code:
                     rest = c[label.end():].lstrip(":") if label else c
                     if rest.strip():
                         top_last = rest
         if cur is not None:
             ends[cur] = last is not None and bool(END_RE.match(last))
             if not ends[cur]:
-                die("%s: function %s runs into the end of its CSEG" % (obj, cur))
+                die("%s: function %s runs into the end of its code area" % (obj, cur))
         for a, b in zip(order, order[1:]):
             if a is not None and b is not None and not ends[a]:
                 self.falls[a] = b
@@ -489,6 +520,77 @@ def dce(mods, keep):
     return changed, report
 
 
+REL_AREA_RE = re.compile(r"^A (\S+) size ([0-9A-Fa-f]+) flags ([0-9A-Fa-f]+) addr ([0-9A-Fa-f]+)")
+MAP_AREA_RE = re.compile(r"^(\S+)\s+([0-9A-F]{8})\s+([0-9A-F]{8})\s+=\s+\d+\. bytes \((ABS|REL),CON,CODE\)")
+AREA_ABS, AREA_CODE = 0x08, 0x20
+
+
+def rel_areas(rel):
+    """{area: (size, flags, addr)} from the header of a .rel file"""
+    areas = {}
+    with open(rel, encoding="utf-8", errors="surrogateescape") as f:
+        for line in f:
+            m = REL_AREA_RE.match(line)
+            if m:
+                areas[m.group(1)] = (int(m.group(2), 16), int(m.group(3), 16), int(m.group(4), 16))
+            elif line.startswith("T "):
+                break
+    return areas
+
+
+def code_layout(rels):
+    """(holes, items, main_area) of the link of rels: the absolute code areas as (start, end), the other
+    objects' code areas (CSEG_*) as (size, name, rel), the first object's code area; None when there is no
+    absolute code area or no per-object area."""
+    holes, items, main_area = [], [], None
+    for i, rel in enumerate(rels):
+        for name, (size, flags, addr) in rel_areas(rel).items():
+            if flags & AREA_CODE and flags & AREA_ABS and size:
+                holes.append((addr, addr + size))
+            elif CODE_AREA_RE.match(name) and name != "CSEG":
+                if i == 0:
+                    main_area = name
+                else:
+                    items.append((size, name, rel))
+    if not holes or not items:
+        return None
+    return sorted(set(holes)), items, main_area
+
+
+# The address sdld gives an area that it moves past an absolute area is at most this far after the area's end
+SKIP_SLACK = 32
+
+
+def pack_code_areas(rels, layout, map_path):
+    """Link order of rels (the first stays first) in which the objects' code areas fill the code space before
+    each absolute code area, from layout (code_layout) and the first link's map."""
+    holes, items, main_area = layout
+    items = list(items)
+    prefix = {"HOME", "GSFINAL", "CSEG", "CONST", "XINIT", main_area}
+    end = 0
+    with open(map_path, encoding="utf-8", errors="surrogateescape") as f:
+        for line in f:
+            m = MAP_AREA_RE.match(line)
+            if m and (m.group(1) in prefix or m.group(1).startswith("GSINIT")) and m.group(4) == "REL":
+                end = max(end, int(m.group(2), 16) + int(m.group(3), 16))
+    order, cur = [], end
+    items.sort(key=lambda it: (-it[0], it[1]))
+    while items:
+        ahead = [h for h in holes if h[1] + SKIP_SLACK > cur]
+        if ahead and ahead[0][0] <= cur:
+            cur = ahead[0][1] + SKIP_SLACK
+            continue
+        space = ahead[0][0] - cur if ahead else None
+        pick = next((it for it in items if space is None or it[0] <= space), None)
+        if pick is None:
+            cur = ahead[0][1] + SKIP_SLACK
+            continue
+        items.remove(pick)
+        order.append(pick[2])
+        cur += pick[0]
+    return [rels[0]] + order
+
+
 def link(args):
     if not args.output:
         die("link needs --output")
@@ -578,17 +680,33 @@ def link(args):
         die("main() must be defined once")
     rels.remove(main_rel[0])
     rels.insert(0, main_rel[0])
-    for ext in (".ihx", ".map", ".mem"):
-        if os.path.exists(base + ext):
-            os.remove(base + ext)
-    r = subprocess.run([SDCC] + args.cc + rels + ["-o", ihx], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    log = r.stdout.decode(errors="replace")
-    sys.stdout.write(log)
-    if r.returncode != 0:
-        sys.exit(r.returncode)
-    if "Undefined Global" in log:
-        os.remove(ihx)
-        die("undefined global symbols (above)")
+    def sdld(order, cc):
+        for ext in (".ihx", ".map", ".mem"):
+            if os.path.exists(base + ext):
+                os.remove(base + ext)
+        r = subprocess.run([SDCC] + cc + order + ["-o", ihx], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        log = r.stdout.decode(errors="replace")
+        if r.returncode != 0:
+            sys.stdout.write(log)
+            sys.exit(r.returncode)
+        if "Undefined Global" in log:
+            os.remove(ihx)
+            sys.stdout.write(log)
+            die("undefined global symbols (above)")
+        if "?ASlink-Error" in log:
+            os.remove(ihx)
+            sys.stdout.write(log)
+            die("linker error (above)")
+        return log
+
+    layout = code_layout(rels)
+    if layout is not None:
+        relaxed = list(args.cc)
+        if "--code-size" in relaxed:
+            relaxed[relaxed.index("--code-size") + 1] = "0x10000"
+        sdld(rels, relaxed)
+        rels = pack_code_areas(rels, layout, base + ".map")
+    sys.stdout.write(sdld(rels, args.cc))
     run([OBJCOPY, "-I", "ihex", "-O", "elf32-little", ihx, out])
 
 
