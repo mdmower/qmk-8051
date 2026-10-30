@@ -456,6 +456,11 @@ bool process_tapping(keyrecord_t *keyp) {
                             break;
                         case ACT_LAYER_TAP:
                         case ACT_LAYER_TAP_EXT:
+#    ifdef __SDCC
+                            // SDCC accepts case ranges only from C2y, and even then makes one case label per value
+                            // (https://sourceforge.net/p/sdcc/feature-requests/1038/)
+                            if (action.layer_tap.code < OP_TAP_TOGGLE || action.layer_tap.code == OP_ON_OFF || action.layer_tap.code == OP_OFF_ON || action.layer_tap.code == OP_SET_CLEAR) return false;
+#    else
                             switch (action.layer_tap.code) {
                                 case 0 ...(OP_TAP_TOGGLE - 1):
                                 case OP_ON_OFF:
@@ -463,6 +468,7 @@ bool process_tapping(keyrecord_t *keyp) {
                                 case OP_SET_CLEAR:
                                     return false;
                             }
+#    endif
                             break;
                     }
                     // Release of key should be process immediately.
