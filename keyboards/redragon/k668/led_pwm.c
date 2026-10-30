@@ -16,6 +16,8 @@ _Static_assert(LED_FX_COLUMNS == LED_PWM_COLUMNS && LED_FX_ROWS == LED_PWM_ROWS,
 /* Key inputs with pull-up: matrix columns 0-3 P7.0-P7.3, columns 4 and 5 P5.3 and P5.4 */
 #define KEYS_P7 0x0F
 #define KEYS_P5 0x18
+/* The key inputs as INT4 channels: P7.0 INT40, P7.1 INT41, P7.2 INT44, P7.3 INT45, P5.3 INT46, P5.4 INT47 */
+#define KEYS_INT4 0xF3
 /* LED channel pins: P1.0-P1.5, P2.0-P2.5, P3.0-P3.5, P7.5-P7.7 */
 #define CHANNELS_P123 0x3F
 #define CHANNELS_P7 0xE0
@@ -268,6 +270,38 @@ void led_pwm_stop(void) {
     P4 |= ROWS_P4;
     P7 |= ROWS_P7;
     P0 |= ROWS_P0;
+}
+
+/* Before the MCU powers down in USB suspend: the LEDs and the key scan off, every matrix row low, so that a pressed key
+ * pulls its input low; with key_wake, a falling edge on a key input wakes the MCU through INT4. */
+void sh68f90_sleep_enter_kb(bool key_wake) {
+    led_pwm_stop();
+    P6 &= ~ROWS_P6;
+    P5 &= ~ROWS_P5;
+    P4 &= ~ROWS_P4;
+    P7 &= ~ROWS_P7;
+    P0 &= ~ROWS_P0;
+    if (key_wake) {
+        EXF0 = (EXF0 & ~MASK_IT4) | 0x40; /* IT4 = 01: falling edge */
+        EXF1 = 0;
+        IENC = KEYS_INT4;
+        EX4  = 1;
+    }
+}
+
+/* After the wake: INT4 off, then the key scan and the LEDs as at the start. */
+void sh68f90_sleep_exit_kb(void) {
+    EX4  = 0;
+    IENC = 0;
+    EXF1 = 0;
+    led_pwm_init();
+}
+
+/* A key press woke the MCU (sh68f90_sleep_enter_kb()). INT4's flags are cleared by software only; the handler also
+ * turns INT4 off, since one wake is enough. */
+MCS51_ISR(led_pwm_key_wake_isr, INT_NO_INT4) {
+    EX4  = 0;
+    EXF1 = 0;
 }
 
 /* Slot c * 7 + r is the LED in row r of column c. */

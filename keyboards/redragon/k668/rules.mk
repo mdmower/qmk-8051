@@ -6,7 +6,7 @@ KEYBOARD_SHARED_EP = yes
 SRC += led_pwm.c matrix.c
 # Lighting effects
 SRC += keyboards/redragon/common/led_fx.c
-# The PWM0 interrupt handler's declaration, for SDCC's vector table
+# The declarations of the PWM0 and INT4 interrupt handlers, for SDCC's vector table
 MCS51_ISR_HEADERS += led_pwm.h
 
 # USB serial number, optional: qmk compile ... -e SERIAL_NUMBER=<serial>. Without it, the serial number is the

@@ -26,6 +26,7 @@ void led_pwm_init(void);
 /* Turns the LEDs off and stops the key scan. */
 void led_pwm_stop(void);
 
-/* Declared here so that main.c, which includes this (MCS51_ISR_HEADERS in rules.mk), puts it in the interrupt
+/* Declared here so that main.c, which includes this (MCS51_ISR_HEADERS in rules.mk), puts them in the interrupt
  * vector table. */
 void led_pwm_isr(void) __interrupt(INT_NO_PWM0);
+void led_pwm_key_wake_isr(void) __interrupt(INT_NO_INT4);

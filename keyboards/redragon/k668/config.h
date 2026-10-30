@@ -10,6 +10,9 @@
 /* The lighting settings are saved in the keyboard's EEPROM data block: LED_FX_SAVE_SIZE bytes (led_fx.h). */
 #define EECONFIG_KB_DATA_SIZE 12
 
+/* MCU power-down in USB suspend; the keys wake it if the host enabled remote wake-up (led_pwm.c) */
+#define SH68F90_SUSPEND_SLEEP
+
 /* Win Lock LED, active low */
 #define LED_WIN_LOCK_PIN PORT4_7
 

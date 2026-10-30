@@ -119,7 +119,6 @@ The side lights run along the left side, the front edge, and the right side of t
 These are in addition to the limitations listed in the [top-level readme](../../../readme.md#known-limitations).
 
 - **NKRO does not send F21–F24 or the international and language keys:** The NKRO report has room for every key of the K668. Keycodes above F20, such as F21–F24 and the international and language keys, are sent only while NKRO is off.
-- **No low-power suspend:** While the host is suspended, the LEDs are off, but the MCU keeps running and the keyboard draws more current than USB allows in suspend. Waking the host with a key press works.
 - **No console:** `print` and the QMK console are not available.
 
 ## Flash space
