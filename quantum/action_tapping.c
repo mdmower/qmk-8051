@@ -1,5 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
+#ifdef __SDCC
+#    include <string.h>
+#endif
 
 #include "action.h"
 #include "action_layer.h"
@@ -59,7 +62,12 @@ typedef struct {
     uint8_t  mods;
 } speculative_key_t;
 #        define SPECULATIVE_KEYS_SIZE 8
+#        ifdef __SDCC
+// SDCC 4.6.0 rejects {} for an array of structs
+static speculative_key_t speculative_keys[SPECULATIVE_KEYS_SIZE];
+#        else
 static speculative_key_t speculative_keys[SPECULATIVE_KEYS_SIZE] = {};
+#        endif
 static uint8_t           num_speculative_keys                    = 0;
 static uint8_t           prev_speculative_mods                   = 0;
 static uint8_t           speculative_mods                        = 0;
@@ -71,7 +79,12 @@ static void speculative_key_press(keyrecord_t *record);
 #    if defined(CHORDAL_HOLD) || defined(FLOW_TAP_TERM)
 #        define REGISTERED_TAPS_SIZE 8
 // Array of tap-hold keys that have been settled as tapped but not yet released.
+#        ifdef __SDCC
+// SDCC 4.6.0 rejects {} for an array of structs
+static keypos_t registered_taps[REGISTERED_TAPS_SIZE];
+#        else
 static keypos_t registered_taps[REGISTERED_TAPS_SIZE] = {};
+#        endif
 static uint8_t  num_registered_taps                   = 0;
 
 /** Adds `key` to the registered_taps array. */
@@ -129,8 +142,17 @@ static bool     flow_tap_expired      = true;
 static bool flow_tap_key_if_within_term(keyrecord_t *record, uint16_t prev_time);
 #    endif // defined(FLOW_TAP_TERM)
 
+#    ifdef __SDCC
+// SDCC 4.6.0 rejects {} and {0} for keyrecord_t, whose first member is a struct, also in a compound literal (errors
+// 47 and 35)
+static keyrecord_t tapping_key;
+static keyrecord_t waiting_buffer[WAITING_BUFFER_SIZE];
+#        define CLEAR_TAPPING_KEY() memset(&tapping_key, 0, sizeof(tapping_key))
+#    else
 static keyrecord_t tapping_key                         = {};
 static keyrecord_t waiting_buffer[WAITING_BUFFER_SIZE] = {};
+#        define CLEAR_TAPPING_KEY() (tapping_key = (keyrecord_t){0})
+#    endif
 static uint8_t     waiting_buffer_head                 = 0;
 static uint8_t     waiting_buffer_tail                 = 0;
 
@@ -167,7 +189,7 @@ void action_tapping_process(keyrecord_t record) {
             ac_dprintf("OVERFLOW: CLEAR ALL STATES\n");
             clear_keyboard();
             waiting_buffer_clear();
-            tapping_key = (keyrecord_t){0};
+            CLEAR_TAPPING_KEY();
         }
     }
 
@@ -354,7 +376,7 @@ bool process_tapping(keyrecord_t *keyp) {
                     tapping_key.tap.count = 1;
                     registered_taps_add(tapping_key.event.key);
                     process_record(&tapping_key);
-                    tapping_key = (keyrecord_t){0};
+                    CLEAR_TAPPING_KEY();
 
                     waiting_buffer_chordal_hold_taps_until(event.key);
                     debug_registered_taps();
@@ -396,7 +418,7 @@ bool process_tapping(keyrecord_t *keyp) {
                     debug_waiting_buffer();
 #    endif // CHORDAL_HOLD
 
-                    tapping_key = (keyrecord_t){0};
+                    CLEAR_TAPPING_KEY();
                     debug_tapping_key();
                     // enqueue
                     return false;
@@ -465,7 +487,7 @@ bool process_tapping(keyrecord_t *keyp) {
                                 registered_taps_add(tapping_key.event.key);
                                 debug_registered_taps();
                                 process_record(&tapping_key);
-                                tapping_key = (keyrecord_t){0};
+                                CLEAR_TAPPING_KEY();
                             }
                         } else
 #    endif // CHORDAL_HOLD
@@ -490,7 +512,7 @@ bool process_tapping(keyrecord_t *keyp) {
                                 } else
 #    endif // CHORDAL_HOLD
                                 {
-                                    tapping_key = (keyrecord_t){0};
+                                    CLEAR_TAPPING_KEY();
                                 }
                                 debug_tapping_key();
 
@@ -550,7 +572,7 @@ bool process_tapping(keyrecord_t *keyp) {
                 debug_event(event);
                 ac_dprintf("\n");
                 process_record(&tapping_key);
-                tapping_key = (keyrecord_t){0};
+                CLEAR_TAPPING_KEY();
                 debug_tapping_key();
                 return false;
             } else {
@@ -561,7 +583,7 @@ bool process_tapping(keyrecord_t *keyp) {
                     ac_dprintf("Tapping: End. last timeout tap release(>0).");
                     keyp->tap = tapping_key.tap;
                     process_record(keyp);
-                    tapping_key = (keyrecord_t){0};
+                    CLEAR_TAPPING_KEY();
                     return true;
                 } else if (is_tap_record(keyp) && event.pressed) {
                     if (tapping_key.tap.count > 1) {
@@ -618,7 +640,7 @@ bool process_tapping(keyrecord_t *keyp) {
                     // Sequential tap can be interfered with other tap key.
 #    if defined(FLOW_TAP_TERM)
                     if (flow_tap_key_if_within_term(keyp, flow_tap_prev_time)) {
-                        tapping_key = (keyrecord_t){0};
+                        CLEAR_TAPPING_KEY();
                         debug_tapping_key();
                         return true;
                     }
@@ -645,7 +667,7 @@ bool process_tapping(keyrecord_t *keyp) {
             ac_dprintf("Tapping: End(Timeout after releasing last tap): ");
             debug_event(event);
             ac_dprintf("\n");
-            tapping_key = (keyrecord_t){0};
+            CLEAR_TAPPING_KEY();
             debug_tapping_key();
             return false;
         }
