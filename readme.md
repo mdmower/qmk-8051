@@ -26,7 +26,7 @@ This root readme covers information common to all of the above keyboards. See th
 **CH555 keyboards**
 
 - Entering the bootloader erases the boot marker. The keyboard stays in the bootloader until a flash completes, even if you replug the USB cable. Make sure you are ready to flash a firmware image before booting to the bootloader.
-- The CH555 has no write protection for the Evision bootloader region of flash storage. A single "enable" bit allows writes to all of code flash. Be careful when editing addresses in flash storage code; if you accidentally corrupt the bootloader, there is no tested means of restoring it via the WCH ISP.
+- The CH555 has no write protection for the Evision bootloader region of flash storage. A single "enable" bit allows writes to all of code flash. Be careful when editing addresses in flash storage code; if you accidentally corrupt the bootloader's code, the keyboard will no longer start. The recovery option (which is unproven on these keyboards) requires a hardware modification: hold pin P1.5 of the chip low while you plug in the keyboard. From there, it is possible to [flash through the WCH bootloader](#flashing-through-the-wch-bootloader-ch555-keyboards).
 
 **SH68F90A keyboards**
 
@@ -219,6 +219,65 @@ python -I util/sinowealth_flash.py flash ${KB}_stock.bin --send
 
 The script writes only the firmware region of the backup (0x0000–0xEFFF). The write is subsequently verified.
 
+## Flashing through the WCH bootloader (CH555 keyboards)
+
+The CH555 has a second bootloader, from WCH, the maker of the chip. It is at 0xF400, outside the range that the Evision bootloader erases, and it can write all of 0x0000–0xEFFF. An image you flash through it starts at 0x0000 instead of 0x2800, so it has about 10 KB more room. The first flash through the WCH bootloader erases the Evision bootloader together with the stock firmware. From then on, a dump of your keyboard's original flash is the only copy of the Evision bootloader you have, and flashing that dump is the only way to restore it.
+
+This is for people who want more space for their own keymap and accept a keyboard with only an ISP bootloader. The switch and the return to stock have been tested on a K580RGB and a K582RGB. The scripts run on Linux only: they reach the WCH bootloader through usbfs, which has no Windows counterpart. Additional udev rules (beyond those described in [Requirements](#requirements)) must be installed:
+
+```sh
+sudo cp util/udev/70-wch-isp.rules /etc/udev/rules.d/
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+### Build an image for the WCH bootloader
+
+Set the bootloader in your keymap's `rules.mk`:
+
+```make
+BOOTLOADER = wch-isp
+```
+
+and build as usual, for example with `python -I util/mcs51_build.py redragon/$KB mykeymap`. For a one-off build without a keymap of your own, pass `-e BOOTLOADER=wch-isp` to `qmk compile`. The build process checks the generated image with `util/wch_isp.py check`. Flash scripts only accept images they are designed to flash; `util/evision_flash.py` refuses an image built for the WCH bootloader and `util/wch_isp.py` refuses one built for the Evision bootloader.
+
+### Switch
+
+_Make sure you have a second keyboard available. From the moment the Evision bootloader starts until the switch is complete, this keyboard does not type._
+
+While the keyboard is running stock firmware, one command performs the switch:
+
+```sh
+python -I util/evision_wch_switch.py redragon_${KB}_mykeymap.bin ${KB}_full.bin --expect $QMK_ID --send
+# redragon_${KB}_mykeymap.bin is the QMK firmware built with BOOTLOADER=wch-isp
+# ${KB}_full.bin is the (recommended) filename of the stock flash dump to be output
+```
+
+The script reads a 64 KB dump of the flash into `${KB}_full.bin` and refuses to continue without it. It then starts the Evision bootloader and flashes a stepping stone image through it. The stepping stone is a small program whose purpose is to call the WCH bootloader. The script then flashes your image through the WCH bootloader. Run the command without `--send` first to see the keyboard's state and the steps the script would take.
+
+On a K580RGB, the WCH bootloader cannot read flash in the session that the stepping stone starts, so the script erases the flash, asks you to unplug the keyboard and plug it in again, and writes after that. On a K582RGB the script writes in the same session because the WCH bootloader on that chip can read flash in the same session.
+
+If a step fails, run the same command again. The script checks whether the keyboard is in the stock firmware, in the Evision bootloader, or in the WCH bootloader and continues from there (so long as the stock dump from the first run exists).
+
+### Flash the next image
+
+Fn+Esc, or Esc held while plugging in, now starts the WCH bootloader (USB VID:PID `4348:55e0`) instead of the Evision bootloader. Flash with `qmk flash`, or with:
+
+```sh
+python -I util/wch_isp.py flash redragon_${KB}_mykeymap.bin --expect $QMK_ID --send
+```
+
+Add `--poll` to start the command before you press Fn+Esc. On a K580RGB, the script asks you at every flash to unplug the keyboard and plug it in again once, as during the switch. If a flash fails after the erase, the keyboard starts the WCH bootloader every time you plug it in until a flash completes, so you can run the command again.
+
+### Restore the Evision bootloader and the stock firmware
+
+Flash the dump from the switch through the WCH bootloader:
+
+```sh
+python -I util/wch_isp.py flash ${KB}_full.bin --expect 320f:5000 --send
+```
+
+This writes 0x0000–0xEFFF of the dump: the Evision bootloader, the boot marker, and the stock firmware. The keyboard then starts the stock firmware, and the Evision bootloader can be used again as before. The data flash (0xF000–0xF3FF, which is not used by stock) is not written. If you want QMK's settings cleared from it, press Fn+Ctrl+Backspace before you restore.
+
 ## Using the keyboard
 
 ### Keymaps: `default` and `via`
@@ -258,7 +317,7 @@ Fn+Ctrl+Backspace clears all stored settings and then restarts the keyboard. In 
 - **Some features are turned off to save space:** See each keyboard's `config.h` and `rules.mk` to identify features that are disabled. Some are small enough to enable, but they would still require QMK core source edits to be compatible with SDCC.
 - **VIA lists keycodes for unsupported features:** Disabled features, and others such as mouse keys, may still be assignable in VIA. Most won't do anything when pressed. A few do: `LT(layer, key)` and `MT(mod, key)` send only their key, `OSM(mod)` acts as a plain modifier key, and `TT(layer)` acts as `TG(layer)`.
 - **No `rgb_matrix`:** QMK's `rgb_matrix` does not compile with SDCC. The keyboards have their own lighting code and VIA offers no lighting controls for them.
-- **Scripts run on Linux and Windows only:** The backup and flash scripts (`util/evision_dump.py`, `util/evision_flash.py`, `util/sinowealth_flash.py`) do not support macOS.
+- **Scripts run on Linux and Windows only:** The backup and flash scripts (`util/evision_dump.py`, `util/evision_flash.py`, `util/sinowealth_flash.py`) do not support macOS. The scripts for the WCH bootloader (`util/wch_isp.py`, `util/evision_wch_switch.py`) run on Linux only.
 
 ## Development
 
@@ -272,7 +331,7 @@ Fn+Ctrl+Backspace clears all stored settings and then restarts the keyboard. In 
 | 0x27C0        | Boot marker `AA 55 33 CC`, in the last page of the bootloader's region. The bootloader starts the application only if the marker is present. It is written after a successful flash. |
 | 0x2800–0xEFBF | Application: stock firmware and QMK. The bootloader erases and writes this range on every flash. The `via` keymap (and the K580's `macro` keymap) reserve a store at 0xDF40–0xEFBF.  |
 | 0xF000–0xF3FF | Data flash. QMK stores the keyboard's own settings here (e.g. lighting). Flashing does not erase this region. Stock firmware does not use this region.                               |
-| 0xF400–       | WCH factory ISP bootloader (`4348:55e0`). Flashing through the ISP bootloader is untested.                                                                                           |
+| 0xF400–       | WCH's bootloader (`4348:55e0`). `util/wch_isp.py` flashes through it, see [Flashing through the WCH bootloader](#flashing-through-the-wch-bootloader-ch555-keyboards).               |
 
 QMK images start with a check for Esc at 0x2803 and contain the interrupt table that the bootloader jumps to at 0x3000; both are added by `util/evision_oem_image.py`. The Esc check runs before QMK starts, so holding Esc (which is column P0.0 and row P4.0 on all CH555 keyboards) while plugging in the keyboard enters the bootloader even when a QMK app image fails.
 

@@ -46,5 +46,3 @@ SUBSYSTEMS=="usb", ATTRS{idVendor}=="0603", ATTRS{idProduct}=="1020", MODE="0660
 # bootloader with Fn+Esc, or hold Esc while plugging in the keyboard, before sinowealth_flash.py flash.
 KERNEL=="hidraw*", DEVPATH=="*:1.1/0003:5244:0668.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 KERNEL=="hidraw*", DEVPATH=="*:1.0/0003:5244:0668.*", MODE="0660", GROUP="plugdev", TAG+="uaccess"
-
-# The WCH factory ISP bootloader (4348:55e0) is not granted. Flashing through it overwrites the OEM bootloader.
