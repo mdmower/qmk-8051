@@ -30,6 +30,37 @@ static bool clear_armed = false;
 static uint16_t save_time;
 static bool     save_pending = false;
 
+#ifdef BOOTLOADER_WCH_ISP
+/* Esc held at power-up starts the bootloader, before USB starts. Esc is on the column P0.0 and the row P4.0; P4 is
+ * switched from LED drive to key input with pull-up for the read, and the mode registers are restored afterwards. */
+void keyboard_pre_init_kb(void) {
+    uint8_t         p4_led_key = P4_LED_KEY;
+    uint8_t         p4_mod_oc  = P4_MOD_OC;
+    uint8_t         p0_mod_oc  = P0_MOD_OC;
+    uint8_t         p0_dir_pu  = P0_DIR_PU;
+    __xdata uint8_t esc;
+
+    P4_LED_KEY = 0xFF;
+    P4_MOD_OC  = 0xFF;
+    P4_0       = 1;
+    P0_MOD_OC &= ~(uint8_t)1;
+    P0_DIR_PU |= 1;
+    P0_0 = 0;
+    wait_us(50);
+    esc  = !P4_0;
+    P0_0 = 1;
+    P0_DIR_PU  = p0_dir_pu;
+    P0_MOD_OC  = p0_mod_oc;
+    P4_MOD_OC  = p4_mod_oc;
+    P4_LED_KEY = p4_led_key;
+    if (esc) {
+        bootloader_jump();
+    }
+
+    keyboard_pre_init_user();
+}
+#endif
+
 void redragon_settings_changed(void) {
     save_pending = true;
     save_time    = timer_read();
