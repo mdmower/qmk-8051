@@ -47,8 +47,16 @@ Usage:
   python3 -I util/sinowealth_flash.py check IMAGE                    # validate an image (no device access)
   python3 -I util/sinowealth_flash.py backup OUT.bin [--send]        # read the 64 KB flash twice, save if equal
   python3 -I util/sinowealth_flash.py flash IMAGE [--send]           # erase, write, verify, enable, reboot
+  python3 -I util/sinowealth_flash.py flash IMAGE --settings BACKUP [--send]
+      # flash and restore settings from a backup
 IMAGE is Intel HEX (.hex, as qmk compile writes it) or binary: the firmware region (at most 61,440 B) or a full 64 KB
 backup, of which only the firmware region is written.
+
+QMK keeps its settings in an EEPROM store in code flash, below 0xEE00, which every flash erases. A backup of QMK made
+with this script includes that store. The --settings BACKUP argument extracts the EEPROM store from the backup and
+overlays it into the QMK image to be flashed. With a backup of another keymap, whose store has another size, the new
+firmware starts with its default settings, and the copy remains in flash outside its store. Later backups then contain
+two stores, and --settings refuses them until a flash without --settings.
 """
 import sys, os, re, glob, argparse, hashlib, struct, time, ctypes, importlib.util
 if sys.platform != "win32":
@@ -193,6 +201,74 @@ def print_image(info):
     print("          sha256 %s (firmware region)" % info["sha256"])
     if info["full"]:
         print("          full 64 KB backup: only 0x0000-0x%04X is written" % (FW_SIZE - 1))
+
+# --- QMK's EEPROM store (eeprom_sh68f90_code_flash.c) ----------------------------------------------------------
+# Two slots of whole 512-byte sectors that end at 0xEE00, the last sector boundary below the marker. A slot holds the
+# EEPROM data and a 16-byte header at the end of its last sector: 'Q' 'E', sequence number, data sum, check byte,
+# layout, sector count, zeros, and 0xA5 (16-bit values little-endian).
+SECTOR = 512
+STORE_END = MARKER & ~(SECTOR - 1)
+STORE_HEADER = 16
+
+def store_sum(data):
+    """Sum of a slot's data as the firmware computes it: rotate left by 1, then add, 16 bits."""
+    s = 0
+    for b in data:
+        s = ((s << 1 | s >> 15) + b) & 0xffff
+    return s
+
+def store_slot(fw, sectors, slot):
+    """(sequence number, layout) of a slot of this many sectors if its header and data sum are valid, else None. The
+    firmware also checks the layout."""
+    addr = STORE_END - (2 - slot) * sectors * SECTOR
+    size = sectors * SECTOR - STORE_HEADER
+    h = fw[addr + size:addr + size + STORE_HEADER]
+    if h[0:2] != b"QE" or h[15] != 0xa5 or h[9] != sectors:
+        return None
+    if h[6] != (0xff - (sum(h[:15]) - h[6])) & 0xff:
+        return None
+    if store_sum(fw[addr:addr + size]) != h[4] | h[5] << 8:
+        return None
+    return h[2] | h[3] << 8, h[7] | h[8] << 8
+
+def newest_slot(fw, path):
+    """(address, sectors, sequence number, layout) of the slot that the firmware in fw loads, or None."""
+    found = []
+    for sectors in range(1, STORE_END // (2 * SECTOR) + 1):
+        v0, v1 = store_slot(fw, sectors, 0), store_slot(fw, sectors, 1)
+        if v0 and (not v1 or 0 < (v0[0] - v1[0]) & 0xffff < 0x8000):   # as eeprom_driver_init()
+            found.append((STORE_END - 2 * sectors * SECTOR, sectors) + v0)
+        elif v1:
+            found.append((STORE_END - sectors * SECTOR, sectors) + v1)
+    if len(found) > 1:
+        raise SystemExit("%s: two EEPROM stores, with %s sectors per slot. A flash with --settings from a backup of "
+                         "another keymap leaves the copy outside the store of the new firmware. Flash once without "
+                         "--settings to remove it, and then make a new backup."
+                         % (path, " and ".join(str(f[1]) for f in found)))
+    return found[0] if found else None
+
+def add_settings(img, info, path):
+    """Return (image with the newest EEPROM slot of the backup at path as its slot 0, info) for flash --settings."""
+    fw, _ = load_image(path)
+    slot = newest_slot(fw, path)
+    if not slot:
+        raise SystemExit("%s: no valid QMK EEPROM slot below 0x%04X (a backup of other firmware, or of QMK before it "
+                         "first saved its settings)" % (path, STORE_END))
+    addr, sectors, seq, layout = slot
+    start, length = STORE_END - 2 * sectors * SECTOR, sectors * SECTOR
+    if any(img[start:STORE_END]):
+        last = max(a for a in range(start, STORE_END) if img[a])
+        raise SystemExit("the image has data at 0x%04X, inside 0x%04X-0x%04X, where the backup's store goes: the "
+                         "image's EEPROM is smaller than the backup's" % (last, start, STORE_END - 1))
+    out = bytearray(img)
+    out[start:start + length] = fw[addr:addr + length]
+    out = bytes(out)
+    info = dict(info, sha256=hashlib.sha256(out).hexdigest())
+    print("settings: %s: EEPROM %d B, layout 0x%04X, sequence %d, slot at 0x%04X -> slot 0 at 0x%04X-0x%04X"
+          % (path, length - STORE_HEADER, layout, seq, addr, start, start + length - 1))
+    print("          the firmware loads it only if its EEPROM has this size and layout")
+    print("          sha256 %s (firmware region with the settings)" % info["sha256"])
+    return out, info
 
 def bootloader_text(bl):
     md5 = hashlib.md5(bl).hexdigest()
@@ -527,6 +603,8 @@ def find_board():
 def do_flash(a):
     img, info = load_image(a.image)
     print_image(info)
+    if a.settings:
+        img, info = add_settings(img, info, a.settings)
     ids = [a.expect] if a.expect else list(APP_IDS)
     b = find_board()
     print("plan    : %s52 00 F0, read 1 page (check) -> 45 erase -> 57 00 00, write %d pages -> 52 00 00, read %d "
@@ -666,6 +744,9 @@ def main():
     p.add_argument("--expect", type=usb_id,
                    help="VID:PID the flashed firmware enumerates as (default: %s)"
                         % " or ".join("%04x:%04x" % i for i in APP_IDS))
+    p.add_argument("--settings", metavar="BACKUP",
+                   help="copy the newest copy of QMK's settings from BACKUP, a 64 KB backup made with the backup "
+                        "command, into the image")
     p.set_defaults(fn=do_flash)
     a = ap.parse_args()
     try:

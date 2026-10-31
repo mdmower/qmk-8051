@@ -61,7 +61,7 @@ VIA definition: [keymaps/via/redragon_k668_via.json](keymaps/via/redragon_k668_v
 
 ## Lighting
 
-Key lights and side lights are controlled independently. Lighting changes are saved 2 seconds after the last change. They are stored in code flash, so flashing a new image erases them and the keyboard then starts with the default lighting.
+Key lights and side lights are controlled independently. Lighting changes are saved 2 seconds after the last change. They are stored in code flash, which every flash erases. See [Back up and restore settings](#back-up-and-restore-settings) for an option on how to retain them.
 
 ### Key lighting
 
@@ -113,6 +113,26 @@ The side lights run along the left side, the front edge, and the right side of t
 | 5   | Reversed wave     | A rainbow that moves from the back right to the back left |
 | 6   | Color cycle       | All side lights cycle through colors together             |
 | 7   | Breathing         | All side lights fade in and out together                  |
+
+## Back up and restore settings
+
+The code flash store holds the lighting settings, whether Win Lock is on, and QMK's other settings. In the `via` keymap, it also holds the keymap and the macros. A flash erases the store, but you can copy it from a backup into the new image.
+
+Back up the keyboard while QMK is running. Wait 2 seconds after your last change, so that it is saved before the backup:
+
+```sh
+python -I util/sinowealth_flash.py backup k668_backup.bin --send
+```
+
+The script reboots the keyboard to the bootloader, reads the whole flash, and then restarts QMK. Then flash the new image, and give the backup with `--settings`:
+
+```sh
+python -I util/sinowealth_flash.py flash redragon_k668_default.hex --settings k668_backup.bin --expect 5244:0668 --send
+```
+
+The script copies the store from the backup into the image before it writes the image. **The backup and the new image must be of the same keymap.** If the backup was made from another keymap, you could end up with multiple stores, or worse, a store that overlaps application code.
+
+Be aware that QMK's VIA code resets the keymap and the macros if the firmware was built on a different day than the firmware under which they were saved. It does this so that a new build never reads VIA data that an older build may have stored in a different format. Save and restore VIA settings via usevia.app.
 
 ## Known limitations
 

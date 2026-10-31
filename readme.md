@@ -305,7 +305,7 @@ Notes about the code flash store:
 - Changes are saved 2 s after the last edit. When writing changes, old settings are erased only after the entire update has been written. In the event of a power loss during save, the last working copy of settings remains available.
 - The build script has a check that ensures app code does not overlap with the store.
 - Every QMK flash erases the entire application region in code flash, including the store. Save your layout in VIA and load it again after the flash.
-- CH555 keyboards keep their own settings (e.g. lighting) in data flash, which flashing does not erase. SH68F90A keyboards do not have a separate data flash region; their own settings are in the code flash store, which flashing erases.
+- CH555 keyboards keep their own settings (e.g. lighting) in data flash, which flashing does not erase. SH68F90A keyboards do not have a separate data flash region; their own settings are in the code flash store, which flashing erases. The keyboard's readme describes how to copy the store from a backup into a new image.
 
 ### Clearing saved settings
 
