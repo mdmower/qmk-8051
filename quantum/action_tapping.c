@@ -1038,6 +1038,29 @@ void flow_tap_update_last_event(keyrecord_t *record) {
     }
     // Ignore releases of modifiers and held layer switches.
     if (!record->event.pressed) {
+#        ifdef __SDCC
+        // SDCC accepts case ranges only from C2y, and even then makes one case label per value, which takes minutes
+        // for keycode ranges (https://sourceforge.net/p/sdcc/feature-requests/1038/)
+        if (IS_MODIFIER_KEYCODE(keycode) || IS_QK_MOMENTARY(keycode) || IS_QK_LAYER_TAP_TOGGLE(keycode)) {
+            return;
+        }
+#            ifndef NO_ACTION_ONESHOT
+        if (IS_QK_ONE_SHOT_MOD(keycode) || IS_QK_ONE_SHOT_LAYER(keycode)) {
+            return;
+        }
+#            endif
+#            ifdef TRI_LAYER_ENABLE
+        if (keycode == QK_TRI_LAYER_LOWER || keycode == QK_TRI_LAYER_UPPER) {
+            return;
+        }
+#            endif
+        if (IS_QK_MODS(keycode) && QK_MODS_GET_BASIC_KEYCODE(keycode) == KC_NO) {
+            return;
+        }
+        if ((IS_QK_MOD_TAP(keycode) || IS_QK_LAYER_TAP(keycode)) && record->tap.count == 0) {
+            return;
+        }
+#        else
         switch (keycode) {
             case MODIFIER_KEYCODE_RANGE:
             case QK_MOMENTARY ... QK_MOMENTARY_MAX:
@@ -1063,6 +1086,7 @@ void flow_tap_update_last_event(keyrecord_t *record) {
                 }
                 break;
         }
+#        endif
     }
 
     flow_tap_prev_keycode = keycode;
@@ -1112,6 +1136,12 @@ __attribute__((weak)) bool is_flow_tap_key(uint16_t keycode) {
     if ((get_mods() & (MOD_MASK_CG | MOD_BIT_LALT)) != 0) {
         return false; // Disable Flow Tap on hotkeys.
     }
+#        ifdef __SDCC
+    // SDCC accepts case ranges only from C2y, and even then makes one case label per value, which takes minutes
+    // for keycode ranges (https://sourceforge.net/p/sdcc/feature-requests/1038/)
+    const uint16_t tap_keycode = get_tap_keycode(keycode);
+    return tap_keycode == KC_SPC || (tap_keycode >= KC_A && tap_keycode <= KC_Z) || tap_keycode == KC_DOT || tap_keycode == KC_COMM || tap_keycode == KC_SCLN || tap_keycode == KC_SLSH;
+#        else
     switch (get_tap_keycode(keycode)) {
         case KC_SPC:
         case KC_A ... KC_Z:
@@ -1122,6 +1152,7 @@ __attribute__((weak)) bool is_flow_tap_key(uint16_t keycode) {
             return true;
     }
     return false;
+#        endif
 }
 
 __attribute__((weak)) uint16_t get_flow_tap_term(uint16_t keycode, keyrecord_t *record, uint16_t prev_keycode) {
