@@ -58,6 +58,14 @@ VIA definition: [keymaps/via/redragon_k589_via.json](keymaps/via/redragon_k589_v
 
 **VIA settings are stored in code flash. They are overwritten (reset) whenever you flash a new image. Be sure to save your customizations using VIA's save/load feature before flashing a new image!**
 
+## VIA keymap for the WCH bootloader (`via_isp`)
+
+The `via_isp` keymap is the `via` keymap built for the WCH bootloader. The image starts at 0x0000 instead of 0x2800, freeing about 10 KB. Features that are disabled in other keymaps to save space are enabled here: tap keys, one-shot keys, Grave Escape, Space Cadet, and Magic keycodes. The layers, the VIA definition, and the macro storage size are the same as in the `via` keymap.
+
+See [Flashing through the WCH bootloader](../../../readme.md#flashing-through-the-wch-bootloader-ch555-keyboards) for instructions on how to flash.
+
+**VIA settings are stored in code flash. They are overwritten (reset) whenever you flash a new image. Be sure to save your customizations using VIA's save/load feature before flashing a new image!**
+
 ## Lighting
 
 Lighting changes are saved 3 seconds after the last change and are stored in a dedicated data flash region that survives (is not erased) when flashing new images.
@@ -90,12 +98,13 @@ Lighting changes are saved 3 seconds after the last change and are stored in a d
 
 ## Flash space
 
-Remaining free space in the application region (0x2800–0xEFBF) for each keymap:
+Remaining free space in the application region for each keymap:
 
-- `default`: 23.4 KB
-- `via`: 9.9 KB before the code flash store
+- `default`: 23.4 KB (Evision bootloader)
+- `via`: 9.9 KB (Evision bootloader)
+- `via_isp`: 13.3 KB (WCH bootloader)
 
-The code flash store starts at 0xDF40 in the `via` keymap. Features that have been turned off to save space are listed in [config.h](config.h) and [rules.mk](rules.mk).
+The code flash store starts at 0xDF40 in the `via` keymap and at 0xDF80 in `via_isp`, which limits the free space listed above. Features that have been turned off to save space are listed in [config.h](config.h) and [rules.mk](rules.mk).
 
 ## Hardware
 
