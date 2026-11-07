@@ -102,7 +102,7 @@ static const uint32_t periodticks                               = RGB_MATRIX_MAX
 static const uint32_t freq                                      = (RGB_MATRIX_HUE_STEP * RGB_MATRIX_SAT_STEP * RGB_MATRIX_VAL_STEP * RGB_MATRIX_SPD_STEP * RGB_MATRIX_LED_PROCESS_LIMIT);
 static const pin_t    led_row_pins[SN32F2XX_RGB_MATRIX_ROWS_HW] = SN32F2XX_RGB_MATRIX_ROW_PINS; // We expect a R,B,G order here
 static const pin_t    led_col_pins[SN32F2XX_RGB_MATRIX_COLS]    = SN32F2XX_RGB_MATRIX_COL_PINS;
-static RGB            led_state[SN32F2XX_LED_COUNT];     // led state buffer
+static RGB            led_state[SN32F2XX_LED_COUNT + 1]; // led state buffer; the last entry stays off
 static RGB            led_state_buf[SN32F2XX_LED_COUNT]; // led state buffer
 bool                  led_state_buf_update_required = false;
 #ifdef UNDERGLOW_RBG // handle underglow with flipped B,G channels
@@ -121,6 +121,12 @@ bool matrix_can_read(void) {
 #endif // SHARED_MATRIX
 
 static void rgb_callback(PWMDriver *pwmp);
+
+// Returns the led_state index for a matrix position. The driver disables the hardware PWM channels on
+// every LED step and must enable each one again, so a position with no LED uses the last entry of led_state.
+static inline uint8_t led_state_index(uint8_t row, uint8_t col) {
+    return MIN(g_led_config.matrix_co[row][col], SN32F2XX_LED_COUNT);
+}
 
 #if !defined(SN32F2)
 #    error Driver is MCU specific to the Sonix SN32F2 family.
@@ -397,8 +403,8 @@ static void update_pwm_channels(PWMDriver *pwmp) {
     // Row of the pin enabled below. On the last channel of a row, current_key_row is the next row.
     uint8_t lit_row = current_row / SN32F2XX_RGB_MATRIX_ROW_CHANNELS;
     for (uint8_t current_key_col = 0; current_key_col < SN32F2XX_RGB_MATRIX_COLS; current_key_col++) {
-        uint8_t led_index = g_led_config.matrix_co[current_key_row][current_key_col];
-        uint8_t lit_index = g_led_config.matrix_co[lit_row][current_key_col];
+        uint8_t led_index = led_state_index(current_key_row, current_key_col);
+        uint8_t lit_index = led_state_index(lit_row, current_key_col);
 #    if (SN32F2XX_PWM_CONTROL == SOFTWARE_PWM)
         if (led_index >= SN32F2XX_LED_COUNT) continue;
 #    endif // SN32F2XX_PWM_CONTROL
@@ -494,7 +500,7 @@ static void update_pwm_channels(PWMDriver *pwmp) {
 
     bool enable_pwm_output = false;
     for (uint8_t current_key_row = 0; current_key_row < MATRIX_ROWS; current_key_row++) {
-        uint8_t led_index = g_led_config.matrix_co[current_key_row][current_key_col];
+        uint8_t led_index = led_state_index(current_key_row, current_key_col);
 #    if (SN32F2XX_PWM_CONTROL == SOFTWARE_PWM)
         if (led_index >= SN32F2XX_LED_COUNT) continue;
 #    endif
