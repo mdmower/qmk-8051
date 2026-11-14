@@ -1,5 +1,5 @@
-# clang-query matchers for constructs that SDCC 4.6.0 compiles to wrong code without a diagnostic (sdcc_cc.py runs
-# them on every file; a match stops the build). Each one was confirmed by running SDCC's code in s51.
+# clang-query matchers for constructs that SDCC 4.6.0 compiles to wrong code without an error (sdcc_cc.py runs them
+# on every file; a match stops the build). Each one was confirmed by running SDCC's code in s51.
 set output diag
 set bind-root false
 set traversal AsIs
@@ -13,16 +13,44 @@ match returnStmt(hasReturnValue(expr(hasType(hasUnqualifiedDesugaredType(recordT
 # One struct or union variable returned by two return statements of a function: the second return copies the
 # value from one byte before the variable.
 match functionDecl(returns(hasUnqualifiedDesugaredType(recordType())), hasDescendant(returnStmt(hasReturnValue(ignoringParenImpCasts(declRefExpr(to(varDecl().bind("v")))))).bind("first")), hasDescendant(returnStmt(unless(equalsBoundNode("first")), hasReturnValue(ignoringParenImpCasts(declRefExpr(to(varDecl(equalsBoundNode("v"))))))).bind("sdcc-struct-return-twice")))
-# A struct-valued ?: with a call operand: the selected result is copied through a code-space pointer.
-match conditionalOperator(hasType(hasUnqualifiedDesugaredType(recordType())), anyOf(hasTrueExpression(ignoringParenImpCasts(callExpr())), hasFalseExpression(ignoringParenImpCasts(callExpr())))).bind("sdcc-struct-conditional")
+# A struct-valued ?: with an operand other than a variable, a member without a call or a `*` in it (`w.m`, `p->m`,
+# `p->a.m`, `a[i].m`) or a compound literal: the result is wrong for a call (`c ? x : f()`), a dereference
+# (`c ? x : *p`) and an array element (`c ? x : a[1]`).
+let sdccPlainStruct ignoringParenImpCasts(anyOf(declRefExpr(to(varDecl())), memberExpr(unless(hasDescendant(callExpr())), unless(hasDescendant(unaryOperator(hasOperatorName("*"))))), compoundLiteralExpr()))
+match conditionalOperator(hasType(hasUnqualifiedDesugaredType(recordType())), unless(allOf(hasTrueExpression(sdccPlainStruct), hasFalseExpression(sdccPlainStruct)))).bind("sdcc-struct-conditional")
+match binaryConditionalOperator(hasType(hasUnqualifiedDesugaredType(recordType()))).bind("sdcc-struct-conditional")
+# A struct argument other than a variable, a member without a call or a `*` in it, an element of an array variable, a
+# compound literal or a ?: (sdcc-struct-conditional checks its operands): the callee receives wrong bytes from a call
+# (`use(f())`, `use(*f())`) and from a dereference (`use(*p)`, `use((n++, *p))`).
+match callExpr(hasAnyArgument(ignoringParenImpCasts(expr(hasType(hasUnqualifiedDesugaredType(recordType())), unless(anyOf(sdccPlainStruct, arraySubscriptExpr(hasBase(ignoringParenImpCasts(declRefExpr(to(varDecl(hasType(arrayType()))))))), conditionalOperator())))))).bind("sdcc-struct-argument")
 # The address of a compound literal at file scope: the literal is placed in code memory, a write through the
 # pointer never returns (__gptrput).
 match unaryOperator(hasOperatorName("&"), hasUnaryOperand(ignoringParens(compoundLiteralExpr())), hasAncestor(varDecl(hasGlobalStorage())), unless(hasAncestor(unaryExprOrTypeTraitExpr()))).bind("sdcc-static-compound-literal")
 match implicitCastExpr(hasCastKind("CK_ArrayToPointerDecay"), hasSourceExpression(ignoringParens(compoundLiteralExpr())), hasAncestor(varDecl(hasGlobalStorage())), unless(hasAncestor(unaryExprOrTypeTraitExpr()))).bind("sdcc-static-compound-literal")
-# A designated initializer that reaches a member of an anonymous struct or union (clang's implicit field): SDCC
-# stores wrong values (QMK's keymap_config_t initializer left NKRO off). A positional `{0}` is not affected.
-match initListExpr(hasType(hasUnqualifiedDesugaredType(recordType(hasDeclaration(recordDecl(hasParent(recordDecl(has(fieldDecl(isImplicit()))))))))), hasParent(initListExpr(hasSyntacticForm(initListExpr(has(designatedInitExpr())))))).bind("sdcc-anonymous-member-init")
+# A designated initializer that reaches a member of an anonymous struct or union (clang's implicit field) in a union,
+# or of an anonymous union in a struct: SDCC stores wrong values (QMK's keymap_config_t initializer left NKRO off).
+# An anonymous struct in a struct and a positional `{0}` are not affected.
+match initListExpr(hasType(hasUnqualifiedDesugaredType(recordType(hasDeclaration(recordDecl(anyOf(isUnion(), hasParent(recordDecl(isUnion()))), hasParent(recordDecl(has(fieldDecl(isImplicit()))))))))), hasParent(initListExpr(hasSyntacticForm(initListExpr(has(designatedInitExpr())))))).bind("sdcc-anonymous-member-init")
 # Arithmetic on a void pointer (GNU C: element size 1): SDCC takes the size as 0, so `p + n`, `p++` and `p += n`
-# leave the pointer where it was (warning 178 at some ++ only). The difference of two void pointers is right.
+# leave the pointer where it was (warning 178 only at ++ and -- of a generic pointer). The difference of two void
+# pointers is right.
 match unaryOperator(hasAnyOperatorName("++", "--"), hasUnaryOperand(hasType(pointerType(pointee(hasUnqualifiedDesugaredType(voidType())))))).bind("sdcc-void-pointer-arithmetic")
 match binaryOperator(hasAnyOperatorName("+", "-", "+=", "-="), hasEitherOperand(hasType(pointerType(pointee(hasUnqualifiedDesugaredType(voidType()))))), hasEitherOperand(hasType(isInteger()))).bind("sdcc-void-pointer-arithmetic")
+# sizeof (void) and sizeof of a void expression (GNU C: 1): SDCC gives 0.
+match sizeOfExpr(hasArgumentOfType(voidType())).bind("sdcc-sizeof-void")
+# An object declared extern in a block: a const object is read from data memory instead of code memory
+# (`extern const uint8_t t[4];`), and a function that also uses the file-scope declaration accesses two objects.
+match varDecl(hasAncestor(functionDecl()), unless(hasLocalStorage()), unless(isStaticLocal())).bind("sdcc-block-extern")
+# The value of an assignment to an 8-bit object from an 8-bit value of the other signedness, or from a negative
+# constant to an unsigned 8-bit object: the value has the type of the right operand (`i = u8 = s8;` with s8 = -1 sets
+# i to -1, not 255). Compound assignments are affected too. SDCC's char is unsigned, and sdcc_cc.py runs clang with
+# -funsigned-char.
+let sdccU8 qualType(isAnyCharacter(), isUnsignedInteger())
+let sdccS8 qualType(isAnyCharacter(), isSignedInteger())
+match binaryOperator(isAssignmentOperator(), hasParent(expr()), anyOf(allOf(hasLHS(hasType(sdccU8)), hasRHS(ignoringParenImpCasts(anyOf(expr(hasType(sdccS8)), unaryOperator(hasAnyOperatorName("-", "~")))))), allOf(hasLHS(hasType(sdccS8)), hasRHS(ignoringParenImpCasts(expr(hasType(sdccU8))))))).bind("sdcc-assignment-value")
+# A bitwise operator between a negative constant and a constant expression that SDCC folds to a char: a value of 128
+# to 255 is taken as negative (`-1 & (30 * 8)` is -16, not 240). A literal (`-1 & 240`) is right.
+let sdccConst expr(unless(hasDescendant(declRefExpr(to(varDecl())))), unless(hasDescendant(callExpr())))
+let sdccNegConst ignoringParenImpCasts(expr(sdccConst, anyOf(unaryOperator(hasOperatorName("-")), binaryOperator(hasOperatorName("-")))))
+let sdccFoldedConst ignoringParenImpCasts(expr(sdccConst, anyOf(binaryOperator(), cStyleCastExpr(hasType(isAnyCharacter()), hasSourceExpression(ignoringParenImpCasts(binaryOperator()))))))
+match binaryOperator(hasAnyOperatorName("&", "|", "^"), anyOf(allOf(hasLHS(sdccNegConst), hasRHS(sdccFoldedConst)), allOf(hasLHS(sdccFoldedConst), hasRHS(sdccNegConst)))).bind("sdcc-char-constant")

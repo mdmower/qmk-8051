@@ -33,7 +33,7 @@ For `evision-oem`, `sinowealth-isp`, and `wch-isp`, the bootloader's flash tool 
 
 QMK's make rules call the compiler with GCC's options. On this platform `$(CC)` is [sdcc_cc.py](../platforms/mcs51/sdcc_cc.py), a driver that accepts those options and runs SDCC so that QMK's compile and link rules work unchanged. The driver also runs three build steps that SDCC does not have:
 
-- **Weak symbol resolution.** SDCC has no weak linkage, and QMK relies on it for its many overridable functions. The driver compiles each preprocessed file with clang as well, lists the file's weak definitions, and at link time keeps the strong definition of each symbol and removes the weak ones. A file that contains weak definitions is compiled with `--nopurity`, because otherwise SDCC removes calls to an empty function defined in the same file, and a keymap's override would never be called. Files with SDCC inline assembly (`__asm` ... `__endasm`) cannot be read by clang; all their definitions count as strong.
+- **Weak symbol resolution.** SDCC has no weak linkage, and QMK relies on it for its many overridable functions. The driver compiles each preprocessed file with clang as well, lists the file's weak definitions, and at link time keeps the strong definition of each symbol and removes the weak ones. A file that contains weak definitions is compiled with `--nopurity`, because otherwise SDCC removes calls to an empty function defined in the same file, and a keymap's override would never be called. SDCC inline assembly (`__asm` ... `__endasm;`), which clang cannot read, is replaced by spaces in the text that clang reads.
 - **Checks for miscompiled code.** SDCC 4.6.0 compiles some valid C to incorrect code without a warning. Other SDCC versions may not have the same bugs, which is one reason SDCC 4.6.0 is required. The driver runs the matchers in [sdcc_check.query](../platforms/mcs51/sdcc_check.query) on every file with clang-query and stops the build when one matches. The constructs are listed in [Writing code for SDCC](#writing-code-for-sdcc).
 - **Removal of unused functions.** SDCC links every function of every object file, including the copies of `static inline` header functions that SDCC emits into each file that includes the header. At link time the driver removes functions that no reachable code or data refers to, similar to GCC's `--gc-sections`. The list of removed functions is written to `.build/<target>.dce.txt`.
 - **Code placement around reserved addresses.** With `--codeseg-per-object` in `CFLAGS` (set by the SH68F90A's `SH68F90.mk`), each object's code is its own area, `CSEG_` followed by the object's path, instead of one `CSEG`. SDCC's linker places the areas one after another; an area that would overlap an absolute code area, such as one of the SH68F90A's reserved flash ranges (`flash_reserved.c`), is placed past it, up to 31 bytes after its end, and the space before the absolute area stays unused. The driver links twice: the first time only to learn where the fixed areas end, the second time with the objects ordered so that the space before each absolute area is filled with the largest areas that fit. An object whose code is larger than the space between two absolute areas is placed after the last one.
@@ -70,14 +70,19 @@ A struct whose first member is an array must be zero-initialized with `{{0}}`. S
 
 The driver stops the build at each of these.
 
-| Construct                                                                                             | Write instead                                         |
-| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| A struct or union returned from anything other than a variable, such as `return f();` or `return *p;` | Assign the value to a local variable and return that. |
-| One struct or union variable returned by two `return` statements                                      | Return it from one statement.                         |
-| A struct-valued `?:` expression with a function call as an operand                                    | `if`/`else`                                           |
-| The address of a compound literal at file scope, `&(T){...}`                                          | A named object.                                       |
-| An initializer that names a member of an anonymous struct or union                                    | Assign the members.                                   |
-| Arithmetic on a `void *` (SDCC treats the element size as 0)                                          | A `uint8_t *`.                                        |
+| Construct                                                                                                                                     | Write instead                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| A struct or union returned from anything other than a variable, such as `return f();` or `return *p;`                                         | Assign the value to a local variable and return that. |
+| One struct or union variable returned by two `return` statements                                                                              | Return it from one statement.                         |
+| A struct-valued `?:` expression with an operand other than a variable, a member, or a compound literal, such as `c ? x : f()` or `c ? x : *p` | `if`/`else`                                           |
+| A struct argument other than a variable, a member, an element of an array variable, or a compound literal, such as `use(f())` or `use(*p)`    | Copy the value to a local variable and pass that.     |
+| The address of a compound literal at file scope, `&(T){...}`                                                                                  | A named object.                                       |
+| An initializer that names a member of an anonymous struct or union in a union, or of an anonymous union in a struct                           | Assign the members.                                   |
+| Arithmetic on a `void *` (SDCC treats the element size as 0)                                                                                  | A `uint8_t *`.                                        |
+| `sizeof (void)` or `sizeof` of a `void` expression (SDCC gives 0)                                                                             | `1`                                                   |
+| An `extern` declaration of an object in a block                                                                                               | A declaration at file scope.                          |
+| The value of an assignment to an 8-bit object from an 8-bit value of the other signedness or from a negative constant, such as `i = u8 = s8;` | Assign, then read the object.                         |
+| A bitwise operator between a negative constant and a constant expression with a binary operator, such as `-1 & (30 * 8)`                      | The result as one literal.                            |
 
 ### Functions
 

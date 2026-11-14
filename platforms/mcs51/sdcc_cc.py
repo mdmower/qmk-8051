@@ -10,18 +10,17 @@ which reads the same preprocessed text as SDCC:
 
 Compile (`-c`):
   1. Preprocess with sdcpp (`sdcc -E`) with GCC attributes kept (QMK_SDCC_ATTRIBUTES; sdcc_compat.h removes them
-     for SDCC) to OBJ.clang.i; the dependency file is written here.
-  2. Weak symbols: clang (target AVR: 16-bit int, 1-byte alignment, as SDCC's MCS-51 code; SDCC's keywords from
-     sdcc_clang.h) compiles OBJ.clang.i to LLVM bitcode; its weak definitions (llvm-nm: W, V) are listed in
-     OBJ.weak.
+     for SDCC) to OBJ.clang.i; the dependency file is written here. SDCC inline assembly (`__asm` ... `__endasm;`),
+     which clang cannot read, is replaced by spaces in OBJ.clang.i, with its line breaks kept.
+  2. Weak symbols: clang (target AVR: 16-bit int, 1-byte alignment, as SDCC's MCS-51 code; unsigned char, as
+     SDCC's; SDCC's keywords from sdcc_clang.h) compiles OBJ.clang.i to LLVM bitcode; its weak definitions (llvm-nm:
+     W, V) are listed in OBJ.weak.
   3. clang-query (sdcc_check.query) on OBJ.clang.i: an error for each construct that SDCC 4.6.0 compiles to wrong
-     code without a diagnostic.
+     code without an error of its own.
   4. Compile the source to OBJ.asm (`sdcc -S`). A file with weak definitions is compiled with --nopurity:
      otherwise SDCC drops calls to an empty function defined in the same file, and the weak definition would
      replace the one linked from another file.
   5. Assemble OBJ.asm to OBJ (sdas8051; SDCC's .rel format).
-  A file with SDCC inline assembly (`__asm` ... `__endasm`, which clang cannot read) skips steps 2 and 3: its
-  definitions count as strong, and it is not checked.
   With --codeseg-per-object the code of each object is its own area, CSEG_ and the object's path, so that the
   linker places the objects' code around absolute code areas (an MCU's reserved addresses, in its vendor files)
   instead of one code area that must fit between them. The link then orders the objects (step 4).
@@ -63,16 +62,26 @@ OBJCOPY = os.environ.get("OBJCOPY_SDCC", "objcopy")
 CLANG = os.environ.get("CLANG", "clang")
 CLANG_QUERY = os.environ.get("CLANG_QUERY", "clang-query")
 LLVM_NM = os.environ.get("LLVM_NM", "llvm-nm")
-CLANG_FLAGS = ["--target=avr", "-x", "c", "-std=gnu11", "-w", "-include", os.path.join(HERE, "sdcc_clang.h")]
+CLANG_FLAGS = ["--target=avr", "-x", "c", "-std=gnu11", "-funsigned-char", "-w", "-include",
+               os.path.join(HERE, "sdcc_clang.h")]
 CHECKS = {
     "sdcc-struct-return": "struct or union returned from an expression other than a variable (assign it to a "
                           "local variable and return that)",
     "sdcc-struct-return-twice": "one struct or union variable returned by two return statements (return it once)",
-    "sdcc-struct-conditional": "struct-valued ?: with a call operand (use if/else)",
+    "sdcc-struct-conditional": "struct-valued ?: with an operand other than a variable, a member or a compound literal "
+                               "(use if/else)",
+    "sdcc-struct-argument": "struct argument other than a variable, a member, an element of an array variable or a "
+                            "compound literal (copy it to a local variable and pass that)",
     "sdcc-static-compound-literal": "address of a compound literal at file scope (use a named object)",
     "sdcc-anonymous-member-init": "initializer that names a member of an anonymous struct or union (assign the "
                                   "members)",
     "sdcc-void-pointer-arithmetic": "arithmetic on a void pointer (use a uint8_t pointer)",
+    "sdcc-sizeof-void": "sizeof (void) or sizeof of a void expression (use 1)",
+    "sdcc-block-extern": "extern declaration in a block (declare it at file scope)",
+    "sdcc-assignment-value": "value of an assignment to an 8-bit object from the other signedness or from a negative "
+                             "constant (assign, then read the object)",
+    "sdcc-char-constant": "bitwise operator between a negative constant and a constant expression (write the result "
+                          "as one literal)",
 }
 
 # SDCC options that take a separate value
@@ -169,6 +178,35 @@ def tool(cmd, **kw):
         die("%s not found: the MCS-51 build needs clang, clang-query and llvm-nm (LLVM)" % cmd[0])
 
 
+# Tokens of preprocessed C for blank_sdcc_asm()
+C_TOKEN_RE = re.compile(rb'(?:u8|[uUL])?"(?:\\.|[^"\\\n])*"'  # string literal
+                        rb"|[uUL]?'(?:\\.|[^'\\\n])*'"  # character literal
+                        rb"|[A-Za-z_]\w*"  # identifier
+                        rb"|\.?\d(?:[eEpP][+-]|[\w.])*"  # preprocessing number
+                        rb"|.", re.S)
+ASM_END_RE = re.compile(rb"\b__endasm\b\s*;?")
+
+
+def blank_sdcc_asm(text):
+    """text (preprocessed C) with each SDCC inline assembly block, from the token __asm to __endasm and its semicolon,
+    replaced by spaces, line breaks kept, so that clang reads the C around the blocks at the same lines."""
+    out = bytearray(text)
+    pos = 0
+    while pos < len(text):
+        m = C_TOKEN_RE.match(text, pos)
+        pos = m.end()
+        if m.group() != b"__asm":
+            continue
+        end = ASM_END_RE.search(text, pos)
+        if not end:
+            break
+        for i in range(m.start(), end.end()):
+            if out[i] != 0x0A:
+                out[i] = 0x20
+        pos = end.end()
+    return bytes(out)
+
+
 def clang_analysis(src, ana, base):
     """Weak definitions of the preprocessed file ana (clang, llvm-nm); dies at a construct of sdcc_check.query."""
     bc = base + ".clang.bc"
@@ -190,7 +228,8 @@ def clang_analysis(src, ana, base):
         m = re.match(r'^(.*?:\d+:\d+): note: "(sdcc-[a-z-]+)" binds here', line)
         if m and m.group(2) in CHECKS:
             found.append("%s: %s" % (m.group(1), CHECKS[m.group(2)]))
-    if r.returncode != 0 and not found:
+    # clang-query stops at a command it cannot parse, so the matchers after it have not run, whatever matched before.
+    if r.returncode != 0:
         die("%s: clang-query failed:\n%s" % (src, r.stdout.decode(errors="replace")[-2000:]))
     if found:
         die("%s: SDCC 4.6.0 compiles these to wrong code:\n  %s" % (src, "\n  ".join(sorted(set(found)))))
@@ -222,10 +261,8 @@ def compile_c(args):
     if r.returncode != 0:
         sys.exit(r.returncode)
     with open(ana, "wb") as f:
-        f.write(r.stdout)
-    weak = set()
-    if b"__endasm" not in r.stdout:
-        weak = clang_analysis(src, ana, base)
+        f.write(blank_sdcc_asm(r.stdout))
+    weak = clang_analysis(src, ana, base)
     weak_file = base + ".weak"
     if weak:
         with open(weak_file, "w") as f:
